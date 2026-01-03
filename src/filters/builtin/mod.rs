@@ -12,6 +12,7 @@ mod constants;
 mod math;
 mod comparison;
 mod conversion;
+mod astro;
 
 use crate::filters::registry::FilterRegistry;
 
@@ -27,6 +28,7 @@ pub fn register_all(registry: &mut FilterRegistry) {
     math::register(registry);
     comparison::register(registry);
     conversion::register(registry);
+    astro::register(registry);
 }
 
 // Re-export for direct access
@@ -38,3 +40,4 @@ pub use composite::{Blend, Overlay};
 pub use utility::Preview;
 pub use constants::{IntegerConstant, FloatConstant, StringConstant, BooleanConstant, ColorConstant};
 pub use math::{Add, Subtract, Multiply, Divide, Modulo, Power, Min, Max, Clamp};
+pub use astro::{ImageStack, DarkFrameSubtract, FlatFieldCorrect, HotPixelRemoval, HistogramStretch};

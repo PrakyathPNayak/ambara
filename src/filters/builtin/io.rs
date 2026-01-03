@@ -474,6 +474,6 @@ mod tests {
         assert_eq!(metadata.id, "save_image");
         assert_eq!(metadata.category, Category::Output);
         assert_eq!(metadata.inputs.len(), 1);
-        assert_eq!(metadata.parameters.len(), 3);
+        assert_eq!(metadata.parameters.len(), 6);
     }
 }

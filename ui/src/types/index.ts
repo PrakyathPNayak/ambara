@@ -75,6 +75,10 @@ export interface FilterNodeData {
   parameters: ParameterValue[];
   isValid?: boolean;
   errorMessage?: string;
+  // Preview data (for preview nodes)
+  previewUrl?: string;
+  previewWidth?: number;
+  previewHeight?: number;
   [key: string]: unknown; // Index signature for ReactFlow
 }
 

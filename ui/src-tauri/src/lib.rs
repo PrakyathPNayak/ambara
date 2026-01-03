@@ -326,21 +326,47 @@ fn execute_graph(graph: GraphState) -> ExecutionResult {
 
     match engine.execute(&processing_graph, Some(options)) {
         Ok(result) => {
+            let mut outputs_map = HashMap::new();
+            
+            for (id, values) in &result.outputs {
+                // Find original UI node ID and filter type
+                let (ui_id, filter_type) = node_id_map.iter()
+                    .find(|(_, &v)| v == *id)
+                    .map(|(k, _)| {
+                        let filter_type = graph.nodes.iter()
+                            .find(|n| &n.id == k)
+                            .map(|n| n.data.filter_type.clone())
+                            .unwrap_or_default();
+                        (k.clone(), filter_type)
+                    })
+                    .unwrap_or_else(|| (id.to_string(), String::new()));
+                
+                // Build output data
+                let mut output_data = serde_json::json!({
+                    "completed": true,
+                    "output_count": values.len()
+                });
+                
+                // For image_preview nodes, extract the thumbnail string
+                if filter_type == "image_preview" {
+                    if let Some(Value::String(thumbnail)) = values.get("thumbnail") {
+                        output_data["thumbnail"] = serde_json::json!(thumbnail);
+                    }
+                    if let Some(Value::Integer(w)) = values.get("width") {
+                        output_data["width"] = serde_json::json!(w);
+                    }
+                    if let Some(Value::Integer(h)) = values.get("height") {
+                        output_data["height"] = serde_json::json!(h);
+                    }
+                }
+                
+                outputs_map.insert(ui_id, output_data);
+            }
+            
             ExecutionResult {
                 success: true,
                 errors: vec![],
-                outputs: result.outputs.iter().map(|(id, values)| {
-                    // Find original UI node ID
-                    let ui_id = node_id_map.iter()
-                        .find(|(_, &v)| v == *id)
-                        .map(|(k, _)| k.clone())
-                        .unwrap_or_else(|| id.to_string());
-                    
-                    (ui_id, serde_json::json!({
-                        "completed": true,
-                        "output_count": values.len()
-                    }))
-                }).collect(),
+                outputs: outputs_map,
                 execution_time: start.elapsed().as_millis() as u64,
             }
         }

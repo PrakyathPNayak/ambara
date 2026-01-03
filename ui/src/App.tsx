@@ -55,9 +55,12 @@ function App() {
       isValid: true,
     };
 
+    // Use preview node type for image_preview filter
+    const nodeType = filter.id === 'image_preview' ? 'preview' : 'filter';
+
     addNode({
       id,
-      type: 'filter',
+      type: nodeType,
       position: { x: 250 + Math.random() * 200, y: 100 + Math.random() * 200 },
       data: nodeData,
     });
@@ -91,6 +94,17 @@ function App() {
     try {
       const result = await api.executeGraph(graph);
       if (result.success) {
+        // Update preview nodes with their thumbnails
+        Object.entries(result.outputs).forEach(([nodeId, output]) => {
+          const outputData = output as { thumbnail?: string; width?: number; height?: number };
+          if (outputData.thumbnail) {
+            updateNodeData(nodeId, {
+              previewUrl: outputData.thumbnail,
+              previewWidth: outputData.width,
+              previewHeight: outputData.height,
+            });
+          }
+        });
         alert(`Execution completed in ${result.executionTime}ms`);
       } else {
         alert(`Execution errors:\n${result.errors.map(e => e.message).join('\n')}`);
@@ -99,7 +113,7 @@ function App() {
       console.log('Execution not available (backend not connected)');
       alert('Execution requires the Tauri backend to be running');
     }
-  }, [getGraphState]);
+  }, [getGraphState, updateNodeData]);
 
   const handleSave = useCallback(async () => {
     try {

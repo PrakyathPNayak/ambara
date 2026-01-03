@@ -1,4 +1,4 @@
-//! Utility filters: Preview, PassthroughNode, SplitChannels, MergeChannels, Note
+//! Utility filters: Preview, PassthroughNode, SplitChannels, MergeChannels, Note, ImagePreview
 
 use crate::core::context::{ExecutionContext, ValidationContext};
 use crate::core::error::{ExecutionError, ValidationError};
@@ -6,7 +6,9 @@ use crate::core::node::{Category, FilterNode, NodeMetadata, PassthroughNode};
 use crate::core::port::{ParameterDefinition, PortDefinition};
 use crate::core::types::{ImageValue, PortType, Value};
 use crate::filters::registry::FilterRegistry;
-use image::{DynamicImage, GrayImage, Rgba, RgbaImage};
+use image::{DynamicImage, GenericImageView, GrayImage, Rgba, RgbaImage};
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use std::io::Cursor;
 
 /// Register utility filters.
 pub fn register(registry: &mut FilterRegistry) {
@@ -16,6 +18,7 @@ pub fn register(registry: &mut FilterRegistry) {
     registry.register(|| Box::new(MergeChannels));
     registry.register(|| Box::new(Note));
     registry.register(|| Box::new(ImageInfo));
+    registry.register(|| Box::new(ImagePreview));
 }
 
 /// Preview node - displays image info without modifying it.
@@ -347,6 +350,99 @@ impl FilterNode for ImageInfo {
         ctx.set_output("has_alpha", Value::Boolean(has_alpha))?;
         ctx.set_output("pixel_count", Value::Integer(pixel_count))?;
         ctx.set_output("aspect_ratio", Value::Float(aspect_ratio))?;
+        Ok(())
+    }
+
+    fn clone_box(&self) -> Box<dyn FilterNode> {
+        Box::new(self.clone())
+    }
+}
+
+/// Image Preview node - generates a base64-encoded thumbnail for UI display.
+///
+/// This node creates a thumbnail of the input image and encodes it as base64,
+/// allowing the UI to display image previews within the node graph.
+#[derive(Debug, Clone)]
+pub struct ImagePreview;
+
+impl FilterNode for ImagePreview {
+    fn metadata(&self) -> NodeMetadata {
+        NodeMetadata::builder("image_preview", "Image Preview")
+            .description("Display a preview thumbnail of an image in the node graph")
+            .category(Category::Utility)
+            .author("Ambara")
+            .version("1.0.0")
+            .input(
+                PortDefinition::input("image", PortType::Image)
+                    .with_description("Image to preview")
+            )
+            .parameter(
+                ParameterDefinition::new("max_size", PortType::Integer, Value::Integer(200))
+                    .with_description("Maximum thumbnail dimension (width or height)")
+                    .with_range(50.0, 400.0)
+            )
+            .output(
+                PortDefinition::output("image", PortType::Image)
+                    .with_description("Passthrough of input image")
+            )
+            .output(
+                PortDefinition::output("thumbnail", PortType::String)
+                    .with_description("Base64-encoded PNG thumbnail (data URL)")
+            )
+            .output(
+                PortDefinition::output("width", PortType::Integer)
+                    .with_description("Original image width")
+            )
+            .output(
+                PortDefinition::output("height", PortType::Integer)
+                    .with_description("Original image height")
+            )
+            .build()
+    }
+
+    fn validate(&self, _ctx: &ValidationContext) -> Result<(), ValidationError> {
+        Ok(())
+    }
+
+    fn execute(&self, ctx: &mut ExecutionContext) -> Result<(), ExecutionError> {
+        let image = ctx.get_input_image("image")?;
+        let max_size = ctx.get_integer("max_size").unwrap_or(200) as u32;
+
+        let img = image.get_image().ok_or_else(|| ExecutionError::NodeExecution {
+            node_id: ctx.node_id,
+            error: "Image has no data".to_string(),
+        })?;
+
+        let (orig_width, orig_height) = img.dimensions();
+
+        // Calculate thumbnail dimensions maintaining aspect ratio
+        let (thumb_width, thumb_height) = if orig_width > orig_height {
+            let scale = max_size as f64 / orig_width as f64;
+            (max_size, (orig_height as f64 * scale) as u32)
+        } else {
+            let scale = max_size as f64 / orig_height as f64;
+            ((orig_width as f64 * scale) as u32, max_size)
+        };
+
+        // Create thumbnail
+        let thumbnail = img.thumbnail(thumb_width, thumb_height);
+
+        // Encode as PNG to memory buffer
+        let mut buffer = Cursor::new(Vec::new());
+        thumbnail.write_to(&mut buffer, image::ImageFormat::Png)
+            .map_err(|e| ExecutionError::NodeExecution {
+                node_id: ctx.node_id,
+                error: format!("Failed to encode thumbnail: {}", e),
+            })?;
+
+        // Encode as base64 data URL
+        let base64_data = BASE64.encode(buffer.into_inner());
+        let data_url = format!("data:image/png;base64,{}", base64_data);
+
+        ctx.set_output("image", Value::Image(image.clone()))?;
+        ctx.set_output("thumbnail", Value::String(data_url))?;
+        ctx.set_output("width", Value::Integer(orig_width as i64))?;
+        ctx.set_output("height", Value::Integer(orig_height as i64))?;
         Ok(())
     }
 
