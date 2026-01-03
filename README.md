@@ -1,3 +1,7 @@
+# NOTE: PERSONAL PROJECT WITH HIGH AMOUNTS OF "VIBECODING"
+This project was done with the intent of testing the ease of developement with the new, arising AI tools and get some useful software out of it. 
+
+
 # Ambara
 
 **Ambara** is a high-performance, node-based image processing library written in Rust, with a ComfyUI-inspired visual editor built on Tauri.
