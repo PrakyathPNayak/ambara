@@ -4,6 +4,9 @@ import { useGraphStore } from './store/graphStore';
 import { GraphCanvas } from './components/canvas/GraphCanvas';
 import { FilterPalette } from './components/sidebar/FilterPalette';
 import { PropertiesPanel } from './components/sidebar/PropertiesPanel';
+import { ToastContainer } from './components/Toast';
+import { ConfirmDialog } from './components/ConfirmDialog';
+import { useToast } from './hooks/useToast';
 import { FilterInfo, FilterNodeData, ParameterValue } from './types';
 import * as api from './api/commands';
 import './App.css';
@@ -17,22 +20,34 @@ function App() {
   const [filters, setFilters] = useState<FilterInfo[]>(fallbackFilters);
   const [loading, setLoading] = useState(true);
   const [backendConnected, setBackendConnected] = useState(false);
-  const { addNode, updateNodeData, getGraphState, loadGraph } = useGraphStore();
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const { addNode, updateNodeData, getGraphState, loadGraph, clearGraph } = useGraphStore();
+  const toast = useToast();
 
   // Load filters from backend
   useEffect(() => {
+    let isMounted = true;
+    
     api.getFilters()
       .then((backendFilters) => {
+        if (!isMounted) return;
         console.log('Loaded filters from backend:', backendFilters);
         setFilters(backendFilters);
         setBackendConnected(true);
         setLoading(false);
+        toast.success('Filters loaded successfully');
       })
       .catch((err) => {
+        if (!isMounted) return;
         console.error('Failed to load filters from backend:', err);
         setBackendConnected(false);
         setLoading(false);
+        toast.error('Failed to connect to backend');
       });
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleAddFilter = useCallback((filter: FilterInfo) => {
@@ -79,19 +94,23 @@ function App() {
     try {
       const result = await api.validateGraph(graph);
       if (result.valid) {
-        alert('Graph is valid!');
+        toast.success('Graph is valid!');
       } else {
-        alert(`Validation errors:\n${result.errors.map(e => e.message).join('\n')}`);
+        toast.error(`Validation failed: ${result.errors.length} error(s)`);
+        result.errors.forEach((err) => {
+          toast.error(err.message, 5000);
+        });
       }
     } catch {
       console.log('Validation not available (backend not connected)');
-      alert('Validation requires the Tauri backend to be running');
+      toast.warning('Validation requires the Tauri backend to be running');
     }
-  }, [getGraphState]);
+  }, [getGraphState, toast]);
 
   const handleExecute = useCallback(async () => {
     const graph = getGraphState();
     try {
+      toast.info('Executing graph...');
       const result = await api.executeGraph(graph);
       if (result.success) {
         // Update preview nodes with their thumbnails
@@ -105,22 +124,25 @@ function App() {
             });
           }
         });
-        alert(`Execution completed in ${result.executionTime}ms`);
+        toast.success(`Execution completed in ${result.executionTime}ms`);
       } else {
-        alert(`Execution errors:\n${result.errors.map(e => e.message).join('\n')}`);
+        toast.error(`Execution failed: ${result.errors.length} error(s)`);
+        result.errors.forEach((err) => {
+          toast.error(err.message, 5000);
+        });
       }
-    } catch {
-      console.log('Execution not available (backend not connected)');
-      alert('Execution requires the Tauri backend to be running');
+    } catch (err) {
+      console.log('Execution not available (backend not connected)', err);
+      toast.error('Execution requires the Tauri backend to be running');
     }
-  }, [getGraphState, updateNodeData]);
+  }, [getGraphState, updateNodeData, toast]);
 
   const handleSave = useCallback(async () => {
     try {
       const path = await api.saveFileDialog([{ name: 'Ambara Graph', extensions: ['json'] }]);
       if (path) {
         await api.saveGraph(getGraphState(), path);
-        alert('Graph saved!');
+        toast.success('Graph saved successfully!');
       }
     } catch {
       // Fallback: download as JSON
@@ -132,8 +154,9 @@ function App() {
       a.download = 'graph.json';
       a.click();
       URL.revokeObjectURL(url);
+      toast.success('Graph downloaded as graph.json');
     }
-  }, [getGraphState]);
+  }, [getGraphState, toast]);
 
   const handleLoad = useCallback(async () => {
     try {
@@ -141,6 +164,7 @@ function App() {
       if (path) {
         const graph = await api.loadGraph(path);
         loadGraph(graph);
+        toast.success('Graph loaded successfully!');
       }
     } catch {
       // Fallback: file input
@@ -153,11 +177,22 @@ function App() {
           const text = await file.text();
           const graph = JSON.parse(text);
           loadGraph(graph);
+          toast.success('Graph loaded successfully!');
         }
       };
       input.click();
     }
-  }, [loadGraph]);
+  }, [loadGraph, toast]);
+
+  const handleClearGraph = useCallback(() => {
+    setShowClearConfirm(true);
+  }, []);
+
+  const confirmClearGraph = useCallback(() => {
+    clearGraph();
+    setShowClearConfirm(false);
+    toast.info('Graph cleared');
+  }, [clearGraph, toast]);
 
   return (
     <ReactFlowProvider>
@@ -177,8 +212,21 @@ function App() {
           onExecute={handleExecute}
           onSave={handleSave}
           onLoad={handleLoad}
+          onClear={handleClearGraph}
         />
         <PropertiesPanel onParameterChange={handleParameterChange} />
+        <ToastContainer toasts={toast.toasts} onClose={toast.closeToast} />
+        {showClearConfirm && (
+          <ConfirmDialog
+            title="Clear Graph"
+            message="Are you sure you want to clear the entire graph? This action cannot be undone."
+            confirmLabel="Clear"
+            cancelLabel="Cancel"
+            type="warning"
+            onConfirm={confirmClearGraph}
+            onCancel={() => setShowClearConfirm(false)}
+          />
+        )}
       </div>
     </ReactFlowProvider>
   );

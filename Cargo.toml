@@ -1,11 +1,11 @@
 [package]
 name = "ambara"
-version = "0.1.0"
+version = "0.1.0-alpha.1"
 edition = "2021"
 description = "A node-based image processing application with ComfyUI-like interface"
 authors = ["Ambara Contributors"]
 license = "MIT"
-repository = "https://github.com/ambara/ambara"
+repository = "https://github.com/PrakyathPNayak/ambara"
 
 [lib]
 name = "ambara"

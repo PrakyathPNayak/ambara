@@ -25,10 +25,11 @@ interface GraphCanvasProps {
   onExecute: () => void;
   onSave: () => void;
   onLoad: () => void;
+  onClear: () => void;
 }
 
-export function GraphCanvas({ onValidate, onExecute, onSave, onLoad }: GraphCanvasProps) {
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, setSelectedNode, clearGraph } =
+export function GraphCanvas({ onValidate, onExecute, onSave, onLoad, onClear }: GraphCanvasProps) {
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, setSelectedNode } =
     useGraphStore();
 
   const handleNodeClick = useCallback(
@@ -113,11 +114,7 @@ export function GraphCanvas({ onValidate, onExecute, onSave, onLoad }: GraphCanv
           </button>
           <button 
             className="toolbar-btn danger" 
-            onClick={() => {
-              if (confirm('Clear the entire graph? This cannot be undone.')) {
-                clearGraph();
-              }
-            }} 
+            onClick={onClear}
             title="Clear Graph"
           >
             🗑 Clear
