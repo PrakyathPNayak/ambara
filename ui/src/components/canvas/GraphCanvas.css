@@ -77,6 +77,17 @@
   background: #1177bb;
 }
 
+.toolbar-btn.danger {
+  background: rgba(244, 67, 54, 0.1);
+  border-color: rgba(244, 67, 54, 0.3);
+  color: #f44336;
+}
+
+.toolbar-btn.danger:hover {
+  background: rgba(244, 67, 54, 0.2);
+  border-color: rgba(244, 67, 54, 0.5);
+}
+
 .toolbar-separator {
   width: 1px;
   background: #404040;

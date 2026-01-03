@@ -26,7 +26,7 @@ interface GraphCanvasProps {
 }
 
 export function GraphCanvas({ onValidate, onExecute, onSave, onLoad }: GraphCanvasProps) {
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, setSelectedNode } =
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, setSelectedNode, clearGraph } =
     useGraphStore();
 
   const handleNodeClick = useCallback(
@@ -37,6 +37,11 @@ export function GraphCanvas({ onValidate, onExecute, onSave, onLoad }: GraphCanv
   );
 
   const handlePaneClick = useCallback(() => {
+    setSelectedNode(null);
+  }, [setSelectedNode]);
+
+  const handleEdgeClick = useCallback(() => {
+    // Deselect node when edge is clicked
     setSelectedNode(null);
   }, [setSelectedNode]);
 
@@ -64,6 +69,7 @@ export function GraphCanvas({ onValidate, onExecute, onSave, onLoad }: GraphCanv
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={handleNodeClick}
+        onEdgeClick={handleEdgeClick}
         onPaneClick={handlePaneClick}
         nodeTypes={nodeTypes}
         fitView
@@ -73,6 +79,8 @@ export function GraphCanvas({ onValidate, onExecute, onSave, onLoad }: GraphCanv
           type: 'smoothstep',
           animated: true,
         }}
+        deleteKeyCode={['Backspace', 'Delete']}
+        multiSelectionKeyCode="Shift"
       >
         <Background 
           variant={BackgroundVariant.Dots} 
@@ -95,11 +103,22 @@ export function GraphCanvas({ onValidate, onExecute, onSave, onLoad }: GraphCanv
             ▶ Execute
           </button>
           <div className="toolbar-separator" />
+          <button className="toolbar-btn" onClick={onLoad} title="Load Graph">
+            📂 Load
+          </button>
           <button className="toolbar-btn" onClick={onSave} title="Save Graph">
             💾 Save
           </button>
-          <button className="toolbar-btn" onClick={onLoad} title="Load Graph">
-            📂 Load
+          <button 
+            className="toolbar-btn danger" 
+            onClick={() => {
+              if (confirm('Clear the entire graph? This cannot be undone.')) {
+                clearGraph();
+              }
+            }} 
+            title="Clear Graph"
+          >
+            🗑 Clear
           </button>
         </Panel>
       </ReactFlow>

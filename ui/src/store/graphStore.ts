@@ -46,6 +46,22 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   },
 
   onConnect: (connection) => {
+    const { edges } = get();
+    
+    // Prevent multiple connections to the same input
+    if (connection.target && connection.targetHandle) {
+      const existingConnection = edges.find(
+        (edge) => edge.target === connection.target && edge.targetHandle === connection.targetHandle
+      );
+      
+      if (existingConnection) {
+        // Remove the existing connection first
+        set({
+          edges: edges.filter((edge) => edge.id !== existingConnection.id),
+        });
+      }
+    }
+    
     set({
       edges: addEdge(
         { ...connection, type: 'smoothstep', animated: true },
