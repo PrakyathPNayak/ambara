@@ -232,6 +232,12 @@ impl ExecutionContext {
             })
     }
 
+    /// Get an optional input as an image.
+    /// Returns None if the input doesn't exist, or Some(&ImageValue) if it does.
+    pub fn get_input_image_optional(&self, name: &str) -> Option<&ImageValue> {
+        self.inputs.get(name).and_then(|v| v.as_image())
+    }
+
     /// Get an input as a mutable image.
     pub fn get_input_image_mut(&mut self, name: &str) -> Result<&mut ImageValue, ExecutionError> {
         let node_id = self.node_id;

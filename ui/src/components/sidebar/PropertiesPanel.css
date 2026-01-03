@@ -188,3 +188,49 @@
 .btn-delete:hover {
   background: rgba(244, 67, 54, 0.2);
 }
+
+.path-input-group {
+  display: flex;
+  gap: 4px;
+}
+
+.path-input-group input[type="text"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.browse-btn {
+  padding: 6px 10px;
+  background: #404040;
+  border: 1px solid #505050;
+  border-radius: 4px;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+
+.browse-btn:hover {
+  background: #505050;
+}
+
+.param-select {
+  width: 100%;
+  padding: 6px 8px;
+  background: #1e1e1e;
+  border: 1px solid #404040;
+  border-radius: 4px;
+  color: #ccc;
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+}
+
+.param-select:focus {
+  border-color: #007acc;
+}
+
+.param-select option {
+  background: #1e1e1e;
+  color: #ccc;
+}

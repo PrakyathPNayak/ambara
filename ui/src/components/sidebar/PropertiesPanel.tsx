@@ -1,5 +1,6 @@
 import { useGraphStore } from '../../store/graphStore';
 import { ParameterValue, FilterNodeData } from '../../types';
+import { openFileDialog, saveFileDialog, openDirectoryDialog } from '../../api/commands';
 import './PropertiesPanel.css';
 
 interface PropertiesPanelProps {
@@ -109,8 +110,8 @@ function ParameterInput({ param, onChange }: ParameterInputProps) {
           <input
             type="number"
             step="1"
-            value={param.value as number}
-            onChange={(e) => onChange(parseInt(e.target.value, 10))}
+            value={(param.value as number) ?? 0}
+            onChange={(e) => onChange(parseInt(e.target.value, 10) || 0)}
           />
         </div>
       );
@@ -122,8 +123,8 @@ function ParameterInput({ param, onChange }: ParameterInputProps) {
           <input
             type="number"
             step="0.1"
-            value={param.value as number}
-            onChange={(e) => onChange(parseFloat(e.target.value))}
+            value={(param.value as number) ?? 0}
+            onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
           />
         </div>
       );
@@ -134,7 +135,7 @@ function ParameterInput({ param, onChange }: ParameterInputProps) {
           <label>
             <input
               type="checkbox"
-              checked={param.value as boolean}
+              checked={(param.value as boolean) ?? false}
               onChange={(e) => onChange(e.target.checked)}
             />
             {param.name}
@@ -144,20 +145,84 @@ function ParameterInput({ param, onChange }: ParameterInputProps) {
 
     case 'String':
     case 'Path':
+      const paramNameLower = param.name.toLowerCase();
+      const isDirectory = paramNameLower.includes('directory') || paramNameLower.includes('folder');
+      const isPath = param.type === 'Path' || paramNameLower.includes('path') || isDirectory;
+      const isFormat = paramNameLower === 'format';
+      
+      // Handle format dropdown
+      if (isFormat) {
+        const formats = ['png', 'jpg', 'webp', 'bmp', 'tiff'];
+        return (
+          <div className="param-input">
+            <label>{param.name}</label>
+            <select
+              value={(param.value as string) ?? 'png'}
+              onChange={(e) => onChange(e.target.value)}
+              className="param-select"
+            >
+              {formats.map(fmt => (
+                <option key={fmt} value={fmt}>{fmt.toUpperCase()}</option>
+              ))}
+            </select>
+          </div>
+        );
+      }
+      
+      const handleBrowse = async () => {
+        let path: string | null = null;
+        
+        if (isDirectory) {
+          path = await openDirectoryDialog();
+        } else {
+          const isOutput = paramNameLower.includes('output') || paramNameLower.includes('save');
+          if (isOutput) {
+            path = await saveFileDialog([
+              { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp'] },
+              { name: 'All Files', extensions: ['*'] }
+            ]);
+          } else {
+            path = await openFileDialog([
+              { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif'] },
+              { name: 'All Files', extensions: ['*'] }
+            ]);
+          }
+        }
+        
+        if (path) {
+          onChange(path);
+        }
+      };
+      
       return (
         <div className="param-input">
           <label>{param.name}</label>
-          <input
-            type="text"
-            value={param.value as string}
-            onChange={(e) => onChange(e.target.value)}
-          />
+          <div className="path-input-group">
+            <input
+              type="text"
+              value={(param.value as string) ?? ''}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={isDirectory ? 'Select a folder...' : isPath ? 'Select a file...' : ''}
+            />
+            {isPath && (
+              <button 
+                className="browse-btn" 
+                onClick={handleBrowse}
+                title={isDirectory ? 'Browse folder...' : 'Browse...'}
+              >
+                📁
+              </button>
+            )}
+          </div>
         </div>
       );
 
     case 'Color':
-      const color = param.value as { r: number; g: number; b: number };
-      const hex = `#${Math.round(color.r * 255).toString(16).padStart(2, '0')}${Math.round(color.g * 255).toString(16).padStart(2, '0')}${Math.round(color.b * 255).toString(16).padStart(2, '0')}`;
+      const color = param.value as { r: number; g: number; b: number; a?: number } | null;
+      const r = color?.r ?? 255;
+      const g = color?.g ?? 255;
+      const b = color?.b ?? 255;
+      const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
       return (
         <div className="param-input">
           <label>{param.name}</label>
@@ -167,10 +232,10 @@ function ParameterInput({ param, onChange }: ParameterInputProps) {
             onChange={(e) => {
               const hex = e.target.value;
               onChange({
-                r: parseInt(hex.slice(1, 3), 16) / 255,
-                g: parseInt(hex.slice(3, 5), 16) / 255,
-                b: parseInt(hex.slice(5, 7), 16) / 255,
-                a: 1,
+                r: parseInt(hex.slice(1, 3), 16),
+                g: parseInt(hex.slice(3, 5), 16),
+                b: parseInt(hex.slice(5, 7), 16),
+                a: 255,
               });
             }}
           />

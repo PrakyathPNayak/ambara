@@ -51,7 +51,10 @@ pub enum UiHint {
         logarithmic: bool,
     },
     /// Dropdown for selecting from options
-    Dropdown,
+    Dropdown {
+        /// Available options
+        options: Vec<String>,
+    },
     /// Color picker widget
     ColorPicker,
     /// File chooser dialog

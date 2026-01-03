@@ -3,6 +3,8 @@ use std::collections::HashMap;
 
 // Import the ambara library
 use ambara::prelude::*;
+use ambara::graph::structure::ProcessingGraph;
+use ambara::execution::engine::{ExecutionEngine, ExecutionOptions};
 
 // Types that mirror the frontend types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -257,13 +259,146 @@ fn execute_graph(graph: GraphState) -> ExecutionResult {
         };
     }
 
-    // TODO: Connect to the actual ambara library for execution
-    // For now, return a mock success
-    ExecutionResult {
-        success: true,
-        errors: vec![],
-        outputs: HashMap::new(),
-        execution_time: start.elapsed().as_millis() as u64,
+    // Convert UI graph to ambara ProcessingGraph
+    let registry = FilterRegistry::with_builtins();
+    let mut processing_graph = ProcessingGraph::new();
+    let mut node_id_map: HashMap<String, NodeId> = HashMap::new();
+
+    // Add nodes
+    for ui_node in &graph.nodes {
+        // Find the filter in registry
+        let filter_type = &ui_node.data.filter_type;
+        
+        if let Some(filter) = registry.create(filter_type) {
+            // Build the graph node with parameters
+            let mut graph_node = ambara::graph::structure::GraphNode::new(filter)
+                .with_position(ui_node.position.x, ui_node.position.y);
+
+            // Add parameters
+            for param in &ui_node.data.parameters {
+                if let Some(value) = json_to_value(&param.value) {
+                    graph_node = graph_node.with_parameter(&param.name, value);
+                }
+            }
+
+            let added_node_id = processing_graph.add_node(graph_node);
+            node_id_map.insert(ui_node.id.clone(), added_node_id);
+        } else {
+            return ExecutionResult {
+                success: false,
+                errors: vec![ExecutionError {
+                    node_id: ui_node.id.clone(),
+                    message: format!("Unknown filter type: {}", filter_type),
+                }],
+                outputs: HashMap::new(),
+                execution_time: start.elapsed().as_millis() as u64,
+            };
+        }
+    }
+
+    // Add connections
+    for edge in &graph.edges {
+        if let (Some(&source_id), Some(&target_id)) = 
+            (node_id_map.get(&edge.source), node_id_map.get(&edge.target)) 
+        {
+            let source_port = edge.source_handle.as_deref().unwrap_or("output");
+            let target_port = edge.target_handle.as_deref().unwrap_or("input");
+            
+            if let Err(e) = processing_graph.connect(source_id, source_port, target_id, target_port) {
+                return ExecutionResult {
+                    success: false,
+                    errors: vec![ExecutionError {
+                        node_id: edge.id.clone(),
+                        message: format!("Failed to connect: {:?}", e),
+                    }],
+                    outputs: HashMap::new(),
+                    execution_time: start.elapsed().as_millis() as u64,
+                };
+            }
+        }
+    }
+
+    // Execute the graph
+    let engine = ExecutionEngine::new();
+    let options = ExecutionOptions::default()
+        .with_parallel(false)  // Start with sequential for easier debugging
+        .with_cache(false);
+
+    match engine.execute(&processing_graph, Some(options)) {
+        Ok(result) => {
+            ExecutionResult {
+                success: true,
+                errors: vec![],
+                outputs: result.outputs.iter().map(|(id, values)| {
+                    // Find original UI node ID
+                    let ui_id = node_id_map.iter()
+                        .find(|(_, &v)| v == *id)
+                        .map(|(k, _)| k.clone())
+                        .unwrap_or_else(|| id.to_string());
+                    
+                    (ui_id, serde_json::json!({
+                        "completed": true,
+                        "output_count": values.len()
+                    }))
+                }).collect(),
+                execution_time: start.elapsed().as_millis() as u64,
+            }
+        }
+        Err(e) => {
+            ExecutionResult {
+                success: false,
+                errors: vec![ExecutionError {
+                    node_id: String::new(),
+                    message: format!("Execution failed: {:?}", e),
+                }],
+                outputs: HashMap::new(),
+                execution_time: start.elapsed().as_millis() as u64,
+            }
+        }
+    }
+}
+
+// Helper to convert JSON to Value
+fn json_to_value(json: &serde_json::Value) -> Option<Value> {
+    match json {
+        serde_json::Value::Null => Some(Value::None),
+        serde_json::Value::Bool(b) => Some(Value::Boolean(*b)),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Some(Value::Integer(i))
+            } else if let Some(f) = n.as_f64() {
+                Some(Value::Float(f))
+            } else {
+                None
+            }
+        }
+        serde_json::Value::String(s) => Some(Value::String(s.clone())),
+        serde_json::Value::Object(obj) => {
+            // Check if it's a color
+            if obj.contains_key("r") && obj.contains_key("g") && obj.contains_key("b") {
+                let r = obj.get("r").and_then(|v| v.as_u64()).unwrap_or(255) as u8;
+                let g = obj.get("g").and_then(|v| v.as_u64()).unwrap_or(255) as u8;
+                let b = obj.get("b").and_then(|v| v.as_u64()).unwrap_or(255) as u8;
+                let a = obj.get("a").and_then(|v| v.as_u64()).unwrap_or(255) as u8;
+                Some(Value::Color(Color::new(r, g, b, a)))
+            } else {
+                None
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            if arr.len() == 2 {
+                let x = arr.first().and_then(|v| v.as_f64())?;
+                let y = arr.get(1).and_then(|v| v.as_f64())?;
+                Some(Value::Vector2(x, y))
+            } else if arr.len() == 3 {
+                let x = arr.first().and_then(|v| v.as_f64())?;
+                let y = arr.get(1).and_then(|v| v.as_f64())?;
+                let z = arr.get(2).and_then(|v| v.as_f64())?;
+                Some(Value::Vector3(x, y, z))
+            } else {
+                None
+            }
+        }
     }
 }
 
@@ -291,6 +426,7 @@ fn load_graph(path: String) -> Result<GraphState, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             get_filters,
             validate_graph,

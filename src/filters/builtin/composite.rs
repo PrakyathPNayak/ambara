@@ -40,7 +40,19 @@ impl FilterNode for Blend {
             .parameter(
                 ParameterDefinition::new("mode", PortType::String, Value::String("normal".to_string()))
                     .with_description("Blend mode")
-                    .with_ui_hint(UiHint::Dropdown)
+                    .with_ui_hint(UiHint::Dropdown {
+                        options: vec![
+                            "normal".to_string(),
+                            "multiply".to_string(),
+                            "screen".to_string(),
+                            "overlay".to_string(),
+                            "darken".to_string(),
+                            "lighten".to_string(),
+                            "add".to_string(),
+                            "subtract".to_string(),
+                            "difference".to_string(),
+                        ]
+                    })
                     .with_constraint(Constraint::OneOf(vec![
                         Value::String("normal".to_string()),
                         Value::String("multiply".to_string()),

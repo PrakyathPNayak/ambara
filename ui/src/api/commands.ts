@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { open, save } from '@tauri-apps/plugin-dialog';
 import { 
   FilterInfo, 
   GraphState, 
@@ -31,12 +32,28 @@ export async function loadGraph(path: string): Promise<GraphState> {
   return invoke<GraphState>('load_graph', { path });
 }
 
-// Open file picker dialog
+// Open file picker dialog using Tauri dialog plugin
 export async function openFileDialog(filters?: { name: string; extensions: string[] }[]): Promise<string | null> {
-  return invoke<string | null>('open_file_dialog', { filters });
+  const result = await open({
+    multiple: false,
+    filters: filters,
+  });
+  return result as string | null;
 }
 
-// Open save dialog
+// Open save dialog using Tauri dialog plugin
 export async function saveFileDialog(filters?: { name: string; extensions: string[] }[]): Promise<string | null> {
-  return invoke<string | null>('save_file_dialog', { filters });
+  const result = await save({
+    filters: filters,
+  });
+  return result as string | null;
+}
+
+// Open directory picker dialog
+export async function openDirectoryDialog(): Promise<string | null> {
+  const result = await open({
+    directory: true,
+    multiple: false,
+  });
+  return result as string | null;
 }

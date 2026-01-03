@@ -55,7 +55,15 @@ impl FilterNode for Resize {
             .parameter(
                 ParameterDefinition::new("filter", PortType::String, Value::String("lanczos3".to_string()))
                     .with_description("Resampling filter")
-                    .with_ui_hint(UiHint::Dropdown)
+                    .with_ui_hint(UiHint::Dropdown {
+                        options: vec![
+                            "nearest".to_string(),
+                            "triangle".to_string(),
+                            "catmullrom".to_string(),
+                            "gaussian".to_string(),
+                            "lanczos3".to_string(),
+                        ]
+                    })
                     .with_constraint(Constraint::OneOf(vec![
                         Value::String("nearest".to_string()),
                         Value::String("triangle".to_string()),
@@ -155,7 +163,13 @@ impl FilterNode for Rotate {
             .parameter(
                 ParameterDefinition::new("angle", PortType::String, Value::String("90".to_string()))
                     .with_description("Rotation angle")
-                    .with_ui_hint(UiHint::Dropdown)
+                    .with_ui_hint(UiHint::Dropdown {
+                        options: vec![
+                            "90".to_string(),
+                            "180".to_string(),
+                            "270".to_string(),
+                        ]
+                    })
                     .with_constraint(Constraint::OneOf(vec![
                         Value::String("90".to_string()),
                         Value::String("180".to_string()),

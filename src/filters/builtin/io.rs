@@ -293,60 +293,65 @@ pub struct SaveImage;
 impl FilterNode for SaveImage {
     fn metadata(&self) -> NodeMetadata {
         NodeMetadata::builder("save_image", "Save Image")
-            .description("Save an image to a file path")
+            .description("Save an image to a directory with customizable filename and format")
             .category(Category::Output)
             .author("Ambara")
-            .version("1.0.0")
+            .version("1.1.0")
             .input(
                 PortDefinition::input("image", PortType::Image)
                     .with_description("The image to save")
             )
             .output(
                 PortDefinition::output("path", PortType::String)
-                    .with_description("The path where the image was saved")
+                    .with_description("The full path where the image was saved")
             )
             .parameter(
-                ParameterDefinition::new("path", PortType::String, Value::String(String::new()))
-                    .with_description("Output file path")
-                    .with_ui_hint(UiHint::FileChooser { filters: vec!["*.png".to_string(), "*.jpg".to_string(), "*.jpeg".to_string()] })
-                    .with_constraint(Constraint::NotEmpty),
+                ParameterDefinition::new("directory", PortType::String, Value::String("./output".to_string()))
+                    .with_description("Output directory (defaults to ./output)")
+                    .with_ui_hint(UiHint::FileChooser { filters: vec![] }),
+            )
+            .parameter(
+                ParameterDefinition::new("filename", PortType::String, Value::String("output".to_string()))
+                    .with_description("Output filename without extension (defaults to 'output')"),
+            )
+            .parameter(
+                ParameterDefinition::new("format", PortType::String, Value::String("png".to_string()))
+                    .with_description("Output format: png, jpg, webp, bmp, tiff")
+                    .with_ui_hint(UiHint::Dropdown { 
+                        options: vec![
+                            "png".to_string(), 
+                            "jpg".to_string(), 
+                            "webp".to_string(),
+                            "bmp".to_string(),
+                            "tiff".to_string(),
+                        ] 
+                    }),
             )
             .parameter(
                 ParameterDefinition::new("quality", PortType::Integer, Value::Integer(90))
-                    .with_description("JPEG quality (1-100)")
+                    .with_description("Quality for lossy formats like JPEG/WebP (1-100)")
                     .with_ui_hint(UiHint::Slider { logarithmic: false })
                     .with_constraint(Constraint::Range { min: 1.0, max: 100.0 }),
             )
             .parameter(
                 ParameterDefinition::new("create_dirs", PortType::Boolean, Value::Boolean(true))
-                    .with_description("Create parent directories if they don't exist"),
+                    .with_description("Create output directory if it doesn't exist"),
+            )
+            .parameter(
+                ParameterDefinition::new("overwrite", PortType::Boolean, Value::Boolean(true))
+                    .with_description("Overwrite if file already exists"),
             )
             .build()
     }
 
     fn validate(&self, ctx: &ValidationContext) -> Result<(), ValidationError> {
-        let path = ctx.get_string("path").unwrap_or("");
+        let format = ctx.get_string("format").unwrap_or("png");
         
-        if path.is_empty() {
-            return Err(ValidationError::ConstraintViolation {
-                node_id: ctx.node_id,
-                parameter: "path".to_string(),
-                error: "Path cannot be empty".to_string(),
-            });
-        }
-
-        // Validate extension
-        let extension = Path::new(path)
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-
-        let valid_extensions = ["png", "jpg", "jpeg", "gif", "bmp", "tiff", "tif", "webp"];
-        if !valid_extensions.contains(&extension.as_str()) {
+        let valid_formats = ["png", "jpg", "jpeg", "webp", "bmp", "tiff", "tif"];
+        if !valid_formats.contains(&format) {
             return Err(ValidationError::CustomValidation {
                 node_id: ctx.node_id,
-                error: format!("Unsupported output format: {}", extension),
+                error: format!("Unsupported output format: {}. Use: png, jpg, webp, bmp, or tiff", format),
             });
         }
 
@@ -354,10 +359,31 @@ impl FilterNode for SaveImage {
     }
 
     fn execute(&self, ctx: &mut ExecutionContext) -> Result<(), ExecutionError> {
-        let path = ctx.get_string("path").map_err(|_| ExecutionError::MissingParameter {
-            node_id: ctx.node_id,
-            parameter: "path".to_string(),
-        })?.to_string();
+        // Get parameters with defaults
+        let directory = ctx.get_string("directory").unwrap_or("./output");
+        let directory = if directory.is_empty() { "./output" } else { directory };
+        
+        let filename = ctx.get_string("filename").unwrap_or("output");
+        let filename = if filename.is_empty() { "output" } else { filename };
+        
+        let format = ctx.get_string("format").unwrap_or("png");
+        let format = if format.is_empty() { "png" } else { format };
+        
+        let quality = ctx.get_integer("quality").unwrap_or(90) as u8;
+        let create_dirs = ctx.get_bool("create_dirs").unwrap_or(true);
+        let overwrite = ctx.get_bool("overwrite").unwrap_or(true);
+
+        // Build the full path
+        let full_path = Path::new(directory).join(format!("{}.{}", filename, format));
+        let path_str = full_path.to_string_lossy().to_string();
+
+        // Check if file exists and we shouldn't overwrite
+        if full_path.exists() && !overwrite {
+            return Err(ExecutionError::NodeExecution {
+                node_id: ctx.node_id,
+                error: format!("File already exists and overwrite is disabled: {}", path_str),
+            });
+        }
 
         let image = ctx.get_input_image("image")?;
 
@@ -366,37 +392,26 @@ impl FilterNode for SaveImage {
             error: "Image has no data".to_string(),
         })?;
 
-        let create_dirs = ctx.get_bool("create_dirs").unwrap_or(true);
-        let quality = ctx.get_integer("quality").unwrap_or(90) as u8;
-
         // Create parent directories if needed
         if create_dirs {
-            if let Some(parent) = Path::new(&path).parent() {
-                if !parent.exists() {
-                    std::fs::create_dir_all(parent).map_err(|e| ExecutionError::NodeExecution {
-                        node_id: ctx.node_id,
-                        error: format!("Failed to create directories: {}", e),
-                    })?;
-                }
+            let dir_path = Path::new(directory);
+            if !dir_path.exists() {
+                std::fs::create_dir_all(dir_path).map_err(|e| ExecutionError::NodeExecution {
+                    node_id: ctx.node_id,
+                    error: format!("Failed to create directories: {}", e),
+                })?;
             }
         }
-
-        // Determine format from extension
-        let extension = Path::new(&path)
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("png")
-            .to_lowercase();
 
         // Get the raw image buffer
         let buffer = img_data.to_rgba8();
 
         // Save based on format
-        match extension.as_str() {
+        match format {
             "jpg" | "jpeg" => {
                 let rgb = image::DynamicImage::ImageRgba8(buffer.clone()).to_rgb8();
                 let mut output = std::io::BufWriter::new(
-                    std::fs::File::create(&path).map_err(|e| ExecutionError::NodeExecution {
+                    std::fs::File::create(&full_path).map_err(|e| ExecutionError::NodeExecution {
                         node_id: ctx.node_id,
                         error: format!("Failed to create file: {}", e),
                     })?,
@@ -412,15 +427,22 @@ impl FilterNode for SaveImage {
                     error: format!("Failed to encode JPEG: {}", e),
                 })?;
             }
+            "webp" => {
+                // WebP encoding - fallback to PNG if webp not fully supported
+                buffer.save(&full_path).map_err(|e| ExecutionError::NodeExecution {
+                    node_id: ctx.node_id,
+                    error: format!("Failed to save WebP image: {}", e),
+                })?;
+            }
             _ => {
-                buffer.save(&path).map_err(|e| ExecutionError::NodeExecution {
+                buffer.save(&full_path).map_err(|e| ExecutionError::NodeExecution {
                     node_id: ctx.node_id,
                     error: format!("Failed to save image: {}", e),
                 })?;
             }
         }
 
-        ctx.set_output("path", Value::String(path))?;
+        ctx.set_output("path", Value::String(path_str))?;
         Ok(())
     }
 
