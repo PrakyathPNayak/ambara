@@ -28,7 +28,7 @@ This project was done with the intent of testing the ease of developement with t
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/ambara.git
+git clone https://github.com/PrakyathPNayak/ambara.git
 cd ambara
 
 # Build the library
