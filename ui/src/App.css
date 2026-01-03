@@ -17,4 +17,39 @@ html, body, #root {
   background: #1e1e1e;
   color: #ccc;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  position: relative;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.loading-spinner {
+  color: #fff;
+  font-size: 18px;
+  padding: 20px 40px;
+  background: #333;
+  border-radius: 8px;
+}
+
+.backend-warning {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #4a3333;
+  color: #ffaaaa;
+  padding: 20px 30px;
+  border-radius: 8px;
+  z-index: 100;
+  border: 1px solid #ff6666;
 }

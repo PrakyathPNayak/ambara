@@ -87,6 +87,7 @@ impl Category {
             Category::Composite,
             Category::Color,
             Category::Analyze,
+            Category::Math,
             Category::Utility,
             Category::Custom,
         ]

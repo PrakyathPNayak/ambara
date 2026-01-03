@@ -24,6 +24,16 @@ pub struct FilterInfo {
     pub category: String,
     pub inputs: Vec<PortDefinition>,
     pub outputs: Vec<PortDefinition>,
+    pub parameters: Vec<ParameterInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParameterInfo {
+    pub name: String,
+    pub port_type: String,
+    pub default_value: Option<serde_json::Value>,
+    pub description: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -136,7 +146,7 @@ fn get_filters() -> Vec<FilterInfo> {
                 id: metadata.id.clone(),
                 name: metadata.name.clone(),
                 description: metadata.description.clone(),
-                category: format!("{:?}", metadata.category),
+                category: metadata.category.display_name().to_string(),
                 inputs: metadata.inputs.iter().map(|port| PortDefinition {
                     name: port.name.clone(),
                     port_type: format!("{:?}", port.port_type),
@@ -148,6 +158,12 @@ fn get_filters() -> Vec<FilterInfo> {
                     port_type: format!("{:?}", port.port_type),
                     required: !port.optional,
                     default_value: None,
+                }).collect(),
+                parameters: metadata.parameters.iter().map(|param| ParameterInfo {
+                    name: param.name.clone(),
+                    port_type: format!("{:?}", param.param_type),
+                    default_value: Some(value_to_json(&param.default_value)),
+                    description: param.description.clone(),
                 }).collect(),
             }
         })

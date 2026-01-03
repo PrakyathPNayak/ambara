@@ -20,15 +20,32 @@ export interface PortDefinition {
   defaultValue?: unknown;
 }
 
-// Filter category
+// Filter category - must match Rust Category enum display names
 export type FilterCategory = 
-  | 'Source'
-  | 'Transform'
-  | 'Color'
-  | 'Filter'
-  | 'Analysis'
+  | 'Input'
   | 'Output'
-  | 'Utility';
+  | 'Transform'
+  | 'Adjust'
+  | 'Blur'
+  | 'Sharpen'
+  | 'Edge'
+  | 'Noise'
+  | 'Draw'
+  | 'Text'
+  | 'Composite'
+  | 'Color'
+  | 'Analyze'
+  | 'Math'
+  | 'Utility'
+  | 'Custom';
+
+// Parameter info from filter metadata
+export interface ParameterInfo {
+  name: string;
+  portType: string;
+  defaultValue?: unknown;
+  description: string;
+}
 
 // Filter metadata from the registry
 export interface FilterInfo {
@@ -38,6 +55,7 @@ export interface FilterInfo {
   category: FilterCategory;
   inputs: PortDefinition[];
   outputs: PortDefinition[];
+  parameters: ParameterInfo[];
 }
 
 // Parameter value in the UI

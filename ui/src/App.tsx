@@ -4,202 +4,54 @@ import { useGraphStore } from './store/graphStore';
 import { GraphCanvas } from './components/canvas/GraphCanvas';
 import { FilterPalette } from './components/sidebar/FilterPalette';
 import { PropertiesPanel } from './components/sidebar/PropertiesPanel';
-import { FilterInfo, FilterNodeData } from './types';
+import { FilterInfo, FilterNodeData, ParameterValue } from './types';
 import * as api from './api/commands';
 import './App.css';
 
-// Mock filters for development (will be replaced by Tauri commands)
-const mockFilters: FilterInfo[] = [
-  {
-    id: 'load_image',
-    name: 'Load Image',
-    description: 'Load an image from disk',
-    category: 'Source',
-    inputs: [],
-    outputs: [{ name: 'image', portType: 'Image', required: true }],
-  },
-  {
-    id: 'load_folder',
-    name: 'Load Folder',
-    description: 'Load all images from a folder',
-    category: 'Source',
-    inputs: [],
-    outputs: [{ name: 'images', portType: 'ImageList', required: true }],
-  },
-  {
-    id: 'resize',
-    name: 'Resize',
-    description: 'Resize an image to new dimensions',
-    category: 'Transform',
-    inputs: [{ name: 'image', portType: 'Image', required: true }],
-    outputs: [{ name: 'image', portType: 'Image', required: true }],
-  },
-  {
-    id: 'crop',
-    name: 'Crop',
-    description: 'Crop an image to a region',
-    category: 'Transform',
-    inputs: [{ name: 'image', portType: 'Image', required: true }],
-    outputs: [{ name: 'image', portType: 'Image', required: true }],
-  },
-  {
-    id: 'rotate',
-    name: 'Rotate',
-    description: 'Rotate an image by degrees',
-    category: 'Transform',
-    inputs: [{ name: 'image', portType: 'Image', required: true }],
-    outputs: [{ name: 'image', portType: 'Image', required: true }],
-  },
-  {
-    id: 'flip',
-    name: 'Flip',
-    description: 'Flip an image horizontally or vertically',
-    category: 'Transform',
-    inputs: [{ name: 'image', portType: 'Image', required: true }],
-    outputs: [{ name: 'image', portType: 'Image', required: true }],
-  },
-  {
-    id: 'brightness',
-    name: 'Brightness',
-    description: 'Adjust image brightness',
-    category: 'Color',
-    inputs: [{ name: 'image', portType: 'Image', required: true }],
-    outputs: [{ name: 'image', portType: 'Image', required: true }],
-  },
-  {
-    id: 'contrast',
-    name: 'Contrast',
-    description: 'Adjust image contrast',
-    category: 'Color',
-    inputs: [{ name: 'image', portType: 'Image', required: true }],
-    outputs: [{ name: 'image', portType: 'Image', required: true }],
-  },
-  {
-    id: 'saturation',
-    name: 'Saturation',
-    description: 'Adjust image saturation',
-    category: 'Color',
-    inputs: [{ name: 'image', portType: 'Image', required: true }],
-    outputs: [{ name: 'image', portType: 'Image', required: true }],
-  },
-  {
-    id: 'hue_rotate',
-    name: 'Hue Rotate',
-    description: 'Rotate the hue of an image',
-    category: 'Color',
-    inputs: [{ name: 'image', portType: 'Image', required: true }],
-    outputs: [{ name: 'image', portType: 'Image', required: true }],
-  },
-  {
-    id: 'grayscale',
-    name: 'Grayscale',
-    description: 'Convert image to grayscale',
-    category: 'Color',
-    inputs: [{ name: 'image', portType: 'Image', required: true }],
-    outputs: [{ name: 'image', portType: 'Image', required: true }],
-  },
-  {
-    id: 'invert',
-    name: 'Invert',
-    description: 'Invert image colors',
-    category: 'Color',
-    inputs: [{ name: 'image', portType: 'Image', required: true }],
-    outputs: [{ name: 'image', portType: 'Image', required: true }],
-  },
-  {
-    id: 'blur',
-    name: 'Blur',
-    description: 'Apply gaussian blur to an image',
-    category: 'Filter',
-    inputs: [{ name: 'image', portType: 'Image', required: true }],
-    outputs: [{ name: 'image', portType: 'Image', required: true }],
-  },
-  {
-    id: 'sharpen',
-    name: 'Sharpen',
-    description: 'Sharpen an image',
-    category: 'Filter',
-    inputs: [{ name: 'image', portType: 'Image', required: true }],
-    outputs: [{ name: 'image', portType: 'Image', required: true }],
-  },
-  {
-    id: 'edge_detect',
-    name: 'Edge Detection',
-    description: 'Detect edges in an image',
-    category: 'Filter',
-    inputs: [{ name: 'image', portType: 'Image', required: true }],
-    outputs: [{ name: 'image', portType: 'Image', required: true }],
-  },
-  {
-    id: 'histogram',
-    name: 'Histogram',
-    description: 'Generate image histogram',
-    category: 'Analysis',
-    inputs: [{ name: 'image', portType: 'Image', required: true }],
-    outputs: [{ name: 'histogram', portType: 'Any', required: true }],
-  },
-  {
-    id: 'save_image',
-    name: 'Save Image',
-    description: 'Save an image to disk',
-    category: 'Output',
-    inputs: [{ name: 'image', portType: 'Image', required: true }],
-    outputs: [],
-  },
-  {
-    id: 'preview',
-    name: 'Preview',
-    description: 'Display image preview',
-    category: 'Output',
-    inputs: [{ name: 'image', portType: 'Image', required: true }],
-    outputs: [],
-  },
-  {
-    id: 'passthrough',
-    name: 'Passthrough',
-    description: 'Pass value through unchanged',
-    category: 'Utility',
-    inputs: [{ name: 'input', portType: 'Any', required: true }],
-    outputs: [{ name: 'output', portType: 'Any', required: true }],
-  },
-  {
-    id: 'switch',
-    name: 'Switch',
-    description: 'Select between two inputs based on condition',
-    category: 'Utility',
-    inputs: [
-      { name: 'condition', portType: 'Boolean', required: true },
-      { name: 'true_value', portType: 'Any', required: true },
-      { name: 'false_value', portType: 'Any', required: true },
-    ],
-    outputs: [{ name: 'output', portType: 'Any', required: true }],
-  },
-];
+// Empty fallback - rely on backend for real filters
+const fallbackFilters: FilterInfo[] = [];
 
 let nodeIdCounter = 0;
 
 function App() {
-  const [filters, setFilters] = useState<FilterInfo[]>(mockFilters);
+  const [filters, setFilters] = useState<FilterInfo[]>(fallbackFilters);
+  const [loading, setLoading] = useState(true);
+  const [backendConnected, setBackendConnected] = useState(false);
   const { addNode, updateNodeData, getGraphState, loadGraph } = useGraphStore();
 
-  // Try to load filters from backend, fall back to mock data
+  // Load filters from backend
   useEffect(() => {
     api.getFilters()
-      .then(setFilters)
-      .catch(() => {
-        console.log('Using mock filters (backend not available)');
+      .then((backendFilters) => {
+        console.log('Loaded filters from backend:', backendFilters);
+        setFilters(backendFilters);
+        setBackendConnected(true);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Failed to load filters from backend:', err);
+        setBackendConnected(false);
+        setLoading(false);
       });
   }, []);
 
   const handleAddFilter = useCallback((filter: FilterInfo) => {
     const id = `node_${++nodeIdCounter}`;
+    
+    // Convert filter parameters to ParameterValue objects with defaults
+    const parameters: ParameterValue[] = (filter.parameters || []).map(param => ({
+      name: param.name,
+      value: param.defaultValue ?? null,
+      type: param.portType as ParameterValue['type'],
+    }));
+
     const nodeData: FilterNodeData = {
       filterType: filter.id,
       label: filter.name,
       category: filter.category,
       inputs: filter.inputs,
       outputs: filter.outputs,
-      parameters: [], // Will be populated based on filter type
+      parameters,
       isValid: true,
     };
 
@@ -296,6 +148,15 @@ function App() {
   return (
     <ReactFlowProvider>
       <div className="app">
+        {loading ? (
+          <div className="loading-overlay">
+            <div className="loading-spinner">Loading filters...</div>
+          </div>
+        ) : !backendConnected ? (
+          <div className="backend-warning">
+            <p>⚠️ Backend not connected. Make sure Tauri is running.</p>
+          </div>
+        ) : null}
         <FilterPalette filters={filters} onAddFilter={handleAddFilter} />
         <GraphCanvas
           onValidate={handleValidate}

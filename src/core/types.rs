@@ -326,8 +326,6 @@ impl PortType {
             (PortType::Map(inner), Value::Map(map)) => {
                 map.is_empty() || map.values().all(|v| inner.matches(v))
             }
-            // Any wildcard matches all types
-            (PortType::Any, _) => true,
             _ => false,
         }
     }

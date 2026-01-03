@@ -7,14 +7,24 @@ interface FilterPaletteProps {
   onAddFilter: (filter: FilterInfo) => void;
 }
 
+// Category display order matching Rust Category::all()
 const categoryOrder: FilterCategory[] = [
-  'Source',
-  'Transform',
-  'Color',
-  'Filter',
-  'Analysis',
+  'Input',
   'Output',
+  'Transform',
+  'Adjust',
+  'Blur',
+  'Sharpen',
+  'Edge',
+  'Noise',
+  'Draw',
+  'Text',
+  'Composite',
+  'Color',
+  'Analyze',
+  'Math',
   'Utility',
+  'Custom',
 ];
 
 export function FilterPalette({ filters, onAddFilter }: FilterPaletteProps) {
@@ -35,20 +45,19 @@ export function FilterPalette({ filters, onAddFilter }: FilterPaletteProps) {
   }, [filters, searchQuery]);
 
   const groupedFilters = useMemo(() => {
-    const groups: Record<FilterCategory, FilterInfo[]> = {
-      Source: [],
-      Transform: [],
-      Color: [],
-      Filter: [],
-      Analysis: [],
-      Output: [],
-      Utility: [],
-    };
+    const groups: Partial<Record<FilterCategory, FilterInfo[]>> = {};
+
+    // Initialize all categories
+    categoryOrder.forEach((cat) => {
+      groups[cat] = [];
+    });
 
     filteredFilters.forEach((filter) => {
-      if (groups[filter.category]) {
-        groups[filter.category].push(filter);
+      const category = filter.category as FilterCategory;
+      if (!groups[category]) {
+        groups[category] = [];
       }
+      groups[category]!.push(filter);
     });
 
     return groups;
@@ -81,7 +90,7 @@ export function FilterPalette({ filters, onAddFilter }: FilterPaletteProps) {
 
       <div className="filter-categories">
         {categoryOrder.map((category) => {
-          const categoryFilters = groupedFilters[category];
+          const categoryFilters = groupedFilters[category] || [];
           if (categoryFilters.length === 0) return null;
 
           const isExpanded = expandedCategories.has(category);
