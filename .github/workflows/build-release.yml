@@ -1,0 +1,116 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+      
+      - name: Install dependencies
+        run: cd ui && npm install
+      
+      - name: Build
+        run: cd ui && npm run tauri build
+      
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: ambara-linux-appimage
+          path: ui/src-tauri/target/release/bundle/appimage/
+      
+      - name: Upload deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: ambara-linux-deb
+          path: ui/src-tauri/target/release/bundle/deb/
+  
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install dependencies
+        run: cd ui && npm install
+      
+      - name: Build
+        run: cd ui && npm run tauri build
+      
+      - name: Upload dmg
+        uses: actions/upload-artifact@v4
+        with:
+          name: ambara-macos-dmg
+          path: ui/src-tauri/target/release/bundle/macos/
+  
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install dependencies
+        run: cd ui && npm install
+      
+      - name: Build
+        run: cd ui && npm run tauri build
+      
+      - name: Upload msi
+        uses: actions/upload-artifact@v4
+        with:
+          name: ambara-windows-msi
+          path: ui/src-tauri/target/release/bundle/msi/
+
+  create-release:
+    needs: [build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ambara-linux-appimage/*
+            ambara-linux-deb/*
+            ambara-macos-dmg/*
+            ambara-windows-msi/*
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
