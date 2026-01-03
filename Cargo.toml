@@ -1,0 +1,67 @@
+[package]
+name = "ambara"
+version = "0.1.0"
+edition = "2026"
+description = "A node-based image processing application with ComfyUI-like interface"
+authors = ["Ambara Contributors"]
+license = "MIT"
+repository = "https://github.com/ambara/ambara"
+
+[lib]
+name = "ambara"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ambara"
+path = "src/main.rs"
+
+[dependencies]
+# Image processing
+image = { version = "0.25", features = ["jpeg", "png", "gif", "webp", "tiff"] }
+imageproc = "0.25"
+
+# Graph algorithms
+petgraph = "0.6"
+indexmap = { version = "2.0", features = ["serde"] }
+
+# Parallel processing
+rayon = "1.10"
+crossbeam = "0.8"
+parking_lot = "0.12"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Serialization
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0"
+
+# Unique identifiers
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# File utilities
+glob = "0.3"
+walkdir = "2.0"
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
+
+# LRU Cache
+lru = "0.12"
+
+[dev-dependencies]
+criterion = "0.5"
+tempfile = "3.0"
+proptest = "1.0"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 1

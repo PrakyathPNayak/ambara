@@ -1,0 +1,41 @@
+# Rust
+/target
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+*.profraw
+*.profdata
+
+# Documentation
+/target/doc
+
+# Local configuration
+.env
+.env.local
+
+# UI build artifacts
+ui/dist
+ui/node_modules
+ui/src-tauri/target
+ui/.next
+ui/out
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+Thumbs.db
+.DS_Store

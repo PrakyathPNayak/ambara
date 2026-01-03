@@ -1,0 +1,104 @@
+.graph-canvas {
+  flex: 1;
+  height: 100%;
+  background: #1e1e1e;
+}
+
+.react-flow__node {
+  cursor: grab;
+}
+
+.react-flow__node:active {
+  cursor: grabbing;
+}
+
+.graph-controls {
+  background: #252526 !important;
+  border: 1px solid #404040 !important;
+  border-radius: 4px !important;
+}
+
+.graph-controls button {
+  background: #252526 !important;
+  border-bottom: 1px solid #404040 !important;
+  color: #ccc !important;
+}
+
+.graph-controls button:hover {
+  background: #2a2d2e !important;
+}
+
+.graph-controls button svg {
+  fill: #ccc !important;
+}
+
+.graph-minimap {
+  background: #252526 !important;
+  border: 1px solid #404040 !important;
+  border-radius: 4px !important;
+}
+
+.graph-toolbar {
+  display: flex;
+  gap: 8px;
+  background: #252526;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #404040;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.toolbar-btn {
+  padding: 6px 12px;
+  background: #333;
+  border: 1px solid #404040;
+  border-radius: 4px;
+  color: #ccc;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.toolbar-btn:hover {
+  background: #404040;
+  border-color: #555;
+}
+
+.toolbar-btn.primary {
+  background: #0e639c;
+  border-color: #1177bb;
+  color: white;
+}
+
+.toolbar-btn.primary:hover {
+  background: #1177bb;
+}
+
+.toolbar-separator {
+  width: 1px;
+  background: #404040;
+  margin: 0 4px;
+}
+
+/* Edge styles */
+.react-flow__edge-path {
+  stroke: #888;
+  stroke-width: 2;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #007acc;
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #aaa;
+}
+
+/* Connection line */
+.react-flow__connection-line {
+  stroke: #007acc;
+  stroke-width: 2;
+}
