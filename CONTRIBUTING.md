@@ -11,12 +11,12 @@ Be respectful, inclusive, and constructive in all interactions. We're here to bu
 1. **Fork the repository** on GitHub
 2. **Clone your fork** locally:
    ```bash
-   git clone https://github.com/yourusername/ambara.git
+   git clone https://github.com/PrakyathPNayak/ambara.git
    cd ambara
    ```
 3. **Add the upstream remote**:
    ```bash
-   git remote add upstream https://github.com/originalowner/ambara.git
+   git remote add upstream https://github.com/PrakyathPNayak/ambara.git
    ```
 4. **Create a branch** for your feature:
    ```bash
