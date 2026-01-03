@@ -3,7 +3,7 @@
 //! Each stage checks for a specific category of errors.
 
 use crate::core::context::ValidationContext;
-use crate::core::error::{NodeId, ValidationError, ValidationWarning};
+use crate::core::error::{ValidationError, ValidationWarning};
 use crate::core::types::Value;
 use crate::graph::structure::ProcessingGraph;
 use crate::graph::topology::TopologyAnalyzer;

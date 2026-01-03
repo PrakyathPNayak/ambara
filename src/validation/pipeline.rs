@@ -1,6 +1,6 @@
 //! Validation pipeline implementation.
 
-use crate::core::error::{ValidationError, ValidationReport, ValidationWarning};
+use crate::core::error::ValidationReport;
 use crate::graph::structure::ProcessingGraph;
 use crate::validation::stages::{
     ConstraintValidation, CustomValidation, ResourceValidation, StructuralValidation,

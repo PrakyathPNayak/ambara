@@ -45,7 +45,7 @@ impl<'a> TopologyAnalyzer<'a> {
         // Start with nodes that have no incoming edges
         let mut queue: VecDeque<NodeId> = in_degree
             .iter()
-            .filter(|(_, &degree)| degree == 0)
+            .filter(|(_, degree)| **degree == 0)
             .map(|(&id, _)| id)
             .collect();
 
@@ -67,7 +67,7 @@ impl<'a> TopologyAnalyzer<'a> {
         if result.len() != self.graph.node_count() {
             let remaining: Vec<NodeId> = in_degree
                 .iter()
-                .filter(|(_, &degree)| degree > 0)
+                .filter(|(_, degree)| **degree > 0)
                 .map(|(&id, _)| id)
                 .collect();
 
