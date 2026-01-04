@@ -19,6 +19,10 @@ pub fn register(registry: &mut FilterRegistry) {
     registry.register(|| Box::new(Note));
     registry.register(|| Box::new(ImageInfo));
     registry.register(|| Box::new(ImagePreview));
+    registry.register(|| Box::new(CollectImages));
+    registry.register(|| Box::new(GetImageFromArray));
+    registry.register(|| Box::new(ArrayLength));
+    registry.register(|| Box::new(ValueDisplay));
 }
 
 /// Preview node - displays image info without modifying it.
@@ -443,6 +447,251 @@ impl FilterNode for ImagePreview {
         ctx.set_output("thumbnail", Value::String(data_url))?;
         ctx.set_output("width", Value::Integer(orig_width as i64))?;
         ctx.set_output("height", Value::Integer(orig_height as i64))?;
+        Ok(())
+    }
+
+    fn clone_box(&self) -> Box<dyn FilterNode> {
+        Box::new(self.clone())
+    }
+}
+
+/// Collect multiple individual images into an array.
+/// 
+/// Useful for gathering images before batch processing.
+#[derive(Debug, Clone)]
+pub struct CollectImages;
+
+impl FilterNode for CollectImages {
+    fn metadata(&self) -> NodeMetadata {
+        NodeMetadata::builder("collect_images", "Collect Images")
+            .description("Collect multiple images into an array for batch processing")
+            .category(Category::Utility)
+            .author("Ambara")
+            .version("1.0.0")
+            .input(
+                PortDefinition::input("image1", PortType::Image)
+                    .with_description("First image")
+            )
+            .input(
+                PortDefinition::input("image2", PortType::Image)
+                    .optional()
+                    .with_description("Second image (optional)")
+            )
+            .input(
+                PortDefinition::input("image3", PortType::Image)
+                    .optional()
+                    .with_description("Third image (optional)")
+            )
+            .input(
+                PortDefinition::input("image4", PortType::Image)
+                    .optional()
+                    .with_description("Fourth image (optional)")
+            )
+            .output(
+                PortDefinition::output("images", PortType::Array(Box::new(PortType::Image)))
+                    .with_description("Array of collected images")
+            )
+            .output(
+                PortDefinition::output("count", PortType::Integer)
+                    .with_description("Number of images collected")
+            )
+            .build()
+    }
+
+    fn validate(&self, _ctx: &ValidationContext) -> Result<(), ValidationError> {
+        Ok(())
+    }
+
+    fn execute(&self, ctx: &mut ExecutionContext) -> Result<(), ExecutionError> {
+        let mut images = Vec::new();
+        
+        // Collect images from all inputs
+        for input_name in &["image1", "image2", "image3", "image4"] {
+            if let Some(img) = ctx.get_input_image_optional(input_name) {
+                images.push(Value::Image(img.clone()));
+            }
+        }
+        
+        let count = images.len() as i64;
+        ctx.set_output("images", Value::Array(images))?;
+        ctx.set_output("count", Value::Integer(count))?;
+        Ok(())
+    }
+
+    fn clone_box(&self) -> Box<dyn FilterNode> {
+        Box::new(self.clone())
+    }
+}
+
+/// Get a single image from an array by index.
+#[derive(Debug, Clone)]
+pub struct GetImageFromArray;
+
+impl FilterNode for GetImageFromArray {
+    fn metadata(&self) -> NodeMetadata {
+        NodeMetadata::builder("get_image_from_array", "Get Image From Array")
+            .description("Extract a single image from an array by index")
+            .category(Category::Utility)
+            .author("Ambara")
+            .version("1.0.0")
+            .input(
+                PortDefinition::input("images", PortType::Array(Box::new(PortType::Image)))
+                    .with_description("Array of images")
+            )
+            .parameter(
+                ParameterDefinition::new("index", PortType::Integer, Value::Integer(0))
+                    .with_description("Index of image to extract (0-based)")
+                    .with_range(0.0, 100.0)
+            )
+            .output(
+                PortDefinition::output("image", PortType::Image)
+                    .with_description("Extracted image")
+            )
+            .build()
+    }
+
+    fn validate(&self, _ctx: &ValidationContext) -> Result<(), ValidationError> {
+        Ok(())
+    }
+
+    fn execute(&self, ctx: &mut ExecutionContext) -> Result<(), ExecutionError> {
+        let images = ctx.get_input("images")?;
+        let index = ctx.get_integer("index").unwrap_or(0) as usize;
+        
+        let image_array = match images {
+            Value::Array(arr) => arr,
+            _ => return Err(ExecutionError::NodeExecution {
+                node_id: ctx.node_id,
+                error: "Expected image array".to_string(),
+            }),
+        };
+        
+        if index >= image_array.len() {
+            return Err(ExecutionError::NodeExecution {
+                node_id: ctx.node_id,
+                error: format!("Index {} out of bounds (array has {} images)", index, image_array.len()),
+            });
+        }
+        
+        let image = image_array.get(index).ok_or_else(|| ExecutionError::NodeExecution {
+            node_id: ctx.node_id,
+            error: "Failed to get image at index".to_string(),
+        })?;
+        
+        ctx.set_output("image", image.clone())?;
+        Ok(())
+    }
+
+    fn clone_box(&self) -> Box<dyn FilterNode> {
+        Box::new(self.clone())
+    }
+}
+
+/// Get the length of an array.
+#[derive(Debug, Clone)]
+pub struct ArrayLength;
+
+impl FilterNode for ArrayLength {
+    fn metadata(&self) -> NodeMetadata {
+        NodeMetadata::builder("array_length", "Array Length")
+            .description("Get the number of items in an array")
+            .category(Category::Utility)
+            .author("Ambara")
+            .version("1.0.0")
+            .input(
+                PortDefinition::input("array", PortType::Any)
+                    .with_description("Array to measure")
+            )
+            .output(
+                PortDefinition::output("length", PortType::Integer)
+                    .with_description("Number of items in array")
+            )
+            .build()
+    }
+
+    fn validate(&self, _ctx: &ValidationContext) -> Result<(), ValidationError> {
+        Ok(())
+    }
+
+    fn execute(&self, ctx: &mut ExecutionContext) -> Result<(), ExecutionError> {
+        let array = ctx.get_input("array")?;
+        
+        let length = match array {
+            Value::Array(arr) => arr.len() as i64,
+            _ => return Err(ExecutionError::NodeExecution {
+                node_id: ctx.node_id,
+                error: "Expected an array".to_string(),
+            }),
+        };
+        
+        ctx.set_output("length", Value::Integer(length))?;
+        Ok(())
+    }
+
+    fn clone_box(&self) -> Box<dyn FilterNode> {
+        Box::new(self.clone())
+    }
+}
+
+/// Display any value type (integers, floats, booleans, strings).
+/// 
+/// Useful for debugging and monitoring non-image values in the graph.
+#[derive(Debug, Clone)]
+pub struct ValueDisplay;
+
+impl FilterNode for ValueDisplay {
+    fn metadata(&self) -> NodeMetadata {
+        NodeMetadata::builder("value_display", "Value Display")
+            .description("Display any value type (numbers, booleans, strings) for debugging")
+            .category(Category::Utility)
+            .author("Ambara")
+            .version("1.0.0")
+            .input(
+                PortDefinition::input("value", PortType::Any)
+                    .with_description("Value to display")
+            )
+            .output(
+                PortDefinition::output("value", PortType::Any)
+                    .with_description("Passthrough of input value")
+            )
+            .output(
+                PortDefinition::output("display", PortType::String)
+                    .with_description("Human-readable display string")
+            )
+            .output(
+                PortDefinition::output("type", PortType::String)
+                    .with_description("Type name of the value")
+            )
+            .build()
+    }
+
+    fn validate(&self, _ctx: &ValidationContext) -> Result<(), ValidationError> {
+        Ok(())
+    }
+
+    fn execute(&self, ctx: &mut ExecutionContext) -> Result<(), ExecutionError> {
+        let value = ctx.get_input("value")?;
+        
+        let (display, type_name) = match value {
+            Value::Integer(i) => (format!("{}", i), "Integer"),
+            Value::Float(f) => (format!("{:.4}", f), "Float"),
+            Value::Boolean(b) => (format!("{}", b), "Boolean"),
+            Value::String(s) => (s.clone(), "String"),
+            Value::Color(c) => (format!("rgba({}, {}, {}, {})", c.r, c.g, c.b, c.a), "Color"),
+            Value::Vector2(x, y) => (format!("({:.2}, {:.2})", x, y), "Vector2"),
+            Value::Vector3(x, y, z) => (format!("({:.2}, {:.2}, {:.2})", x, y, z), "Vector3"),
+            Value::Image(img) => (
+                format!("Image {}x{} {:?}", img.metadata.width, img.metadata.height, img.metadata.format),
+                "Image"
+            ),
+            Value::Array(arr) => (format!("Array[{}]", arr.len()), "Array"),
+            Value::Map(map) => (format!("Map{{}} with {} keys", map.len()), "Map"),
+            Value::None => ("None".to_string(), "None"),
+        };
+        
+        ctx.set_output("value", value.clone())?;
+        ctx.set_output("display", Value::String(display))?;
+        ctx.set_output("type", Value::String(type_name.to_string()))?;
         Ok(())
     }
 

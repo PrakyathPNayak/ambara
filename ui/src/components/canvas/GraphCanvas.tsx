@@ -12,12 +12,14 @@ import '@xyflow/react/dist/style.css';
 import { useGraphStore } from '../../store/graphStore';
 import { FilterNode } from '../nodes/FilterNode';
 import { PreviewNode } from '../nodes/PreviewNode';
+import ValueDisplayNode from '../nodes/ValueDisplayNode';
 import './GraphCanvas.css';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const nodeTypes: Record<string, any> = {
   filter: FilterNode,
   preview: PreviewNode,
+  valueDisplay: ValueDisplayNode,
 };
 
 interface GraphCanvasProps {

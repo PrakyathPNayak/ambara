@@ -471,6 +471,33 @@ impl ImageValue {
         // RGBA = 4 bytes per pixel
         (self.metadata.width as usize) * (self.metadata.height as usize) * 4
     }
+
+    /// Create a new ImageValue with a different image but keeping metadata.
+    ///
+    /// Useful for filter operations that transform the image.
+    pub fn with_image(&self, image: DynamicImage) -> Self {
+        let width = image.width();
+        let height = image.height();
+        let has_alpha = matches!(
+            image,
+            DynamicImage::ImageRgba8(_)
+                | DynamicImage::ImageRgba16(_)
+                | DynamicImage::ImageRgba32F(_)
+                | DynamicImage::ImageLumaA8(_)
+                | DynamicImage::ImageLumaA16(_)
+        );
+
+        Self {
+            metadata: ImageMetadata {
+                width,
+                height,
+                format: self.metadata.format,
+                has_alpha,
+            },
+            data: Some(Arc::new(image)),
+            data_ref: ImageDataRef::InMemory,
+        }
+    }
 }
 
 impl Default for ImageValue {

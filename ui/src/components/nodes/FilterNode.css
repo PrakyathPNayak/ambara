@@ -1,21 +1,63 @@
+/* FilterNode - Dynamic colors based on category */
 .filter-node {
   background: #1e1e1e;
   border: 2px solid #333;
   border-radius: 8px;
-  min-width: 200px;
+  min-width: 180px;
   max-width: 280px;
   font-family: 'Segoe UI', system-ui, sans-serif;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: box-shadow 0.2s, border-color 0.2s;
+  transition: box-shadow 0.2s, border-color 0.2s, transform 0.2s;
 }
 
 .filter-node:hover {
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  transform: translateY(-1px);
 }
 
 .filter-node.selected {
   border-color: #007acc;
   box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.3);
+}
+
+/* Category-specific border colors */
+.filter-node[data-category="input"],
+.filter-node[data-category="source"] {
+  border-color: #4CAF50;
+}
+
+.filter-node[data-category="output"] {
+  border-color: #F44336;
+}
+
+.filter-node[data-category="transform"] {
+  border-color: #2196F3;
+}
+
+.filter-node[data-category="color"] {
+  border-color: #E91E63;
+}
+
+.filter-node[data-category="blur"],
+.filter-node[data-category="filter"] {
+  border-color: #9C27B0;
+}
+
+.filter-node[data-category="utility"] {
+  border-color: #607D8B;
+}
+
+.filter-node[data-category="math"] {
+  border-color: #03A9F4;
+}
+
+.filter-node[data-category="composite"] {
+  border-color: #FF9800;
+}
+
+.filter-node[data-category="analyze"],
+.filter-node[data-category="analysis"] {
+  border-color: #FF9800;
 }
 
 .filter-node.invalid {
@@ -51,51 +93,71 @@
 .filter-node-ports {
   display: flex;
   justify-content: space-between;
+  gap: 16px;
 }
 
 .input-ports,
 .output-ports {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
-.handle-wrapper {
+.input-ports {
+  align-items: flex-start;
+}
+
+.output-ports {
+  align-items: flex-end;
+}
+
+/* Handle row - contains handle + labels */
+.handle-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 8px;
+  padding: 4px 8px;
   position: relative;
+  min-height: 22px;
 }
 
-.input-handle {
-  justify-content: flex-start;
+.handle-row.input-row {
+  padding-left: 4px;
 }
 
-.output-handle {
-  justify-content: flex-end;
+.handle-row.output-row {
+  padding-right: 4px;
 }
 
 .handle-label {
   font-size: 11px;
   color: #ccc;
+  white-space: nowrap;
 }
 
 .handle-type {
   font-size: 9px;
-  color: #888;
+  color: #666;
+  white-space: nowrap;
 }
 
-/* Override ReactFlow handle styles */
-.filter-node .react-flow__handle {
-  width: 12px;
-  height: 12px;
+/* Node handle styling - stable, no movement on hover */
+.filter-node .node-handle {
+  width: 10px;
+  height: 10px;
   border: 2px solid #1e1e1e;
   border-radius: 50%;
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  flex-shrink: 0;
 }
 
-.filter-node .react-flow__handle:hover {
-  transform: scale(1.2);
+/* Only change border color on hover, not size/position */
+.filter-node .node-handle:hover {
+  border-color: #fff;
 }
 
 .filter-node-params {

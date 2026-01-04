@@ -34,37 +34,35 @@ interface FilterNodeProps {
 
 function FilterNodeComponent({ data, selected }: FilterNodeProps) {
   const categoryColor = categoryColors[data.category] || '#607D8B';
+  // Normalize category for CSS attribute
+  const categoryAttr = (data.category || 'utility').toLowerCase();
 
   const inputHandles = useMemo(() => 
-    data.inputs.map((input, index) => (
-      <div key={`input-${input.name}`} className="handle-wrapper input-handle">
+    data.inputs.map((input) => (
+      <div key={`input-${input.name}`} className="handle-row input-row">
         <Handle
           type="target"
           position={Position.Left}
           id={input.name}
-          style={{
-            background: portColors[input.portType],
-            top: `${30 + index * 24}px`,
-          }}
+          className="node-handle"
+          style={{ background: portColors[input.portType] }}
         />
-        <span className="handle-label input-label">{input.name}</span>
-        <span className="handle-type">({input.portType})</span>
+        <span className="handle-label">{input.name}</span>
+        <span className="handle-type">{input.portType}</span>
       </div>
     )), [data.inputs]);
 
   const outputHandles = useMemo(() =>
-    data.outputs.map((output, index) => (
-      <div key={`output-${output.name}`} className="handle-wrapper output-handle">
-        <span className="handle-type">({output.portType})</span>
-        <span className="handle-label output-label">{output.name}</span>
+    data.outputs.map((output) => (
+      <div key={`output-${output.name}`} className="handle-row output-row">
+        <span className="handle-type">{output.portType}</span>
+        <span className="handle-label">{output.name}</span>
         <Handle
           type="source"
           position={Position.Right}
           id={output.name}
-          style={{
-            background: portColors[output.portType],
-            top: `${30 + index * 24}px`,
-          }}
+          className="node-handle"
+          style={{ background: portColors[output.portType] }}
         />
       </div>
     )), [data.outputs]);
@@ -72,6 +70,7 @@ function FilterNodeComponent({ data, selected }: FilterNodeProps) {
   return (
     <div 
       className={`filter-node ${selected ? 'selected' : ''} ${data.isValid === false ? 'invalid' : ''}`}
+      data-category={categoryAttr}
     >
       <div 
         className="filter-node-header"

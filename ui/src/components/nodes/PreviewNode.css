@@ -57,46 +57,63 @@
   display: flex;
   justify-content: space-between;
   padding: 0 4px;
+  gap: 16px;
 }
 
 .preview-input-ports,
 .preview-output-ports {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
-.preview-handle-wrapper {
+.preview-input-ports {
+  align-items: flex-start;
+}
+
+.preview-output-ports {
+  align-items: flex-end;
+}
+
+.preview-handle-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 8px;
+  padding: 4px 8px;
   position: relative;
+  min-height: 22px;
 }
 
-.preview-handle-wrapper.input-handle {
-  justify-content: flex-start;
+.preview-handle-row.input-row {
+  padding-left: 4px;
 }
 
-.preview-handle-wrapper.output-handle {
-  justify-content: flex-end;
+.preview-handle-row.output-row {
+  padding-right: 4px;
 }
 
 .preview-handle-label {
   font-size: 11px;
   color: #aaa;
+  white-space: nowrap;
 }
 
-/* Override ReactFlow handle styles */
-.preview-node .react-flow__handle {
-  width: 12px;
-  height: 12px;
+/* Preview node handle styling - stable, no movement */
+.preview-node .preview-handle {
+  width: 10px;
+  height: 10px;
   border: 2px solid #1a1a2e;
   border-radius: 50%;
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  flex-shrink: 0;
 }
 
-.preview-node .react-flow__handle:hover {
-  transform: scale(1.2);
+.preview-node .preview-handle:hover {
+  border-color: #fff;
 }
 
 .preview-image-container {

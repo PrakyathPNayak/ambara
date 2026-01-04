@@ -25,33 +25,29 @@ function PreviewNodeComponent({ data, selected }: PreviewNodeProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   
   const inputHandles = useMemo(() => 
-    data.inputs.map((input, index) => (
-      <div key={`input-${input.name}`} className="preview-handle-wrapper input-handle">
+    data.inputs.map((input) => (
+      <div key={`input-${input.name}`} className="preview-handle-row input-row">
         <Handle
           type="target"
           position={Position.Left}
           id={input.name}
-          style={{
-            background: portColors[input.portType],
-            top: `${52 + index * 24}px`,
-          }}
+          className="preview-handle"
+          style={{ background: portColors[input.portType] }}
         />
         <span className="preview-handle-label">{input.name}</span>
       </div>
     )), [data.inputs]);
 
   const outputHandles = useMemo(() =>
-    data.outputs.map((output, index) => (
-      <div key={`output-${output.name}`} className="preview-handle-wrapper output-handle">
+    data.outputs.map((output) => (
+      <div key={`output-${output.name}`} className="preview-handle-row output-row">
         <span className="preview-handle-label">{output.name}</span>
         <Handle
           type="source"
           position={Position.Right}
           id={output.name}
-          style={{
-            background: portColors[output.portType],
-            top: `${52 + index * 24}px`,
-          }}
+          className="preview-handle"
+          style={{ background: portColors[output.portType] }}
         />
       </div>
     )), [data.outputs]);
