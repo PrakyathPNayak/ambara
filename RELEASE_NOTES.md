@@ -1,52 +1,38 @@
-# Ambara v0.1.0-alpha.1 Release Notes
+# Ambara v0.1.2 Release Notes
 
-**Release Date:** January 3, 2026
+**Release Date:** January 4, 2026
 
-## 🎉 Welcome to Ambara Alpha!
+## 🎨 New Features
 
-Ambara is a node-based image processing application with a ComfyUI-like interface, designed for professional image workflows including astrophotography processing.
+### Batch Save Images Node
+Save multiple images at once with intelligent filename management:
+- **Auto-incrementing filenames** with configurable padding (e.g., `image_001.png`, `image_002.png`, `image_003.png`)
+- **Customizable prefix** for organized output
+- **Multi-format support**: PNG, JPG, WebP, BMP, TIFF
+- **Quality control** for lossy formats (JPEG/WebP)
+- **Outputs**: Returns array of saved paths and total count for verification
 
-## ✨ Key Features
+### Output Value Display
+Non-image output values now appear directly in nodes after execution:
+- **Numbers**: Formatted with 2 decimal places
+- **Booleans**: Shown as ✓ or ✗
+- **Strings**: Truncated if too long with ellipsis
+- **Arrays**: Displays item count `[n]`
+- Values appear in **green badges** next to output ports
+- Images excluded to keep nodes compact
 
-### Core Capabilities
-- **Node-based Processing**: Create complex image processing workflows using a visual node editor
-- **28+ Built-in Filters**: Comprehensive filter library across 16 categories
-- **Type-Safe Connections**: Automatic validation ensures correct data flow between nodes
-- **Parallel Execution**: High-performance image processing with batch support
-- **Workflow Persistence**: Save and load your processing graphs as JSON files
+## 🎯 Improvements
 
-### Astrophotography Tools
-- **Image Stacking**: Combine multiple exposures using multiple algorithms (mean, median, sigma-clip, max, min)
-- **Dark Frame Subtraction**: Remove thermal noise with dark frame calibration
-- **Flat Field Correction**: Eliminate vignetting and dust artifacts
-- **Hot Pixel Removal**: Detect and remove stuck/hot pixels
-- **Histogram Stretching**: Enhance faint details with advanced controls
-
-### Image Preview
-- **Live Thumbnails**: See preview thumbnails directly in the node graph
-- **Real-time Updates**: Previews update as you execute the graph
-- **Dimension Display**: View original image dimensions alongside previews
-
-### User Interface
-- **Filter Palette**: Search and browse 28+ filters organized by category
-- **Properties Panel**: Edit node parameters in real-time
-- **Intuitive Controls**: 
-  - Delete connections with Backspace/Delete keys
-  - Clear entire graph with confirmation
-  - File dialogs for image import/export
-
-## 📦 What's Included
-
-### Filter Categories
-
-#### Input/Output
-- LoadImage, LoadFolder, SaveImage (with customizable format, quality, and output path)
-
-#### Transformation
-- Resize, Rotate, Flip, Crop with full control
-
-#### Color Adjustments
-- Brightness, Contrast, Saturation, Grayscale, Invert
+### Enhanced Node Colors
+Nodes now have **distinct solid background colors** by category for superior minimap visibility:
+- 🟢 **Input**: Green (#2d4a2d)
+- 🔴 **Output**: Red (#4a2d2d)
+- 🔵 **Transform**: Blue (#2d3a4a)
+- 🩷 **Color/Adjust**: Pink (#4a2d3d)
+- 🟣 **Blur/Sharpen/Edge/Noise**: Purple (#3d2d4a)
+- ⚫ **Draw/Text/Utility**: Gray (#35414a)
+- 🔷 **Math**: Cyan (#2d3d4a)
+- 🟠 **Composite/Analyze**: Orange (#4a3d2d)
 
 #### Blur & Sharpen
 - GaussianBlur, BoxBlur, Sharpen, UnsharpMask
@@ -61,90 +47,50 @@ Ambara is a node-based image processing application with a ComfyUI-like interfac
 - DrawRectangle, DrawCircle, DrawLine, DrawText with color/size options
 
 #### Composite Operations
-- Blend, Overlay with adjustable opacity
+### Zoom Capability
+- **10x increased zoom out** range (minZoom: 0.05 vs previous 0.5)
+- MaxZoom set to 4 for better control
+- Perfect for viewing large, complex graphs
 
-#### Utility
-- Preview, SplitChannels, MergeChannels, Note, ImageInfo, ImagePreview
+### Load Folder Improvements
+- Parameter renamed from `path` to `directory` for clearer UI
+- **Automatically opens directory picker** dialog
+- Better integration with file system browser
+- Maintains recursive search and pattern matching features
 
-#### Analysis
-- ImageInfo for detailed image statistics
+### Minimap Enhancements
+- All category colors now properly mapped and visible
+- Improved node stroke styling for better visibility
+- Category colors clearly visible at a glance
+- Easier navigation in complex graphs
 
-#### Mathematical Operations
-- Add, Subtract, Multiply, Divide, Modulo, Power, Min, Max, Clamp
+## 🐛 Bug Fixes
 
-#### Comparison & Logic
-- Equal, NotEqual, Less, Greater, And, Or, Not
+- Fixed compilation errors in batch save implementation
+- Corrected type handling for array inputs
+- Improved error messages for batch operations
+- Fixed minimap colors to match all node categories
+- Updated Linux dependencies for modern Ubuntu versions
 
-#### Type Conversion
-- ToInteger, ToFloat, ToString, ToBoolean
+## 📝 Technical Details
 
-#### Astrophotography (NEW!)
-- ImageStack, DarkFrameSubtract, FlatFieldCorrect, HotPixelRemoval, HistogramStretch
+- Version changed to numeric format (0.1.2) for MSI bundler compatibility
+- All changes tested and compiled successfully (release build)
+- Frontend and backend version synchronized
+- CHANGELOG.md updated with detailed change history
 
-## 🚀 Getting Started
+## 📦 Installation
 
-1. **Launch Ambara**: Open the application from your applications menu
-2. **Load an Image**: Use LoadImage node from the Input category
-3. **Add Filters**: Click on filters in the palette to add them to your workflow
-4. **Connect Nodes**: Drag connections between output and input ports
-5. **Execute**: Click "Execute" to process your image
-6. **Save Results**: Use SaveImage node to export your processed image
-7. **Save Workflow**: Use File → Save to store your entire workflow for later
+Download the appropriate binary for your platform from the assets below, or build from source:
 
-## 🎬 Example Workflows
-
-### Basic Image Enhancement
-```
-LoadImage → Brightness → Contrast → Saturation → SaveImage
-```
-
-### Astrophotography Processing
-```
-LoadFolder → ImageStack (median) → DarkFrameSubtract → FlatFieldCorrect → 
-HistogramStretch → ImagePreview → SaveImage
-```
-
-### Edge Detection & Blur
-```
-LoadImage → EdgeDetect → GaussianBlur → SaveImage
+```bash
+git clone https://github.com/PrakyathPNayak/ambara.git
+cd ambara
+cargo build --release
 ```
 
-## 🐛 Known Limitations
+## 🔗 Links
 
-- Alpha release - expect rough edges and occasional bugs
-- Large image batches (100+ images) may use significant RAM
-- Some advanced features from the roadmap not yet implemented
-- No undo/redo yet (planned for v0.2)
-
-## 📋 System Requirements
-
-- **OS**: Linux (primary), Windows and macOS in progress
-- **RAM**: 4GB minimum, 8GB+ recommended for batch processing
-- **Storage**: 200MB for application + space for your image files
-
-## 🔮 Roadmap
-
-- **v0.2.0**: Undo/redo support, image comparison view, advanced histogram tools
-- **v0.3.0**: Custom node creation, JavaScript scripting support
-- **v0.4.0**: GPU acceleration, real-time preview in node graph
-- **v1.0.0**: Production-ready release with stability guarantees
-
-## 🤝 Contributing
-
-Contributions welcome! The project is open source on GitHub:
-https://github.com/PrakyathPNayak/ambara
-
-## 📄 License
-
-MIT License - See LICENSE file for details
-
-## 💬 Feedback
-
-Have questions, found bugs, or have feature suggestions? 
-- Open an issue on GitHub
-- Check the documentation at the project wiki
-- Join the community discussions
-
----
-
-**Thank you for trying Ambara!** Your feedback helps us build a better image processing tool.
+- [Full Changelog](https://github.com/PrakyathPNayak/ambara/compare/v0.1.0-alpha.1...v0.1.2)
+- [Documentation](https://github.com/PrakyathPNayak/ambara#readme)
+- [Report Issues](https://github.com/PrakyathPNayak/ambara/issues)
