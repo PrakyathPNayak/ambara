@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0-alpha.2] - 2026-01-04
+## [0.1.2] - 2026-01-04
 
 ### Added
 - **Batch Save Images Node**: Save multiple images at once with auto-incrementing filenames
@@ -30,9 +30,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Numbers, booleans, strings, and arrays shown with formatted values
   - Green badges appear next to output ports
   - Images excluded to avoid clutter
+- **Version Format**: Changed to numeric versioning (0.1.2) for MSI build compatibility
+
+### Fixed
+- Minimap colors now correctly match node category colors
+- MSI bundler compatibility with numeric-only version format
 
 ### Improved
-- Minimap node visibility with better stroke styling
+- Minimap node visibility with better stroke styling and matching colors
 - Preview node background colors
 - Directory selection in UI for folder-based operations
 

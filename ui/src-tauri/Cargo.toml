@@ -1,6 +1,6 @@
 [package]
 name = "ui"
-version = "0.1.0-alpha.1"
+version = "0.1.2"
 description = "Ambara - Node-based Image Processing"
 authors = ["Prakyath P Nayak"]
 edition = "2021"

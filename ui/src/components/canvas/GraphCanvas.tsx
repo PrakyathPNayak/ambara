@@ -53,15 +53,25 @@ export function GraphCanvas({ onValidate, onExecute, onSave, onLoad, onClear }: 
   const minimapNodeColor = useMemo(() => {
     return (node: { data?: { category?: string } }) => {
       const categoryColors: Record<string, string> = {
-        Source: '#4CAF50',
-        Transform: '#2196F3',
-        Color: '#E91E63',
-        Filter: '#9C27B0',
-        Analysis: '#FF9800',
-        Output: '#F44336',
-        Utility: '#607D8B',
+        Input: '#2d4a2d',
+        Output: '#4a2d2d',
+        Transform: '#2d3a4a',
+        Color: '#4a2d3d',
+        Adjust: '#4a2d3d',
+        Blur: '#3d2d4a',
+        Sharpen: '#3d2d4a',
+        Edge: '#3d2d4a',
+        Noise: '#3d2d4a',
+        Filter: '#3d2d4a',
+        Draw: '#35414a',
+        Text: '#35414a',
+        Utility: '#35414a',
+        Math: '#2d3d4a',
+        Composite: '#4a3d2d',
+        Analyze: '#4a3d2d',
+        Custom: '#2a2a2a',
       };
-      return categoryColors[node.data?.category || ''] || '#607D8B';
+      return categoryColors[node.data?.category || ''] || '#2a2a2a';
     };
   }, []);
 
