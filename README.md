@@ -303,7 +303,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Roadmap
 
-- [ ] GPU acceleration support
+- [✅] GPU acceleration support
 - [ ] More advanced filters (ML-based, style transfer)
 - [ ] Animation/video processing
 - [ ] Python bindings
