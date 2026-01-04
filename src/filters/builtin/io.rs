@@ -13,6 +13,7 @@ pub fn register(registry: &mut FilterRegistry) {
     registry.register(|| Box::new(LoadImage));
     registry.register(|| Box::new(LoadFolder));
     registry.register(|| Box::new(SaveImage));
+    registry.register(|| Box::new(BatchSaveImages));
 }
 
 /// Loads an image from disk.
@@ -120,8 +121,8 @@ impl FilterNode for LoadFolder {
                     .with_description("Number of images loaded")
             )
             .parameter(
-                ParameterDefinition::new("path", PortType::String, Value::String(String::new()))
-                    .with_description("Path to the folder containing images")
+                ParameterDefinition::new("directory", PortType::String, Value::String(String::new()))
+                    .with_description("Directory containing images to load")
                     .with_ui_hint(UiHint::FileChooser { filters: vec![] })
                     .with_constraint(Constraint::NotEmpty),
             )
@@ -137,12 +138,12 @@ impl FilterNode for LoadFolder {
     }
 
     fn validate(&self, ctx: &ValidationContext) -> Result<(), ValidationError> {
-        let path = ctx.get_string("path").unwrap_or("");
+        let path = ctx.get_string("directory").unwrap_or("");
         
         if path.is_empty() {
             return Err(ValidationError::ConstraintViolation {
                 node_id: ctx.node_id,
-                parameter: "path".to_string(),
+                parameter: "directory".to_string(),
                 error: "Path cannot be empty".to_string(),
             });
         }
@@ -166,9 +167,9 @@ impl FilterNode for LoadFolder {
     }
 
     fn execute(&self, ctx: &mut ExecutionContext) -> Result<(), ExecutionError> {
-        let path = ctx.get_string("path").map_err(|_| ExecutionError::MissingParameter {
+        let path = ctx.get_string("directory").map_err(|_| ExecutionError::MissingParameter {
             node_id: ctx.node_id,
-            parameter: "path".to_string(),
+            parameter: "directory".to_string(),
         })?;
         
         let recursive = ctx.get_bool("recursive").unwrap_or(false);
@@ -475,5 +476,184 @@ mod tests {
         assert_eq!(metadata.category, Category::Output);
         assert_eq!(metadata.inputs.len(), 1);
         assert_eq!(metadata.parameters.len(), 6);
+    }
+}
+
+/// Saves multiple images to disk (batch operation).
+#[derive(Debug, Clone)]
+pub struct BatchSaveImages;
+
+impl FilterNode for BatchSaveImages {
+    fn metadata(&self) -> NodeMetadata {
+        NodeMetadata::builder("batch_save_images", "Batch Save Images")
+            .description("Save multiple images to a directory with auto-incrementing filenames")
+            .category(Category::Output)
+            .author("Ambara")
+            .version("1.0.0")
+            .input(
+                PortDefinition::input("images", PortType::Array(Box::new(PortType::Image)))
+                    .with_description("Array of images to save")
+            )
+            .output(
+                PortDefinition::output("paths", PortType::Array(Box::new(PortType::String)))
+                    .with_description("Array of saved file paths")
+            )
+            .output(
+                PortDefinition::output("count", PortType::Integer)
+                    .with_description("Number of images saved")
+            )
+            .parameter(
+                ParameterDefinition::new("directory", PortType::String, Value::String("./output".to_string()))
+                    .with_description("Output directory (defaults to ./output)")
+                    .with_ui_hint(UiHint::FileChooser { filters: vec![] }),
+            )
+            .parameter(
+                ParameterDefinition::new("prefix", PortType::String, Value::String("image_".to_string()))
+                    .with_description("Filename prefix (e.g., 'image_' -> image_001.png)"),
+            )
+            .parameter(
+                ParameterDefinition::new("format", PortType::String, Value::String("png".to_string()))
+                    .with_description("Output format: png, jpg, webp, bmp, tiff")
+                    .with_ui_hint(UiHint::Dropdown { 
+                        options: vec![
+                            "png".to_string(), 
+                            "jpg".to_string(), 
+                            "webp".to_string(),
+                            "bmp".to_string(),
+                            "tiff".to_string(),
+                        ] 
+                    }),
+            )
+            .parameter(
+                ParameterDefinition::new("start_index", PortType::Integer, Value::Integer(1))
+                    .with_description("Starting index for numbering (e.g., 1 -> 001, 002, ...)")
+                    .with_constraint(Constraint::Range { min: 0.0, max: 9999.0 }),
+            )
+            .parameter(
+                ParameterDefinition::new("digits", PortType::Integer, Value::Integer(3))
+                    .with_description("Number of digits for padding (e.g., 3 -> 001, 4 -> 0001)")
+                    .with_constraint(Constraint::Range { min: 1.0, max: 6.0 }),
+            )
+            .parameter(
+                ParameterDefinition::new("quality", PortType::Integer, Value::Integer(90))
+                    .with_description("Quality for lossy formats like JPEG/WebP (1-100)")
+                    .with_ui_hint(UiHint::Slider { logarithmic: false })
+                    .with_constraint(Constraint::Range { min: 1.0, max: 100.0 }),
+            )
+            .parameter(
+                ParameterDefinition::new("create_dirs", PortType::Boolean, Value::Boolean(true))
+                    .with_description("Create output directory if it doesn't exist"),
+            )
+            .build()
+    }
+
+    fn validate(&self, ctx: &ValidationContext) -> Result<(), ValidationError> {
+        let format = ctx.get_string("format").unwrap_or("png");
+        
+        let valid_formats = ["png", "jpg", "jpeg", "webp", "bmp", "tiff", "tif"];
+        if !valid_formats.contains(&format) {
+            return Err(ValidationError::CustomValidation {
+                node_id: ctx.node_id,
+                error: format!("Unsupported output format: {}. Use: png, jpg, webp, bmp, or tiff", format),
+            });
+        }
+
+        Ok(())
+    }
+
+    fn execute(&self, ctx: &mut ExecutionContext) -> Result<(), ExecutionError> {
+        // Get the array of images
+        let images_value = ctx.get_input("images")?;
+        let images = match images_value {
+            Value::Array(ref arr) => arr,
+            _ => return Err(ExecutionError::NodeExecution {
+                node_id: ctx.node_id,
+                error: format!("Expected array of images, got {:?}", images_value),
+            }),
+        };
+
+        // Get parameters with defaults
+        let directory = ctx.get_string("directory").unwrap_or("./output");
+        let directory = if directory.is_empty() { "./output" } else { directory };
+        
+        let prefix = ctx.get_string("prefix").unwrap_or("image_");
+        let format = ctx.get_string("format").unwrap_or("png");
+        let start_index = ctx.get_integer("start_index").unwrap_or(1);
+        let digits = ctx.get_integer("digits").unwrap_or(3) as usize;
+        let quality = ctx.get_integer("quality").unwrap_or(90) as u8;
+        let create_dirs = ctx.get_bool("create_dirs").unwrap_or(true);
+
+        // Create output directory if needed
+        let dir_path = Path::new(directory);
+        if create_dirs && !dir_path.exists() {
+            std::fs::create_dir_all(dir_path).map_err(|e| ExecutionError::NodeExecution {
+                node_id: ctx.node_id,
+                error: format!("Failed to create directories: {}", e),
+            })?;
+        }
+
+        let mut saved_paths = Vec::new();
+        let mut index = start_index;
+
+        for image_value in images {
+            let image = match image_value {
+                Value::Image(ref img) => img,
+                _ => continue, // Skip non-image values
+            };
+
+            let img_data = image.get_image().ok_or_else(|| ExecutionError::NodeExecution {
+                node_id: ctx.node_id,
+                error: "Image has no data".to_string(),
+            })?;
+
+            // Generate filename with padding
+            let filename = format!("{}{:0width$}.{}", prefix, index, format, width = digits);
+            let full_path = dir_path.join(&filename);
+            let path_str = full_path.to_string_lossy().to_string();
+
+            // Get the raw image buffer
+            let buffer = img_data.to_rgba8();
+
+            // Save based on format
+            match format {
+                "jpg" | "jpeg" => {
+                    let rgb = image::DynamicImage::ImageRgba8(buffer.clone()).to_rgb8();
+                    let mut output = std::io::BufWriter::new(
+                        std::fs::File::create(&full_path).map_err(|e| ExecutionError::NodeExecution {
+                            node_id: ctx.node_id,
+                            error: format!("Failed to create file {}: {}", filename, e),
+                        })?,
+                    );
+                    let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output, quality);
+                    encoder.encode(
+                        &rgb,
+                        rgb.width(),
+                        rgb.height(),
+                        image::ExtendedColorType::Rgb8,
+                    ).map_err(|e| ExecutionError::NodeExecution {
+                        node_id: ctx.node_id,
+                        error: format!("Failed to encode JPEG {}: {}", filename, e),
+                    })?;
+                }
+                _ => {
+                    buffer.save(&full_path).map_err(|e| ExecutionError::NodeExecution {
+                        node_id: ctx.node_id,
+                        error: format!("Failed to save image {}: {}", filename, e),
+                    })?;
+                }
+            }
+
+            saved_paths.push(Value::String(path_str));
+            index += 1;
+        }
+
+        let count = saved_paths.len() as i64;
+        ctx.set_output("paths", Value::Array(saved_paths))?;
+        ctx.set_output("count", Value::Integer(count))?;
+        Ok(())
+    }
+
+    fn clone_box(&self) -> Box<dyn FilterNode> {
+        Box::new(self.clone())
     }
 }

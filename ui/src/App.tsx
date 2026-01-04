@@ -113,16 +113,22 @@ function App() {
       toast.info('Executing graph...');
       const result = await api.executeGraph(graph);
       if (result.success) {
-        // Update preview nodes with their thumbnails
+        // Update preview nodes with their thumbnails and all nodes with output values
         Object.entries(result.outputs).forEach(([nodeId, output]) => {
-          const outputData = output as { thumbnail?: string; width?: number; height?: number };
+          const outputData = output as { thumbnail?: string; width?: number; height?: number; [key: string]: unknown };
+          const updates: Partial<FilterNodeData> = {};
+          
+          // Set preview data for preview nodes
           if (outputData.thumbnail) {
-            updateNodeData(nodeId, {
-              previewUrl: outputData.thumbnail,
-              previewWidth: outputData.width,
-              previewHeight: outputData.height,
-            });
+            updates.previewUrl = outputData.thumbnail;
+            updates.previewWidth = outputData.width;
+            updates.previewHeight = outputData.height;
           }
+          
+          // Set output values for all nodes
+          updates.outputValues = outputData;
+          
+          updateNodeData(nodeId, updates);
         });
         toast.success(`Execution completed in ${result.executionTime}ms`);
       } else {

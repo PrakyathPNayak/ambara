@@ -53,19 +53,46 @@ function FilterNodeComponent({ data, selected }: FilterNodeProps) {
     )), [data.inputs]);
 
   const outputHandles = useMemo(() =>
-    data.outputs.map((output) => (
-      <div key={`output-${output.name}`} className="handle-row output-row">
-        <span className="handle-type">{output.portType}</span>
-        <span className="handle-label">{output.name}</span>
-        <Handle
-          type="source"
-          position={Position.Right}
-          id={output.name}
-          className="node-handle"
-          style={{ background: portColors[output.portType] }}
-        />
-      </div>
-    )), [data.outputs]);
+    data.outputs.map((output) => {
+      // Get the output value if it exists
+      const outputValue = data.outputValues?.[output.name];
+      let displayValue: string | null = null;
+      
+      // Only show non-image values
+      if (outputValue !== undefined && output.portType !== 'Image' && output.portType !== 'ImageList') {
+        if (typeof outputValue === 'number') {
+          displayValue = Number.isInteger(outputValue) ? outputValue.toString() : outputValue.toFixed(2);
+        } else if (typeof outputValue === 'boolean') {
+          displayValue = outputValue ? '✓' : '✗';
+        } else if (typeof outputValue === 'string') {
+          displayValue = outputValue.length > 20 ? outputValue.slice(0, 17) + '...' : outputValue;
+        } else if (typeof outputValue === 'object' && outputValue !== null) {
+          // Handle arrays
+          if (Array.isArray(outputValue)) {
+            displayValue = `[${outputValue.length}]`;
+          } else {
+            displayValue = JSON.stringify(outputValue).slice(0, 20);
+          }
+        }
+      }
+      
+      return (
+        <div key={`output-${output.name}`} className="handle-row output-row">
+          <span className="handle-type">{output.portType}</span>
+          <div className="handle-label-container">
+            <span className="handle-label">{output.name}</span>
+            {displayValue && <span className="output-value">{displayValue}</span>}
+          </div>
+          <Handle
+            type="source"
+            position={Position.Right}
+            id={output.name}
+            className="node-handle"
+            style={{ background: portColors[output.portType] }}
+          />
+        </div>
+      );
+    }), [data.outputs, data.outputValues]);
 
   return (
     <div 

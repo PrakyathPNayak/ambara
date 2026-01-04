@@ -1,6 +1,6 @@
 /* FilterNode - Dynamic colors based on category */
 .filter-node {
-  background: #1e1e1e;
+  background: #2a2a2a;
   border: 2px solid #333;
   border-radius: 8px;
   min-width: 180px;
@@ -20,44 +20,53 @@
   box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.3);
 }
 
-/* Category-specific border colors */
+/* Category-specific border colors and backgrounds */
 .filter-node[data-category="input"],
 .filter-node[data-category="source"] {
   border-color: #4CAF50;
+  background: #2d4a2d;
 }
 
 .filter-node[data-category="output"] {
   border-color: #F44336;
+  background: #4a2d2d;
 }
 
 .filter-node[data-category="transform"] {
   border-color: #2196F3;
+  background: #2d3a4a;
 }
 
 .filter-node[data-category="color"] {
   border-color: #E91E63;
+  background: #4a2d3d;
 }
 
 .filter-node[data-category="blur"],
 .filter-node[data-category="filter"] {
   border-color: #9C27B0;
+  background: #3d2d4a;
 }
 
 .filter-node[data-category="utility"] {
   border-color: #607D8B;
+  background: #35414a;
 }
 
 .filter-node[data-category="math"] {
   border-color: #03A9F4;
+  background: #2d3d4a;
 }
 
 .filter-node[data-category="composite"] {
   border-color: #FF9800;
+  background: #4a3d2d;
 }
 
 .filter-node[data-category="analyze"],
 .filter-node[data-category="analysis"] {
   border-color: #FF9800;
+  background: #4a3d2d;
 }
 
 .filter-node.invalid {
@@ -132,6 +141,24 @@
 .handle-label {
   font-size: 11px;
   color: #ccc;
+  white-space: nowrap;
+}
+
+.handle-label-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-end;
+}
+
+.output-value {
+  font-size: 10px;
+  color: #4CAF50;
+  font-family: 'Consolas', monospace;
+  background: rgba(76, 175, 80, 0.1);
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid rgba(76, 175, 80, 0.3);
   white-space: nowrap;
 }
 

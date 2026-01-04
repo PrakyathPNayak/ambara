@@ -79,6 +79,8 @@ export interface FilterNodeData {
   previewUrl?: string;
   previewWidth?: number;
   previewHeight?: number;
+  // Output values (set after execution)
+  outputValues?: Record<string, unknown>;
   [key: string]: unknown; // Index signature for ReactFlow
 }
 

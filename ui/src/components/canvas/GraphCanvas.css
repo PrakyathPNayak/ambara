@@ -38,6 +38,12 @@
   border-radius: 4px !important;
 }
 
+/* Make minimap nodes more visible */
+.react-flow__minimap-node {
+  stroke: #666 !important;
+  stroke-width: 2 !important;
+}
+
 .graph-toolbar {
   display: flex;
   gap: 8px;

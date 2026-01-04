@@ -86,6 +86,8 @@ export function GraphCanvas({ onValidate, onExecute, onSave, onLoad, onClear }: 
         }}
         deleteKeyCode={['Backspace', 'Delete']}
         multiSelectionKeyCode="Shift"
+        minZoom={0.05}
+        maxZoom={4}
       >
         <Background 
           variant={BackgroundVariant.Dots} 
