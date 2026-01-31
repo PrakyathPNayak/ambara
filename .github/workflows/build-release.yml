@@ -59,12 +59,12 @@ jobs:
         run: cd ui && npm install
       
       - name: Build
-        run: cd ui && npm run tauri build
+        run: cd ui && npm run tauri build -- --bundles app
       
-      - name: Upload dmg
+      - name: Upload app bundle
         uses: actions/upload-artifact@v4
         with:
-          name: ambara-macos-dmg
+          name: ambara-macos-app
           path: ui/src-tauri/target/release/bundle/macos/
   
   build-windows:
@@ -109,7 +109,7 @@ jobs:
           files: |
             ambara-linux-appimage/*
             ambara-linux-deb/*
-            ambara-macos-dmg/*
+            ambara-macos-app/*
             ambara-windows-msi/*
           body_path: RELEASE_NOTES.md
           draft: false
