@@ -356,7 +356,7 @@ engine.execute(&graph, None)?;
 **Project**: Ambara - Node-Based Image Processing Engine  
 **Repository**: [GitHub Link]  
 **License**: [Your License]  
-**Version**: 0.1.2  
+**Version**: 0.2.0  
 
 ---
 

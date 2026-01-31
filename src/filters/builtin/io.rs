@@ -83,10 +83,42 @@ impl FilterNode for LoadImage {
             parameter: "path".to_string(),
         })?;
 
+        // First, check image dimensions without loading the full image
+        let (width, height) = image::image_dimensions(path).map_err(|e| {
+            ExecutionError::NodeExecution {
+                node_id: ctx.node_id,
+                error: format!("Failed to read image dimensions from '{}': {}. Check that the file exists and is a valid image format.", path, e),
+            }
+        })?;
+
+        // Calculate memory needed for this image
+        let image_memory = ExecutionContext::calculate_image_memory(width, height);
+        let memory_limit = ctx.memory_limit();
+        let memory_limit_mb = ctx.memory_limit_mb();
+
+        // Check if image would exceed memory limit
+        if ctx.needs_chunking(width, height) {
+            if !ctx.auto_chunk() {
+                // Auto-chunking is disabled and image is too large
+                let image_mb = image_memory / (1024 * 1024);
+                return Err(ExecutionError::NodeExecution {
+                    node_id: ctx.node_id,
+                    error: format!(
+                        "Image '{}' ({}x{}, ~{}MB) exceeds memory limit ({}MB). \
+                        Enable 'Auto Chunk' in settings to process large images, \
+                        or increase the memory limit.",
+                        path, width, height, image_mb, memory_limit_mb
+                    ),
+                });
+            }
+            // Log that we're processing a large image
+            // In the future, this would trigger chunked loading
+        }
+
         // Load the image
         let img = image::open(path).map_err(|e| ExecutionError::NodeExecution {
             node_id: ctx.node_id,
-            error: format!("Failed to load image: {}", e),
+            error: format!("Failed to load image '{}': {}", path, e),
         })?;
 
         // Create ImageValue from DynamicImage

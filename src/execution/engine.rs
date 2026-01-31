@@ -376,8 +376,13 @@ impl ExecutionEngine {
             }
         }
 
-        // Build execution context
-        let mut ctx = ExecutionContext::new(node_id);
+        // Build execution context with memory settings
+        let mut ctx = ExecutionContext::with_memory_settings(
+            node_id,
+            options.memory_limit,
+            options.auto_chunk,
+            options.tile_size,
+        );
         
         // Add inputs
         for (name, value) in &inputs {

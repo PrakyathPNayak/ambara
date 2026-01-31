@@ -165,6 +165,12 @@ pub struct ExecutionContext {
     progress: f32,
     /// Whether execution should be cancelled.
     cancelled: bool,
+    /// Memory limit in bytes for processing.
+    memory_limit: usize,
+    /// Whether auto-chunking is enabled for large images.
+    auto_chunk: bool,
+    /// Preferred tile size for chunked processing.
+    tile_size: (u32, u32),
 }
 
 impl ExecutionContext {
@@ -177,6 +183,29 @@ impl ExecutionContext {
             outputs: HashMap::new(),
             progress: 0.0,
             cancelled: false,
+            memory_limit: 500 * 1024 * 1024, // 500MB default
+            auto_chunk: true,
+            tile_size: (512, 512),
+        }
+    }
+
+    /// Create a new execution context with memory settings.
+    pub fn with_memory_settings(
+        node_id: NodeId,
+        memory_limit: usize,
+        auto_chunk: bool,
+        tile_size: (u32, u32),
+    ) -> Self {
+        Self {
+            node_id,
+            inputs: HashMap::new(),
+            parameters: HashMap::new(),
+            outputs: HashMap::new(),
+            progress: 0.0,
+            cancelled: false,
+            memory_limit,
+            auto_chunk,
+            tile_size,
         }
     }
 
@@ -374,6 +403,44 @@ impl ExecutionContext {
     /// Check if an output has been set.
     pub fn has_output(&self, name: &str) -> bool {
         self.outputs.contains_key(name)
+    }
+
+    // ========================================================================
+    // Memory Settings
+    // ========================================================================
+
+    /// Get the memory limit in bytes.
+    pub fn memory_limit(&self) -> usize {
+        self.memory_limit
+    }
+
+    /// Get the memory limit in megabytes.
+    pub fn memory_limit_mb(&self) -> usize {
+        self.memory_limit / (1024 * 1024)
+    }
+
+    /// Check if auto-chunking is enabled.
+    pub fn auto_chunk(&self) -> bool {
+        self.auto_chunk
+    }
+
+    /// Get the preferred tile size for chunked processing.
+    pub fn tile_size(&self) -> (u32, u32) {
+        self.tile_size
+    }
+
+    /// Check if an image of given dimensions would need chunked processing.
+    /// Returns true if the image memory footprint exceeds half the memory limit.
+    pub fn needs_chunking(&self, width: u32, height: u32) -> bool {
+        const BYTES_PER_PIXEL: usize = 4;
+        let image_size = (width as usize) * (height as usize) * BYTES_PER_PIXEL;
+        image_size > self.memory_limit / 2
+    }
+
+    /// Calculate the memory needed for an image of given dimensions.
+    pub fn calculate_image_memory(width: u32, height: u32) -> usize {
+        const BYTES_PER_PIXEL: usize = 4;
+        (width as usize) * (height as usize) * BYTES_PER_PIXEL
     }
 
     // ========================================================================
