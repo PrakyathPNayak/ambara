@@ -31,6 +31,17 @@ pub struct ExecutionOptions {
     pub skip_disabled: bool,
     /// Progress callback.
     pub progress_callback: Option<Arc<ProgressCallback>>,
+    /// Memory limit in bytes for chunked processing.
+    /// When processing large images, this limits peak memory usage.
+    /// Default is 500 MB.
+    pub memory_limit: usize,
+    /// Whether to automatically use chunked processing for large images.
+    /// When enabled, images that would exceed memory_limit / 2 are processed
+    /// in tiles rather than all at once.
+    pub auto_chunk: bool,
+    /// Preferred tile size for chunked processing.
+    /// Default is 512x512 pixels.
+    pub tile_size: (u32, u32),
 }
 
 impl std::fmt::Debug for ExecutionOptions {
@@ -43,6 +54,9 @@ impl std::fmt::Debug for ExecutionOptions {
             .field("node_timeout", &self.node_timeout)
             .field("skip_disabled", &self.skip_disabled)
             .field("progress_callback", &self.progress_callback.as_ref().map(|_| "<callback>"))
+            .field("memory_limit", &self.memory_limit)
+            .field("auto_chunk", &self.auto_chunk)
+            .field("tile_size", &self.tile_size)
             .finish()
     }
 }
@@ -57,6 +71,9 @@ impl Default for ExecutionOptions {
             node_timeout: None,
             skip_disabled: true,
             progress_callback: None,
+            memory_limit: crate::core::chunked::DEFAULT_MEMORY_LIMIT,
+            auto_chunk: true,
+            tile_size: (512, 512),
         }
     }
 }
@@ -103,6 +120,30 @@ impl ExecutionOptions {
         F: Fn(ProgressUpdate) + Send + Sync + 'static,
     {
         self.progress_callback = Some(Arc::new(Box::new(callback)));
+        self
+    }
+
+    /// Set memory limit in bytes for chunked processing.
+    pub fn with_memory_limit(mut self, limit: usize) -> Self {
+        self.memory_limit = limit;
+        self
+    }
+
+    /// Set memory limit in megabytes for chunked processing.
+    pub fn with_memory_limit_mb(mut self, mb: usize) -> Self {
+        self.memory_limit = mb * 1024 * 1024;
+        self
+    }
+
+    /// Enable or disable automatic chunked processing for large images.
+    pub fn with_auto_chunk(mut self, auto_chunk: bool) -> Self {
+        self.auto_chunk = auto_chunk;
+        self
+    }
+
+    /// Set the preferred tile size for chunked processing.
+    pub fn with_tile_size(mut self, width: u32, height: u32) -> Self {
+        self.tile_size = (width, height);
         self
     }
 }

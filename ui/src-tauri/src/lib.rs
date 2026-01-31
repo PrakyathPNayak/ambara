@@ -136,6 +136,40 @@ pub struct ExecutionResult {
     pub execution_time: u64,
 }
 
+/// Execution settings that can be configured from the UI.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecutionSettings {
+    /// Memory limit in megabytes (100-8192).
+    pub memory_limit_mb: usize,
+    /// Whether to enable automatic chunked processing.
+    pub auto_chunk: bool,
+    /// Preferred tile size for chunked processing.
+    pub tile_size: u32,
+    /// Whether to enable parallel execution.
+    pub parallel: bool,
+    /// Whether to enable caching.
+    pub use_cache: bool,
+}
+
+impl Default for ExecutionSettings {
+    fn default() -> Self {
+        Self {
+            memory_limit_mb: 500,
+            auto_chunk: true,
+            tile_size: 512,
+            parallel: false,
+            use_cache: false,
+        }
+    }
+}
+
+// Get default execution settings
+#[tauri::command]
+fn get_execution_settings() -> ExecutionSettings {
+    ExecutionSettings::default()
+}
+
 // Get all available filters - uses the actual ambara FilterRegistry
 #[tauri::command]
 fn get_filters() -> Vec<FilterInfo> {
@@ -242,8 +276,9 @@ fn validate_graph(graph: GraphState) -> ValidationResult {
 
 // Execute graph (placeholder - would connect to ambara library)
 #[tauri::command]
-fn execute_graph(graph: GraphState) -> ExecutionResult {
+fn execute_graph(graph: GraphState, settings: Option<ExecutionSettings>) -> ExecutionResult {
     let start = std::time::Instant::now();
+    let settings = settings.unwrap_or_default();
     
     // Validate first
     let validation = validate_graph(graph.clone());
@@ -321,8 +356,11 @@ fn execute_graph(graph: GraphState) -> ExecutionResult {
     // Execute the graph
     let engine = ExecutionEngine::new();
     let options = ExecutionOptions::default()
-        .with_parallel(false)  // Start with sequential for easier debugging
-        .with_cache(false);
+        .with_parallel(settings.parallel)
+        .with_cache(settings.use_cache)
+        .with_memory_limit_mb(settings.memory_limit_mb)
+        .with_auto_chunk(settings.auto_chunk)
+        .with_tile_size(settings.tile_size, settings.tile_size);
 
     match engine.execute(&processing_graph, Some(options)) {
         Ok(result) => {
@@ -458,7 +496,8 @@ pub fn run() {
             validate_graph,
             execute_graph,
             save_graph,
-            load_graph
+            load_graph,
+            get_execution_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

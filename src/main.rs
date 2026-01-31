@@ -3,7 +3,6 @@
 //! This is a demonstration CLI for the Ambara library.
 
 use ambara::prelude::*;
-use std::path::PathBuf;
 
 fn main() {
     println!("🎨 Ambara - Node-based Image Processing v{}", ambara::VERSION);

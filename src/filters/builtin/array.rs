@@ -2,7 +2,7 @@
 //!
 //! This module provides generic wrappers that make any single-image filter work with image arrays.
 
-use crate::core::batch::{extract_images_from_value, BatchAware, BatchContext, BatchMode};
+use crate::core::batch::{extract_images_from_value, BatchAware, BatchMode};
 use crate::core::context::{ExecutionContext, ValidationContext};
 use crate::core::error::{ExecutionError, ValidationError};
 use crate::core::node::{Category, FilterNode, NodeMetadata};

@@ -402,6 +402,33 @@ pub trait FilterNode: Send + Sync {
     ///
     /// Required for graph cloning and parallel execution.
     fn clone_box(&self) -> Box<dyn FilterNode>;
+
+    /// Get the spatial extent required by this filter for chunked processing.
+    ///
+    /// Spatial filters (blur, sharpen, edge detection, convolution) need
+    /// additional pixels around each processing tile to compute correct
+    /// results at tile boundaries. This method returns the number of pixels
+    /// needed in each direction.
+    ///
+    /// Default implementation returns zero extent (point-wise filter).
+    ///
+    /// # Example
+    ///
+    /// For a Gaussian blur with radius 10, return `SpatialExtent::symmetric(10)`.
+    fn spatial_extent(&self, _ctx: &ValidationContext) -> crate::core::chunked::SpatialExtent {
+        crate::core::chunked::SpatialExtent::default()
+    }
+
+    /// Whether this filter supports chunked/tiled processing.
+    ///
+    /// Some filters (e.g., histogram equalization, global operations) cannot
+    /// be processed tile-by-tile and must have the entire image in memory.
+    /// Override this to return `false` for such filters.
+    ///
+    /// Default implementation returns `true` (most filters support chunking).
+    fn supports_chunked_processing(&self) -> bool {
+        true
+    }
 }
 
 // Allow cloning Box<dyn FilterNode>

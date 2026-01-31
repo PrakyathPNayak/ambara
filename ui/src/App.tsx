@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { useGraphStore } from './store/graphStore';
+import { useSettingsStore } from './store/settingsStore';
 import { GraphCanvas } from './components/canvas/GraphCanvas';
 import { FilterPalette } from './components/sidebar/FilterPalette';
 import { PropertiesPanel } from './components/sidebar/PropertiesPanel';
+import { Settings } from './components/sidebar/Settings';
 import { ToastContainer } from './components/Toast';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { useToast } from './hooks/useToast';
@@ -22,6 +24,7 @@ function App() {
   const [backendConnected, setBackendConnected] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const { addNode, updateNodeData, getGraphState, loadGraph, clearGraph } = useGraphStore();
+  const { settings, openSettings } = useSettingsStore();
   const toast = useToast();
 
   // Load filters from backend
@@ -111,7 +114,15 @@ function App() {
     const graph = getGraphState();
     try {
       toast.info('Executing graph...');
-      const result = await api.executeGraph(graph);
+      // Pass execution settings to the backend
+      const executionSettings = {
+        memoryLimitMb: settings.memoryLimitMb,
+        autoChunk: settings.autoChunk,
+        tileSize: settings.tileSize,
+        parallel: settings.parallel,
+        useCache: settings.useCache,
+      };
+      const result = await api.executeGraph(graph, executionSettings);
       if (result.success) {
         // Update preview nodes with their thumbnails and all nodes with output values
         Object.entries(result.outputs).forEach(([nodeId, output]) => {
@@ -141,7 +152,7 @@ function App() {
       console.log('Execution not available (backend not connected)', err);
       toast.error('Execution requires the Tauri backend to be running');
     }
-  }, [getGraphState, updateNodeData, toast]);
+  }, [getGraphState, updateNodeData, toast, settings]);
 
   const handleSave = useCallback(async () => {
     try {
@@ -219,8 +230,10 @@ function App() {
           onSave={handleSave}
           onLoad={handleLoad}
           onClear={handleClearGraph}
+          onSettings={openSettings}
         />
         <PropertiesPanel onParameterChange={handleParameterChange} />
+        <Settings />
         <ToastContainer toasts={toast.toasts} onClose={toast.closeToast} />
         {showClearConfirm && (
           <ConfirmDialog

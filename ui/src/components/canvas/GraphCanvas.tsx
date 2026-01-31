@@ -28,9 +28,10 @@ interface GraphCanvasProps {
   onSave: () => void;
   onLoad: () => void;
   onClear: () => void;
+  onSettings?: () => void;
 }
 
-export function GraphCanvas({ onValidate, onExecute, onSave, onLoad, onClear }: GraphCanvasProps) {
+export function GraphCanvas({ onValidate, onExecute, onSave, onLoad, onClear, onSettings }: GraphCanvasProps) {
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, setSelectedNode } =
     useGraphStore();
 
@@ -132,6 +133,14 @@ export function GraphCanvas({ onValidate, onExecute, onSave, onLoad, onClear }: 
             title="Clear Graph"
           >
             🗑 Clear
+          </button>
+          <div className="toolbar-separator" />
+          <button 
+            className="toolbar-btn" 
+            onClick={onSettings}
+            title="Settings"
+          >
+            ⚙️ Settings
           </button>
         </Panel>
       </ReactFlow>

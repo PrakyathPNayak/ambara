@@ -156,6 +156,15 @@ pub mod prelude {
     pub use crate::execution::cache::{CacheKey, CacheStats, ResultCache, SharedCache};
     pub use crate::execution::progress::{ProgressCallback, ProgressTracker, ProgressUpdate, SkipReason};
 
+    // Chunked Processing
+    pub use crate::core::chunked::{
+        ProcessingConfig, SpatialExtent, TileRegion, TileIterator,
+        MemoryTracker, ChunkedImageSource, ChunkedImageSink,
+        FileImageSource, MemoryImageSource, MemoryImageSink,
+        process_chunked, process_pointwise,
+        DEFAULT_MEMORY_LIMIT, MIN_TILE_SIZE, MAX_TILE_SIZE,
+    };
+
     // Filters
     pub use crate::filters::registry::{FilterFactory, FilterRegistry, RegistryBuilder, RegistryEntry};
 

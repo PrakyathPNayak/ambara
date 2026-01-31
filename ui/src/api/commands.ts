@@ -7,6 +7,15 @@ import {
   ExecutionResult 
 } from '../types';
 
+// Execution settings interface matching the backend
+export interface ExecutionSettings {
+  memoryLimitMb: number;
+  autoChunk: boolean;
+  tileSize: number;
+  parallel: boolean;
+  useCache: boolean;
+}
+
 // Get all available filters from the registry
 export async function getFilters(): Promise<FilterInfo[]> {
   return invoke<FilterInfo[]>('get_filters');
@@ -17,9 +26,14 @@ export async function validateGraph(graph: GraphState): Promise<ValidationResult
   return invoke<ValidationResult>('validate_graph', { graph });
 }
 
-// Execute the graph
-export async function executeGraph(graph: GraphState): Promise<ExecutionResult> {
-  return invoke<ExecutionResult>('execute_graph', { graph });
+// Execute the graph with optional settings
+export async function executeGraph(graph: GraphState, settings?: ExecutionSettings): Promise<ExecutionResult> {
+  return invoke<ExecutionResult>('execute_graph', { graph, settings });
+}
+
+// Get default execution settings
+export async function getExecutionSettings(): Promise<ExecutionSettings> {
+  return invoke<ExecutionSettings>('get_execution_settings');
 }
 
 // Save graph to file

@@ -165,18 +165,16 @@ pub fn extract_images_from_value(value: &Value) -> Result<Vec<ImageValue>, Strin
 mod tests {
     use super::*;
     use crate::core::types::{ImageMetadata, ImageFormat, ImageDataRef};
+    use std::path::PathBuf;
 
     fn create_test_image(width: u32, height: u32) -> ImageValue {
-        ImageValue {
-            metadata: ImageMetadata {
-                width,
-                height,
-                format: ImageFormat::Png,
-                has_alpha: true,
-            },
-            data: None,
-            data_ref: ImageDataRef::InMemory,
-        }
+        let metadata = ImageMetadata {
+            width,
+            height,
+            format: ImageFormat::Png,
+            has_alpha: true,
+        };
+        ImageValue::from_metadata(metadata, PathBuf::from("test.png"))
     }
 
     #[test]
