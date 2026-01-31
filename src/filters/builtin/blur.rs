@@ -1,7 +1,8 @@
-//! Blur filters: Gaussian, Box blur
+//! Blur filters: Gaussian, Box blur with optional GPU acceleration
 
 use crate::core::context::{ExecutionContext, ValidationContext};
 use crate::core::error::{ExecutionError, ValidationError};
+use crate::core::gpu::{GpuAccelerated, GpuFilters, GpuPool};
 use crate::core::node::{Category, FilterNode, NodeMetadata};
 use crate::core::port::{Constraint, ParameterDefinition, PortDefinition, UiHint};
 use crate::core::types::{ImageValue, PortType, Value};
@@ -13,14 +14,14 @@ pub fn register(registry: &mut FilterRegistry) {
     registry.register(|| Box::new(BoxBlur));
 }
 
-/// Applies Gaussian blur to an image.
+/// Applies Gaussian blur to an image with optional GPU acceleration.
 #[derive(Debug, Clone)]
 pub struct GaussianBlur;
 
 impl FilterNode for GaussianBlur {
     fn metadata(&self) -> NodeMetadata {
         NodeMetadata::builder("gaussian_blur", "Gaussian Blur")
-            .description("Apply a Gaussian blur effect to an image")
+            .description("Apply a Gaussian blur effect to an image (GPU accelerated when available)")
             .category(Category::Blur)
             .author("Ambara")
             .version("1.0.0")
@@ -37,6 +38,10 @@ impl FilterNode for GaussianBlur {
                     .with_description("Blur intensity (standard deviation)")
                     .with_ui_hint(UiHint::Slider { logarithmic: false })
                     .with_constraint(Constraint::Range { min: 0.1, max: 100.0 }),
+            )
+            .parameter(
+                ParameterDefinition::new("use_gpu", PortType::Boolean, Value::Boolean(true))
+                    .with_description("Use GPU acceleration if available"),
             )
             .build()
     }
@@ -56,15 +61,29 @@ impl FilterNode for GaussianBlur {
 
     fn execute(&self, ctx: &mut ExecutionContext) -> Result<(), ExecutionError> {
         let image = ctx.get_input_image("image")?;
-
         let sigma = ctx.get_float("sigma").unwrap_or(1.0) as f32;
+        let use_gpu = ctx.get_bool("use_gpu").unwrap_or(true);
 
         let img_data = image.get_image().ok_or_else(|| ExecutionError::NodeExecution {
             node_id: ctx.node_id,
             error: "Image has no data".to_string(),
         })?;
 
-        // Apply Gaussian blur
+        // Try GPU acceleration
+        if use_gpu {
+            if let Some(device) = GpuPool::global().device() {
+                if let Ok(filters) = GpuFilters::new(device) {
+                    let radius = (sigma * 3.0).ceil();
+                    if let Ok(blurred) = filters.gaussian_blur(img_data, radius, sigma) {
+                        let result = ImageValue::new(blurred);
+                        ctx.set_output("image", Value::Image(result))?;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        // Fallback to CPU
         let rgba = img_data.to_rgba8();
         let blurred = imageproc::filter::gaussian_blur_f32(&rgba, sigma);
 
@@ -76,6 +95,12 @@ impl FilterNode for GaussianBlur {
 
     fn clone_box(&self) -> Box<dyn FilterNode> {
         Box::new(self.clone())
+    }
+}
+
+impl GpuAccelerated for GaussianBlur {
+    fn supports_gpu(&self) -> bool {
+        true
     }
 }
 

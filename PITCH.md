@@ -222,7 +222,7 @@ engine.execute(&graph, None)?;
 | Custom filters | ✅ (Rust) | ❌ | ✅ (Python) | ✅ (C) |
 | Cross-platform | ✅ | ✅ | ✅ | ✅ |
 | Open source | ✅ | ❌ | ✅ | ✅ |
-| GPU acceleration | Planned | ✅ | ✅ | Limited |
+| GPU acceleration | ✅ | ✅ | ✅ | Limited |
 
 ### Key Advantages Over Competitors
 
@@ -235,16 +235,17 @@ engine.execute(&graph, None)?;
 
 ## Product Roadmap
 
-### Current Release (v0.1.2)
+### Current Release (v0.2.0)
 - ✅ 60+ built-in filters
 - ✅ Node-based visual editor
 - ✅ Chunked/tiled processing
 - ✅ Batch processing
 - ✅ Cross-platform desktop app (Linux, macOS, Windows)
 - ✅ Memory limit configuration UI
+- ✅ GPU acceleration (wgpu/WebGPU - blur, grayscale, invert, HSV)
 
-### Q2 2026: Performance & GPU
-- 🔲 GPU acceleration (wgpu/WebGPU backend)
+### Q2 2026: Performance & Expansion
+- 🔲 GPU acceleration for all filters
 - 🔲 SIMD optimizations
 - 🔲 Real-time preview during editing
 - 🔲 Undo/redo system
@@ -262,7 +263,7 @@ engine.execute(&graph, None)?;
 - 🔲 SSO integration
 
 ### 2027: AI Integration
-- 🔲 AI-powered filters (upscaling, denoising)
+- 🔲 AI-powered filters (upscaling, denoising, image generation etc.)
 - 🔲 Natural language pipeline creation
 - 🔲 Automatic parameter optimization
 
@@ -307,7 +308,7 @@ engine.execute(&graph, None)?;
 ### Performance Characteristics
 
 - **Startup time**: <500ms
-- **Filter latency**: Typically <100ms for 1MP image
+- **Filter latency**: Typically <70ms for 1MP image
 - **Memory overhead**: ~50MB base + configured limit
 - **Parallel scaling**: Near-linear up to 8 cores
 

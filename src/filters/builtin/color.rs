@@ -1,7 +1,8 @@
-//! Color adjustment filters
+//! Color adjustment filters with optional GPU acceleration
 
 use crate::core::context::{ExecutionContext, ValidationContext};
 use crate::core::error::{ExecutionError, ValidationError};
+use crate::core::gpu::{GpuAccelerated, GpuFilters, GpuPool};
 use crate::core::node::{Category, FilterNode, NodeMetadata};
 use crate::core::port::{Constraint, ParameterDefinition, PortDefinition, UiHint};
 use crate::core::types::{ImageValue, PortType, Value};
@@ -220,14 +221,14 @@ impl FilterNode for Saturation {
     }
 }
 
-/// Converts image to grayscale.
+/// Converts image to grayscale with GPU acceleration.
 #[derive(Debug, Clone)]
 pub struct Grayscale;
 
 impl FilterNode for Grayscale {
     fn metadata(&self) -> NodeMetadata {
         NodeMetadata::builder("grayscale", "Grayscale")
-            .description("Convert an image to grayscale")
+            .description("Convert an image to grayscale (GPU accelerated when available)")
             .category(Category::Color)
             .author("Ambara")
             .version("1.0.0")
@@ -239,6 +240,10 @@ impl FilterNode for Grayscale {
                 PortDefinition::output("image", PortType::Image)
                     .with_description("Grayscale image")
             )
+            .parameter(
+                ParameterDefinition::new("use_gpu", PortType::Boolean, Value::Boolean(true))
+                    .with_description("Use GPU acceleration if available"),
+            )
             .build()
     }
 
@@ -248,12 +253,27 @@ impl FilterNode for Grayscale {
 
     fn execute(&self, ctx: &mut ExecutionContext) -> Result<(), ExecutionError> {
         let image = ctx.get_input_image("image")?;
+        let use_gpu = ctx.get_bool("use_gpu").unwrap_or(true);
 
         let img_data = image.get_image().ok_or_else(|| ExecutionError::NodeExecution {
             node_id: ctx.node_id,
             error: "Image has no data".to_string(),
         })?;
 
+        // Try GPU acceleration
+        if use_gpu {
+            if let Some(device) = GpuPool::global().device() {
+                if let Ok(filters) = GpuFilters::new(device) {
+                    if let Ok(result) = filters.grayscale(img_data) {
+                        let result_value = ImageValue::new(result);
+                        ctx.set_output("image", Value::Image(result_value))?;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        // Fallback to CPU
         let gray = img_data.grayscale();
         let rgba = gray.to_rgba8();
 
@@ -268,14 +288,20 @@ impl FilterNode for Grayscale {
     }
 }
 
-/// Inverts image colors.
+impl GpuAccelerated for Grayscale {
+    fn supports_gpu(&self) -> bool {
+        true
+    }
+}
+
+/// Inverts image colors with GPU acceleration.
 #[derive(Debug, Clone)]
 pub struct Invert;
 
 impl FilterNode for Invert {
     fn metadata(&self) -> NodeMetadata {
         NodeMetadata::builder("invert", "Invert Colors")
-            .description("Invert the colors of an image")
+            .description("Invert the colors of an image (GPU accelerated when available)")
             .category(Category::Color)
             .author("Ambara")
             .version("1.0.0")
@@ -291,6 +317,10 @@ impl FilterNode for Invert {
                 ParameterDefinition::new("invert_alpha", PortType::Boolean, Value::Boolean(false))
                     .with_description("Also invert the alpha channel"),
             )
+            .parameter(
+                ParameterDefinition::new("use_gpu", PortType::Boolean, Value::Boolean(true))
+                    .with_description("Use GPU acceleration if available"),
+            )
             .build()
     }
 
@@ -300,14 +330,28 @@ impl FilterNode for Invert {
 
     fn execute(&self, ctx: &mut ExecutionContext) -> Result<(), ExecutionError> {
         let image = ctx.get_input_image("image")?;
-
         let invert_alpha = ctx.get_bool("invert_alpha").unwrap_or(false);
+        let use_gpu = ctx.get_bool("use_gpu").unwrap_or(true);
 
         let img_data = image.get_image().ok_or_else(|| ExecutionError::NodeExecution {
             node_id: ctx.node_id,
             error: "Image has no data".to_string(),
         })?;
 
+        // Try GPU acceleration (only if not inverting alpha, GPU shader doesn't support that)
+        if use_gpu && !invert_alpha {
+            if let Some(device) = GpuPool::global().device() {
+                if let Ok(filters) = GpuFilters::new(device) {
+                    if let Ok(result) = filters.invert(img_data) {
+                        let result_value = ImageValue::new(result);
+                        ctx.set_output("image", Value::Image(result_value))?;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        // Fallback to CPU
         let mut result = img_data.to_rgba8();
 
         for pixel in result.pixels_mut() {
@@ -331,6 +375,12 @@ impl FilterNode for Invert {
     }
 }
 
+impl GpuAccelerated for Invert {
+    fn supports_gpu(&self) -> bool {
+        true
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -348,7 +398,8 @@ mod tests {
         let filter = Grayscale;
         let metadata = filter.metadata();
         assert_eq!(metadata.id, "grayscale");
-        assert!(metadata.parameters.is_empty());
+        // Now has use_gpu parameter
+        assert_eq!(metadata.parameters.len(), 1);
     }
 
     #[test]
@@ -356,6 +407,13 @@ mod tests {
         let filter = Invert;
         let metadata = filter.metadata();
         assert_eq!(metadata.id, "invert");
-        assert_eq!(metadata.parameters.len(), 1);
+        // Now has invert_alpha and use_gpu parameters
+        assert_eq!(metadata.parameters.len(), 2);
+    }
+
+    #[test]
+    fn test_gpu_support() {
+        assert!(Grayscale.supports_gpu());
+        assert!(Invert.supports_gpu());
     }
 }

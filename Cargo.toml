@@ -20,6 +20,11 @@ path = "src/main.rs"
 image = { version = "0.25", features = ["jpeg", "png", "gif", "webp", "tiff"] }
 imageproc = "0.25"
 
+# GPU acceleration
+wgpu = { version = "23", features = ["spirv"] }
+pollster = "0.4"
+bytemuck = { version = "1.14", features = ["derive"] }
+
 # Graph algorithms
 petgraph = "0.6"
 indexmap = { version = "2.0", features = ["serde"] }
