@@ -1,7 +1,7 @@
 import { Node, Edge } from '@xyflow/react';
 
 // Port types that match the Rust backend
-export type PortType = 
+export type PortType =
   | 'Image'
   | 'Integer'
   | 'Float'
@@ -21,7 +21,7 @@ export interface PortDefinition {
 }
 
 // Filter category - must match Rust Category enum display names
-export type FilterCategory = 
+export type FilterCategory =
   | 'Input'
   | 'Output'
   | 'Transform'
@@ -56,6 +56,56 @@ export interface FilterInfo {
   inputs: PortDefinition[];
   outputs: PortDefinition[];
   parameters: ParameterInfo[];
+}
+
+export interface PluginInfo {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  libraryPath: string;
+  healthy: boolean;
+  filterCount: number;
+  loadedForMs: number;
+}
+
+export interface ExternalApiCapabilities {
+  apiVersion: string;
+  supportsGraphImportExport: boolean;
+  supportsPluginImportExport: boolean;
+  supportsPluginManifestInspection: boolean;
+  supportsChatbotAssistantHooks: boolean;
+  notes: string[];
+}
+
+export interface GraphExchangeEnvelope {
+  format: string;
+  schemaVersion: string;
+  exportedAtUnixMs: number;
+  graph: GraphState;
+}
+
+export interface PluginManifestPreview {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  minAmbaraVersion: string;
+  maxAmbaraVersion: string;
+  requestedCapabilities: string[];
+  declaredFilters: string[];
+}
+
+export interface PluginImportIssue {
+  path: string;
+  error: string;
+}
+
+export interface PluginImportSummary {
+  loaded: PluginInfo[];
+  failed: PluginImportIssue[];
 }
 
 // Parameter value in the UI

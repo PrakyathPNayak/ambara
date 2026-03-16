@@ -1,10 +1,41 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use tauri::State;
 
 // Import the ambara library
 use ambara::prelude::*;
 use ambara::graph::structure::ProcessingGraph;
 use ambara::execution::engine::{ExecutionEngine, ExecutionOptions};
+
+struct AppState {
+    filter_registry: Mutex<FilterRegistry>,
+    plugin_registry: Mutex<PluginRegistry>,
+}
+
+impl AppState {
+    fn new() -> Self {
+        let plugin_dir = default_plugin_dir();
+        let mut plugin_registry = PluginRegistry::new(plugin_dir, PluginSystemConfig::default());
+        let mut filter_registry = FilterRegistry::with_builtins();
+
+        // Best-effort auto-discovery; failures are surfaced in explicit commands.
+        let _ = plugin_registry.load_all();
+        let _ = plugin_registry.register_all_in_filter_registry(&mut filter_registry);
+
+        Self {
+            filter_registry: Mutex::new(filter_registry),
+            plugin_registry: Mutex::new(plugin_registry),
+        }
+    }
+}
+
+fn default_plugin_dir() -> PathBuf {
+    // ui/src-tauri -> repo root is ../../
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../plugins")
+}
 
 // Types that mirror the frontend types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,6 +58,20 @@ pub struct FilterInfo {
     pub inputs: Vec<PortDefinition>,
     pub outputs: Vec<PortDefinition>,
     pub parameters: Vec<ParameterInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginInfo {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub description: String,
+    pub author: String,
+    pub library_path: String,
+    pub healthy: bool,
+    pub filter_count: usize,
+    pub loaded_for_ms: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -136,6 +181,54 @@ pub struct ExecutionResult {
     pub execution_time: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalApiCapabilities {
+    pub api_version: String,
+    pub supports_graph_import_export: bool,
+    pub supports_plugin_import_export: bool,
+    pub supports_plugin_manifest_inspection: bool,
+    pub supports_chatbot_assistant_hooks: bool,
+    pub notes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphExchangeEnvelope {
+    pub format: String,
+    pub schema_version: String,
+    pub exported_at_unix_ms: u64,
+    pub graph: GraphState,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginManifestPreview {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub description: String,
+    pub author: String,
+    pub min_ambara_version: String,
+    pub max_ambara_version: String,
+    pub requested_capabilities: Vec<String>,
+    pub declared_filters: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginImportIssue {
+    pub path: String,
+    pub error: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginImportSummary {
+    pub loaded: Vec<PluginInfo>,
+    pub failed: Vec<PluginImportIssue>,
+}
+
 /// Execution settings that can be configured from the UI.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -172,38 +265,318 @@ fn get_execution_settings() -> ExecutionSettings {
 
 // Get all available filters - uses the actual ambara FilterRegistry
 #[tauri::command]
-fn get_filters() -> Vec<FilterInfo> {
-    let registry = FilterRegistry::with_builtins();
-    
-    registry.filters()
+fn get_filters(state: State<AppState>) -> Result<Vec<FilterInfo>, String> {
+    let registry = state
+        .filter_registry
+        .lock()
+        .map_err(|_| "Filter registry lock poisoned".to_string())?;
+
+    Ok(registry.filters()
         .map(|(_, entry)| {
             let metadata = &entry.metadata;
-            FilterInfo {
-                id: metadata.id.clone(),
-                name: metadata.name.clone(),
-                description: metadata.description.clone(),
-                category: metadata.category.display_name().to_string(),
-                inputs: metadata.inputs.iter().map(|port| PortDefinition {
-                    name: port.name.clone(),
-                    port_type: format!("{:?}", port.port_type),
-                    required: !port.optional,
-                    default_value: port.default_value.as_ref().map(|v| value_to_json(v)),
-                }).collect(),
-                outputs: metadata.outputs.iter().map(|port| PortDefinition {
-                    name: port.name.clone(),
-                    port_type: format!("{:?}", port.port_type),
-                    required: !port.optional,
-                    default_value: None,
-                }).collect(),
-                parameters: metadata.parameters.iter().map(|param| ParameterInfo {
-                    name: param.name.clone(),
-                    port_type: format!("{:?}", param.param_type),
-                    default_value: Some(value_to_json(&param.default_value)),
-                    description: param.description.clone(),
-                }).collect(),
-            }
+            filter_info_from_metadata(metadata)
         })
-        .collect()
+        .collect())
+}
+
+fn filter_info_from_metadata(metadata: &NodeMetadata) -> FilterInfo {
+    FilterInfo {
+        id: metadata.id.clone(),
+        name: metadata.name.clone(),
+        description: metadata.description.clone(),
+        category: metadata.category.display_name().to_string(),
+        inputs: metadata
+            .inputs
+            .iter()
+            .map(|port| PortDefinition {
+                name: port.name.clone(),
+                port_type: format!("{:?}", port.port_type),
+                required: !port.optional,
+                default_value: port.default_value.as_ref().map(value_to_json),
+            })
+            .collect(),
+        outputs: metadata
+            .outputs
+            .iter()
+            .map(|port| PortDefinition {
+                name: port.name.clone(),
+                port_type: format!("{:?}", port.port_type),
+                required: !port.optional,
+                default_value: None,
+            })
+            .collect(),
+        parameters: metadata
+            .parameters
+            .iter()
+            .map(|param| ParameterInfo {
+                name: param.name.clone(),
+                port_type: format!("{:?}", param.param_type),
+                default_value: Some(value_to_json(&param.default_value)),
+                description: param.description.clone(),
+            })
+            .collect(),
+    }
+}
+
+fn plugin_info_from_loaded(plugin: &ambara::plugins::loader::LoadedPlugin) -> PluginInfo {
+    PluginInfo {
+        id: plugin.manifest.plugin.id.clone(),
+        name: plugin.manifest.plugin.name.clone(),
+        version: plugin.manifest.plugin.version.clone(),
+        description: plugin.manifest.plugin.description.clone(),
+        author: plugin.manifest.plugin.author.clone(),
+        library_path: plugin.library_path.display().to_string(),
+        healthy: plugin.last_healthy,
+        filter_count: plugin.filter_ids().len(),
+        loaded_for_ms: plugin.loaded_at.elapsed().as_millis() as u64,
+    }
+}
+
+#[tauri::command]
+fn get_plugins(state: State<AppState>) -> Result<Vec<PluginInfo>, String> {
+    let registry = state
+        .plugin_registry
+        .lock()
+        .map_err(|_| "Plugin registry lock poisoned".to_string())?;
+
+    let mut plugins = Vec::new();
+    for plugin_id in registry.plugin_ids() {
+        if let Some(info) = registry.with_plugin(plugin_id, plugin_info_from_loaded) {
+            plugins.push(info);
+        }
+    }
+
+    Ok(plugins)
+}
+
+#[tauri::command]
+fn load_plugin(path: String, state: State<AppState>) -> Result<PluginInfo, String> {
+    let mut plugin_registry = state
+        .plugin_registry
+        .lock()
+        .map_err(|_| "Plugin registry lock poisoned".to_string())?;
+    let mut filter_registry = state
+        .filter_registry
+        .lock()
+        .map_err(|_| "Filter registry lock poisoned".to_string())?;
+
+    let plugin_id = plugin_registry
+        .load_plugin(Path::new(&path))
+        .map_err(|e| e.to_string())?;
+
+    if let Err(err) = plugin_registry.register_plugin_in_filter_registry(&plugin_id, &mut filter_registry) {
+        let _ = plugin_registry.unload_plugin(&plugin_id);
+        return Err(err.to_string());
+    }
+
+    plugin_registry
+        .with_plugin(&plugin_id, plugin_info_from_loaded)
+        .ok_or_else(|| format!("Loaded plugin '{plugin_id}' not found in registry"))
+}
+
+#[tauri::command]
+fn unload_plugin(plugin_id: String, state: State<AppState>) -> Result<(), String> {
+    let mut plugin_registry = state
+        .plugin_registry
+        .lock()
+        .map_err(|_| "Plugin registry lock poisoned".to_string())?;
+    let mut filter_registry = state
+        .filter_registry
+        .lock()
+        .map_err(|_| "Filter registry lock poisoned".to_string())?;
+
+    filter_registry.unregister_plugin_filters(&plugin_id);
+    plugin_registry
+        .unload_plugin(&plugin_id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_plugin_filters(plugin_id: String, state: State<AppState>) -> Result<Vec<FilterInfo>, String> {
+    let filter_registry = state
+        .filter_registry
+        .lock()
+        .map_err(|_| "Filter registry lock poisoned".to_string())?;
+
+    let ids = filter_registry.plugin_filters_for(&plugin_id);
+    let filters = ids
+        .iter()
+        .filter_map(|id| filter_registry.get_metadata(id).map(filter_info_from_metadata))
+        .collect();
+
+    Ok(filters)
+}
+
+#[tauri::command]
+fn get_external_api_capabilities() -> ExternalApiCapabilities {
+    ExternalApiCapabilities {
+        api_version: "v1".to_string(),
+        supports_graph_import_export: true,
+        supports_plugin_import_export: true,
+        supports_plugin_manifest_inspection: true,
+        supports_chatbot_assistant_hooks: false,
+        notes: vec![
+            "Chatbot assistant hooks are planned and tracked in roadmap TODOs".to_string(),
+            "Graph schema is UI GraphState JSON envelope v1".to_string(),
+        ],
+    }
+}
+
+#[tauri::command]
+fn export_graph_json(graph: GraphState) -> Result<String, String> {
+    let envelope = GraphExchangeEnvelope {
+        format: "ambara-graph".to_string(),
+        schema_version: "1".to_string(),
+        exported_at_unix_ms: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|e| e.to_string())?
+            .as_millis() as u64,
+        graph,
+    };
+    serde_json::to_string_pretty(&envelope).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn import_graph_json(content: String) -> Result<GraphState, String> {
+    // First try the exchange envelope format.
+    if let Ok(envelope) = serde_json::from_str::<GraphExchangeEnvelope>(&content) {
+        return Ok(envelope.graph);
+    }
+
+    // Fallback to raw GraphState format for backward compatibility.
+    serde_json::from_str::<GraphState>(&content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn inspect_plugin_manifest(path: String) -> Result<PluginManifestPreview, String> {
+    let manifest = ambara::plugins::manifest::PluginManifest::from_path(Path::new(&path))
+        .map_err(|e| e.to_string())?;
+
+    let mut requested_capabilities = Vec::new();
+    if manifest.plugin.capabilities.network {
+        requested_capabilities.push("network".to_string());
+    }
+    if manifest.plugin.capabilities.filesystem_read {
+        requested_capabilities.push("filesystem_read".to_string());
+    }
+    if manifest.plugin.capabilities.filesystem_write {
+        requested_capabilities.push("filesystem_write".to_string());
+    }
+    if manifest.plugin.capabilities.gpu {
+        requested_capabilities.push("gpu".to_string());
+    }
+
+    Ok(PluginManifestPreview {
+        id: manifest.plugin.id,
+        name: manifest.plugin.name,
+        version: manifest.plugin.version,
+        description: manifest.plugin.description,
+        author: manifest.plugin.author,
+        min_ambara_version: manifest.plugin.min_ambara_version,
+        max_ambara_version: manifest.plugin.max_ambara_version,
+        requested_capabilities,
+        declared_filters: manifest.plugin.filters.ids,
+    })
+}
+
+#[tauri::command]
+fn import_plugins_from_directory(dir: String, state: State<AppState>) -> Result<PluginImportSummary, String> {
+    let path = Path::new(&dir);
+    if !path.exists() {
+        return Err(format!("Directory does not exist: {dir}"));
+    }
+    if !path.is_dir() {
+        return Err(format!("Path is not a directory: {dir}"));
+    }
+
+    let mut plugin_registry = state
+        .plugin_registry
+        .lock()
+        .map_err(|_| "Plugin registry lock poisoned".to_string())?;
+    let mut filter_registry = state
+        .filter_registry
+        .lock()
+        .map_err(|_| "Filter registry lock poisoned".to_string())?;
+
+    let mut loaded = Vec::new();
+    let mut failed = Vec::new();
+
+    let entries = std::fs::read_dir(path).map_err(|e| e.to_string())?;
+    for entry in entries {
+        let entry = match entry {
+            Ok(v) => v,
+            Err(err) => {
+                failed.push(PluginImportIssue {
+                    path: dir.clone(),
+                    error: err.to_string(),
+                });
+                continue;
+            }
+        };
+        let child = entry.path();
+        if !child.is_dir() {
+            continue;
+        }
+
+        let manifest_path = child.join("ambara-plugin.toml");
+        if !manifest_path.exists() {
+            continue;
+        }
+
+        let lib_path = std::fs::read_dir(&child)
+            .ok()
+            .and_then(|iter| {
+                iter.flatten().find_map(|f| {
+                    let p = f.path();
+                    let ext = p.extension().and_then(|e| e.to_str()).unwrap_or_default();
+                    if ["so", "dll", "dylib"].contains(&ext) {
+                        Some(p)
+                    } else {
+                        None
+                    }
+                })
+            });
+
+        let Some(lib_path) = lib_path else {
+            failed.push(PluginImportIssue {
+                path: child.display().to_string(),
+                error: "No plugin library (.so/.dll/.dylib) found".to_string(),
+            });
+            continue;
+        };
+
+        let loaded_id = match plugin_registry.load_plugin(&lib_path) {
+            Ok(id) => id,
+            Err(err) => {
+                failed.push(PluginImportIssue {
+                    path: lib_path.display().to_string(),
+                    error: err.to_string(),
+                });
+                continue;
+            }
+        };
+
+        if let Err(err) = plugin_registry.register_plugin_in_filter_registry(&loaded_id, &mut filter_registry) {
+            let _ = plugin_registry.unload_plugin(&loaded_id);
+            failed.push(PluginImportIssue {
+                path: lib_path.display().to_string(),
+                error: err.to_string(),
+            });
+            continue;
+        }
+
+        if let Some(info) = plugin_registry.with_plugin(&loaded_id, plugin_info_from_loaded) {
+            loaded.push(info);
+        }
+    }
+
+    Ok(PluginImportSummary { loaded, failed })
+}
+
+#[tauri::command]
+fn export_plugin_inventory_json(state: State<AppState>) -> Result<String, String> {
+    let plugins = get_plugins(state)?;
+    serde_json::to_string_pretty(&plugins).map_err(|e| e.to_string())
 }
 
 // Helper function to convert Value to JSON
@@ -276,7 +649,7 @@ fn validate_graph(graph: GraphState) -> ValidationResult {
 
 // Execute graph (placeholder - would connect to ambara library)
 #[tauri::command]
-fn execute_graph(graph: GraphState, settings: Option<ExecutionSettings>) -> ExecutionResult {
+fn execute_graph(graph: GraphState, settings: Option<ExecutionSettings>, state: State<AppState>) -> ExecutionResult {
     let start = std::time::Instant::now();
     let settings = settings.unwrap_or_default();
     
@@ -295,7 +668,20 @@ fn execute_graph(graph: GraphState, settings: Option<ExecutionSettings>) -> Exec
     }
 
     // Convert UI graph to ambara ProcessingGraph
-    let registry = FilterRegistry::with_builtins();
+    let registry = match state.filter_registry.lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return ExecutionResult {
+                success: false,
+                errors: vec![ExecutionError {
+                    node_id: String::new(),
+                    message: "Failed to access filter registry".to_string(),
+                }],
+                outputs: HashMap::new(),
+                execution_time: start.elapsed().as_millis() as u64,
+            }
+        }
+    };
     let mut processing_graph = ProcessingGraph::new();
     let mut node_id_map: HashMap<String, NodeId> = HashMap::new();
 
@@ -430,10 +816,8 @@ fn json_to_value(json: &serde_json::Value) -> Option<Value> {
         serde_json::Value::Number(n) => {
             if let Some(i) = n.as_i64() {
                 Some(Value::Integer(i))
-            } else if let Some(f) = n.as_f64() {
-                Some(Value::Float(f))
             } else {
-                None
+                n.as_f64().map(Value::Float)
             }
         }
         serde_json::Value::String(s) => Some(Value::String(s.clone())),
@@ -489,10 +873,21 @@ fn load_graph(path: String) -> Result<GraphState, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(AppState::new())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             get_filters,
+            get_plugins,
+            load_plugin,
+            unload_plugin,
+            get_plugin_filters,
+            get_external_api_capabilities,
+            export_graph_json,
+            import_graph_json,
+            inspect_plugin_manifest,
+            import_plugins_from_directory,
+            export_plugin_inventory_json,
             validate_graph,
             execute_graph,
             save_graph,

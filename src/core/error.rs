@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use thiserror::Error;
 use uuid::Uuid;
+use std::path::PathBuf;
 
 /// Unique identifier for a node in the graph.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -200,31 +201,86 @@ pub enum ExecutionError {
 }
 
 /// Errors from the plugin system.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum PluginError {
-    #[error("Failed to load plugin from {path}: {error}")]
-    LoadFailed { path: String, error: String },
+    /// The requested plugin ID was not found in the registry.
+    #[error("Plugin '{plugin_id}' not found in registry")]
+    PluginNotFound { plugin_id: String },
 
-    #[error("Plugin version mismatch: host expects API v{host_version}, plugin has v{plugin_version}")]
-    IncompatibleVersion {
-        host_version: u32,
-        plugin_version: u32,
+    /// Failed to load the dynamic library from disk.
+    #[error("Failed to load plugin library from {path}: {reason}")]
+    PluginLoadFailed { path: PathBuf, reason: String },
+
+    /// The plugin's `plugin_init` call returned an error.
+    #[error("Plugin '{plugin_id}' initialization failed: {message}")]
+    PluginInitFailed { plugin_id: String, message: String },
+
+    /// The plugin was compiled against a different ABI version.
+    #[error(
+        "ABI version mismatch for plugin '{plugin_id}': \
+         plugin has v{plugin_abi}, host requires v{host_abi}"
+    )]
+    AbiVersionMismatch {
+        plugin_id: String,
+        plugin_abi: u32,
+        host_abi: u32,
     },
 
-    #[error("Plugin initialization failed: {0}")]
-    InitializationFailed(String),
+    /// A plugin filter panicked during execution; the plugin is unhealthy.
+    #[error("Plugin '{plugin_id}' panicked during execution of filter '{filter_id}'")]
+    PluginPanicked { plugin_id: String, filter_id: String },
 
-    #[error("Plugin '{name}' not found")]
-    PluginNotFound { name: String },
+    /// The plugin manifest TOML file could not be parsed.
+    #[error("Failed to parse plugin manifest at {path}: {reason}")]
+    ManifestParseError { path: PathBuf, reason: String },
 
-    #[error("Plugin '{name}' is already loaded")]
-    AlreadyLoaded { name: String },
+    /// Attempted to load a plugin whose ID is already in the registry.
+    #[error("Plugin '{plugin_id}' is already loaded — unload it first")]
+    PluginAlreadyLoaded { plugin_id: String },
 
-    #[error("Script compilation error: {0}")]
-    ScriptCompilation(String),
+    /// The host refused to grant the requested capability.
+    #[error("Plugin '{plugin_id}' was denied capability '{capability}'")]
+    PluginCapabilityDenied { plugin_id: String, capability: String },
 
-    #[error("Plugin execution error: {0}")]
-    Execution(String),
+    /// A filter contributed by the plugin could not be registered.
+    #[error(
+        "Failed to register filter '{filter_id}' from plugin '{plugin_id}': {reason}"
+    )]
+    FilterRegistrationFailed {
+        plugin_id: String,
+        filter_id: String,
+        reason: String,
+    },
+
+    /// The plugin manifest was missing a required field.
+    #[error("Plugin manifest missing required field '{field}': {path}")]
+    ManifestMissingField { field: String, path: PathBuf },
+
+    /// The plugin requires a newer version of Ambara.
+    #[error(
+        "Plugin '{plugin_id}' requires Ambara >= {required} (current: {current})"
+    )]
+    AmbaraVersionTooOld {
+        plugin_id: String,
+        required: String,
+        current: String,
+    },
+
+    /// Generic execution error from a plugin filter.
+    #[error("Plugin '{plugin_id}' filter '{filter_id}' execution error: {message}")]
+    PluginExecutionError {
+        plugin_id: String,
+        filter_id: String,
+        message: String,
+    },
+
+    /// The `ambara_plugin_vtable` symbol was missing from the library.
+    #[error("Plugin library at {path} does not export 'ambara_plugin_vtable'")]
+    MissingVtableSymbol { path: PathBuf },
+
+    /// I/O error when scanning or reading plugin files.
+    #[error("I/O error while loading plugin: {message}")]
+    Io { message: String },
 }
 
 /// Errors during batch processing.

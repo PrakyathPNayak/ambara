@@ -1,10 +1,15 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
-import { 
-  FilterInfo, 
-  GraphState, 
-  ValidationResult, 
-  ExecutionResult 
+import {
+  FilterInfo,
+  PluginInfo,
+  ExternalApiCapabilities,
+  GraphExchangeEnvelope,
+  PluginManifestPreview,
+  PluginImportSummary,
+  GraphState,
+  ValidationResult,
+  ExecutionResult
 } from '../types';
 
 // Execution settings interface matching the backend
@@ -19,6 +24,51 @@ export interface ExecutionSettings {
 // Get all available filters from the registry
 export async function getFilters(): Promise<FilterInfo[]> {
   return invoke<FilterInfo[]>('get_filters');
+}
+
+export async function getPlugins(): Promise<PluginInfo[]> {
+  return invoke<PluginInfo[]>('get_plugins');
+}
+
+export async function loadPlugin(path: string): Promise<PluginInfo> {
+  return invoke<PluginInfo>('load_plugin', { path });
+}
+
+export async function unloadPlugin(pluginId: string): Promise<void> {
+  return invoke('unload_plugin', { pluginId });
+}
+
+export async function getPluginFilters(pluginId: string): Promise<FilterInfo[]> {
+  return invoke<FilterInfo[]>('get_plugin_filters', { pluginId });
+}
+
+export async function getExternalApiCapabilities(): Promise<ExternalApiCapabilities> {
+  return invoke<ExternalApiCapabilities>('get_external_api_capabilities');
+}
+
+export async function exportGraphJson(graph: GraphState): Promise<string> {
+  return invoke<string>('export_graph_json', { graph });
+}
+
+export async function importGraphJson(content: string): Promise<GraphState> {
+  return invoke<GraphState>('import_graph_json', { content });
+}
+
+export async function inspectPluginManifest(path: string): Promise<PluginManifestPreview> {
+  return invoke<PluginManifestPreview>('inspect_plugin_manifest', { path });
+}
+
+export async function importPluginsFromDirectory(dir: string): Promise<PluginImportSummary> {
+  return invoke<PluginImportSummary>('import_plugins_from_directory', { dir });
+}
+
+export async function exportPluginInventoryJson(): Promise<string> {
+  return invoke<string>('export_plugin_inventory_json');
+}
+
+export async function exportGraphEnvelope(graph: GraphState): Promise<GraphExchangeEnvelope> {
+  const json = await exportGraphJson(graph);
+  return JSON.parse(json) as GraphExchangeEnvelope;
 }
 
 // Validate the current graph

@@ -16,6 +16,8 @@ This project was done with the intent of testing the ease of developement with t
 - 🎯 **Type-Safe**: Strong type checking for node connections and parameters
 - 🔄 **Parallel Execution**: Automatic parallelization of independent operations
 - 🧪 **Well-Tested**: Comprehensive test suite with 72+ tests
+- 🌐 **External API Surface**: Tauri commands for graph/plugin import-export and manifest inspection
+- 🤖 **Chatbot Sidecar**: FastAPI + RAG pipeline for natural-language graph generation
 
 ## Quick Start
 
@@ -53,6 +55,10 @@ npm run tauri dev
 # Build for production
 npm run tauri build
 ```
+
+If you hit `Too many open files` while running `tauri dev` on Linux,
+increase your open-file limits (or inotify watch limits) before launching
+the dev server.
 
 ## Architecture
 
@@ -237,6 +243,63 @@ Generate and view the full API documentation:
 ```bash
 cargo doc --no-deps --open
 ```
+
+## External API (Tauri Commands)
+
+Ambara exposes an external command API (through Tauri `invoke`) that can be used
+by automation tools, companion apps, or future assistant integrations.
+
+### Graph Exchange
+
+- `export_graph_json(graph)` -> exports an envelope JSON payload with schema metadata
+- `import_graph_json(content)` -> imports either envelope JSON or raw `GraphState` JSON
+- `save_graph(graph, path)` / `load_graph(path)` -> file-based graph persistence
+
+### Plugin Management
+
+- `get_plugins()` -> list loaded plugins
+- `load_plugin(path)` / `unload_plugin(plugin_id)` -> dynamic plugin lifecycle
+- `get_plugin_filters(plugin_id)` -> list filters exposed by a plugin
+- `inspect_plugin_manifest(path)` -> parse and inspect `ambara-plugin.toml`
+- `import_plugins_from_directory(dir)` -> bulk import plugin folders
+- `export_plugin_inventory_json()` -> export loaded plugin inventory as JSON
+
+### Capability Discovery
+
+- `get_external_api_capabilities()` -> API version and feature support flags
+
+## Chatbot Integration
+
+Ambara includes an autonomous chatbot sidecar that can generate graph JSON from
+natural language and inject it into the UI canvas.
+
+### Components
+
+- Python API server: `chatbot/api/main.py`
+- Retrieval + generation pipeline: `chatbot/retrieval/` and `chatbot/generation/`
+- Corpus and embedding tools: `chatbot/corpus/`
+- React chat panel: `ui/src/components/chat/`
+
+### Quick Run
+
+```bash
+cd /home/prakyathpnayak/Documents/programming/rust/ambara
+bash chatbot/api/startup.sh
+cd ui
+npm run dev
+```
+
+### Docs
+
+- System architecture: `docs/chatbot-system.md`
+- Quickstart guide: `docs/chatbot-quickstart.md`
+- DACP convergence decisions: `docs/chatbot-dacp.md`
+
+## Roadmap
+
+- Add assistant/chatbot side-panel support for guided pipeline authoring.
+- Expose safe "assistant hooks" on top of graph import/export and validation.
+- Add LLM-ready graph summarization and node recommendation endpoints.
 
 ## Testing
 

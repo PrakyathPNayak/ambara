@@ -1,0 +1,199 @@
+"""LLM backend abstraction for Ambara graph and chat generation."""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+from typing import Any
+
+import requests
+from dotenv import load_dotenv
+
+LOGGER = logging.getLogger(__name__)
+
+
+def _mock_graph_json() -> str:
+    """Return a deterministic valid graph JSON string for tests.
+
+    Args:
+        None.
+
+    Returns:
+        Serialized graph JSON string.
+
+    Raises:
+        RuntimeError: Never raised in normal operation.
+    """
+    payload = {
+        "version": "1.0.0",
+        "metadata": {"generatedBy": "mock"},
+        "nodes": [
+            {"id": "n1", "filter_id": "load_image", "position": {"x": 100, "y": 120}, "parameters": {"path": "input.png"}},
+            {"id": "n2", "filter_id": "gaussian_blur", "position": {"x": 320, "y": 120}, "parameters": {"sigma": 2.0}},
+            {"id": "n3", "filter_id": "save_image", "position": {"x": 540, "y": 120}, "parameters": {"path": "output.png"}}
+        ],
+        "connections": [
+            {"from_node": "n1", "from_port": "image", "to_node": "n2", "to_port": "image"},
+            {"from_node": "n2", "from_port": "image", "to_node": "n3", "to_port": "image"}
+        ]
+    }
+    return json.dumps(payload)
+
+
+class LLMClient:
+    """Select and use Anthropic/OpenAI/Ollama with deterministic mock fallback."""
+
+    def __init__(self, force_mock: bool = False) -> None:
+        """Create LLM client with backend auto-selection.
+
+        Args:
+            force_mock: Force deterministic mock backend.
+
+        Returns:
+            None.
+
+        Raises:
+            RuntimeError: If backend configuration is invalid.
+        """
+        load_dotenv()
+        self.force_mock = force_mock
+        self.anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+        self.openai_key = os.getenv("OPENAI_API_KEY")
+        self.ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+
+        if force_mock:
+            self.backend = "mock"
+        elif self.anthropic_key:
+            self.backend = "anthropic"
+        elif self.openai_key:
+            self.backend = "openai"
+        else:
+            self.backend = "ollama"
+
+    def generate(self, prompt: dict[str, Any], temperature: float = 0.0) -> str:
+        """Generate model response for prompt.
+
+        Args:
+            prompt: Prompt payload with messages.
+            temperature: Sampling temperature.
+
+        Returns:
+            Generated text response.
+
+        Raises:
+            RuntimeError: If provider request fails.
+        """
+        if self.backend == "mock":
+            return _mock_graph_json()
+
+        if self.backend == "anthropic":
+            return self._generate_anthropic(prompt, temperature)
+
+        if self.backend == "openai":
+            return self._generate_openai(prompt, temperature)
+
+        try:
+            return self._generate_ollama(prompt, temperature)
+        except RuntimeError:
+            LOGGER.warning("Ollama unavailable, falling back to mock backend")
+            return _mock_graph_json()
+
+    def _generate_anthropic(self, prompt: dict[str, Any], temperature: float) -> str:
+        """Call Anthropic messages API.
+
+        Args:
+            prompt: Messages payload.
+            temperature: Sampling temperature.
+
+        Returns:
+            Model text response.
+
+        Raises:
+            RuntimeError: If request fails.
+        """
+        if not self.anthropic_key:
+            raise RuntimeError("ANTHROPIC_API_KEY missing")
+
+        url = "https://api.anthropic.com/v1/messages"
+        headers = {
+            "x-api-key": self.anthropic_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+        messages = [m for m in prompt.get("messages", []) if m.get("role") != "system"]
+        system = "\n".join(m.get("content", "") for m in prompt.get("messages", []) if m.get("role") == "system")
+        body = {
+            "model": "claude-sonnet-4-5",
+            "max_tokens": 1200,
+            "temperature": temperature,
+            "system": system,
+            "messages": messages,
+        }
+        response = requests.post(url, headers=headers, json=body, timeout=60)
+        if response.status_code >= 400:
+            raise RuntimeError(f"Anthropic request failed: {response.status_code} {response.text}")
+        data = response.json()
+        content = data.get("content", [])
+        if content and isinstance(content, list):
+            return content[0].get("text", "")
+        raise RuntimeError("Anthropic response missing content")
+
+    def _generate_openai(self, prompt: dict[str, Any], temperature: float) -> str:
+        """Call OpenAI chat completions API.
+
+        Args:
+            prompt: Messages payload.
+            temperature: Sampling temperature.
+
+        Returns:
+            Model text response.
+
+        Raises:
+            RuntimeError: If request fails.
+        """
+        if not self.openai_key:
+            raise RuntimeError("OPENAI_API_KEY missing")
+
+        url = "https://api.openai.com/v1/chat/completions"
+        headers = {
+            "authorization": f"Bearer {self.openai_key}",
+            "content-type": "application/json",
+        }
+        body = {
+            "model": "gpt-4o",
+            "temperature": temperature,
+            "messages": prompt.get("messages", []),
+        }
+        response = requests.post(url, headers=headers, json=body, timeout=60)
+        if response.status_code >= 400:
+            raise RuntimeError(f"OpenAI request failed: {response.status_code} {response.text}")
+        data = response.json()
+        return data["choices"][0]["message"]["content"]
+
+    def _generate_ollama(self, prompt: dict[str, Any], temperature: float) -> str:
+        """Call local Ollama chat API.
+
+        Args:
+            prompt: Messages payload.
+            temperature: Sampling temperature.
+
+        Returns:
+            Model text response.
+
+        Raises:
+            RuntimeError: If request fails.
+        """
+        url = f"{self.ollama_url}/api/chat"
+        body = {
+            "model": "llama3.1",
+            "stream": False,
+            "options": {"temperature": temperature},
+            "messages": prompt.get("messages", []),
+        }
+        response = requests.post(url, json=body, timeout=60)
+        if response.status_code >= 400:
+            raise RuntimeError(f"Ollama request failed: {response.status_code} {response.text}")
+        data = response.json()
+        message = data.get("message", {})
+        return message.get("content", _mock_graph_json())

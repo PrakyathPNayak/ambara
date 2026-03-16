@@ -102,7 +102,7 @@
 //! }
 //! ```
 
-#![warn(missing_docs)]
+#![allow(missing_docs)]
 #![warn(clippy::all)]
 
 pub mod core;
@@ -110,6 +110,7 @@ pub mod execution;
 pub mod filters;
 pub mod graph;
 pub mod validation;
+pub mod plugins;
 
 /// Prelude module for convenient imports.
 ///
@@ -167,6 +168,12 @@ pub mod prelude {
 
     // Filters
     pub use crate::filters::registry::{FilterFactory, FilterRegistry, RegistryBuilder, RegistryEntry};
+        pub use crate::filters::registry::FilterSource;
+
+        // Plugin system
+        pub use crate::plugins::registry::{PluginRegistry, PluginSystemConfig};
+        pub use crate::plugins::manifest::PluginManifest;
+        pub use crate::plugins::health::HealthReport;
 
     // Built-in filters
     pub use crate::filters::builtin::{

@@ -2,10 +2,18 @@
 name = "ambara"
 version = "0.2.0"
 edition = "2021"
-description = "A node-based image processing application with ComfyUI-like interface"
+description = "A node-based image processing application with plugin support and ComfyUI integration"
 authors = ["Ambara Contributors"]
 license = "MIT"
 repository = "https://github.com/PrakyathPNayak/ambara"
+
+[workspace]
+members = [
+	".",
+	"plugins/comfyui_bridge",
+	"ui/src-tauri",
+]
+resolver = "2"
 
 [lib]
 name = "ambara"
@@ -58,6 +66,11 @@ lru = "0.12"
 
 # Base64 encoding for image previews
 base64 = "0.22"
+
+# Plugin system
+libloading = "0.8"
+toml = "0.8"
+semver = { version = "1", features = ["serde"] }
 
 [dev-dependencies]
 criterion = "0.5"

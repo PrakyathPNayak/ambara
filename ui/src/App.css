@@ -4,7 +4,9 @@
   box-sizing: border-box;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   width: 100%;
   overflow: hidden;
@@ -18,6 +20,61 @@ html, body, #root {
   color: #ccc;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   position: relative;
+}
+
+.left-sidebar {
+  width: 260px;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #333;
+  background: #252526;
+  overflow: hidden;
+}
+
+.sidebar-bottom {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #333;
+  height: 290px;
+}
+
+.sidebar-tab-bar {
+  display: flex;
+  background: #1e1e1e;
+  border-bottom: 1px solid #333;
+  flex-shrink: 0;
+}
+
+.sidebar-tab {
+  flex: 1;
+  padding: 7px 8px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: #888;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.sidebar-tab:hover {
+  color: #ccc;
+  background: #2a2a2a;
+}
+
+.sidebar-tab.active {
+  color: #4ea8f8;
+  border-bottom-color: #4ea8f8;
+  background: #252526;
+}
+
+.sidebar-tab-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .loading-overlay {

@@ -138,6 +138,13 @@ pub enum PortType {
     Map(Box<PortType>),
     /// Accepts any type (for generic filters)
     Any,
+    /// Plugin-defined or domain-specific type.
+    ///
+    /// Plugins may introduce named types that Ambara's built-in type system
+    /// cannot represent (e.g., `"ComfyModel"`, `"ComfyLatent"`). The host
+    /// treats two `Custom` ports as compatible only when their inner strings
+    /// are equal.
+    Custom(String),
 }
 
 // ============================================================================
@@ -363,6 +370,7 @@ impl PortType {
             PortType::Array(inner) => format!("Array<{}>", inner.display_name()),
             PortType::Map(inner) => format!("Map<String, {}>", inner.display_name()),
             PortType::Any => "Any".to_string(),
+            PortType::Custom(name) => name.clone(),
         }
     }
 }

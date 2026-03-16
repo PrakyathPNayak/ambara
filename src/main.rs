@@ -1,23 +1,62 @@
-//! Ambara CLI - Node-based Image Processing
-//!
-//! This is a demonstration CLI for the Ambara library.
+//! Ambara CLI - Node-based Image Processing.
 
+use std::collections::HashMap;
+use std::path::Path;
+
+use ambara::graph::serialization::SerializedGraph;
 use ambara::prelude::*;
+use serde::Serialize;
+
+#[derive(Debug, Serialize)]
+struct CliPortDefinition {
+    name: String,
+    #[serde(rename = "type")]
+    port_type: String,
+    required: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct CliParameterDefinition {
+    name: String,
+    #[serde(rename = "type")]
+    param_type: String,
+    default: String,
+    description: String,
+}
+
+#[derive(Debug, Serialize)]
+struct CliFilterMetadata {
+    id: String,
+    name: String,
+    description: String,
+    category: String,
+    input_ports: Vec<CliPortDefinition>,
+    output_ports: Vec<CliPortDefinition>,
+    parameters: Vec<CliParameterDefinition>,
+    tags: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LoadGraphResult {
+    success: bool,
+    errors: Vec<String>,
+    outputs: HashMap<String, serde_json::Value>,
+}
 
 fn main() {
-    println!("🎨 Ambara - Node-based Image Processing v{}", ambara::VERSION);
-    println!();
-
-    // Parse command line args
     let args: Vec<String> = std::env::args().collect();
-    
+
     if args.len() < 2 {
         print_usage(&args[0]);
         return;
     }
 
     match args[1].as_str() {
-        "list" => list_filters(),
+        "list" => {
+            let as_json = args.iter().any(|a| a == "--json");
+            list_filters(as_json);
+        }
         "info" => {
             if args.len() < 3 {
                 eprintln!("Error: Please specify a filter ID");
@@ -28,15 +67,37 @@ fn main() {
         "process" => {
             if args.len() < 4 {
                 eprintln!("Error: Please specify input and output paths");
-                eprintln!("Usage: {} process <input> <output> [--blur <sigma>] [--brightness <amount>]", args[0]);
+                eprintln!(
+                    "Usage: {} process <input> <output> [--blur <sigma>] [--brightness <amount>]",
+                    args[0]
+                );
                 return;
             }
             process_image(&args[2..]);
+        }
+        "load-graph" => {
+            if args.len() < 4 {
+                eprintln!("Usage: {} load-graph <graph.json> --dry-run|--execute", args[0]);
+                std::process::exit(1);
+            }
+            let graph_path = &args[2];
+            let dry_run = args.iter().any(|a| a == "--dry-run");
+            let execute = args.iter().any(|a| a == "--execute");
+            if !dry_run && !execute {
+                eprintln!("Either --dry-run or --execute must be provided");
+                std::process::exit(1);
+            }
+
+            let code = load_graph_command(graph_path, dry_run, execute);
+            if code != 0 {
+                std::process::exit(code);
+            }
         }
         "help" | "--help" | "-h" => print_usage(&args[0]),
         _ => {
             eprintln!("Unknown command: {}", args[1]);
             print_usage(&args[0]);
+            std::process::exit(1);
         }
     }
 }
@@ -45,10 +106,12 @@ fn print_usage(program: &str) {
     println!("Usage: {} <command> [options]", program);
     println!();
     println!("Commands:");
-    println!("  list              List all available filters");
-    println!("  info <filter>     Show detailed info about a filter");
-    println!("  process <in> <out> [options]  Process an image");
-    println!("  help              Show this help message");
+    println!("  list [--json]                     List all available filters");
+    println!("  info <filter>                     Show detailed info about a filter");
+    println!("  process <in> <out> [options]      Process an image");
+    println!("  load-graph <path> --dry-run       Validate serialized graph only");
+    println!("  load-graph <path> --execute       Validate and execute serialized graph");
+    println!("  help                              Show this help message");
     println!();
     println!("Process options:");
     println!("  --blur <sigma>      Apply Gaussian blur (default: none)");
@@ -57,17 +120,69 @@ fn print_usage(program: &str) {
     println!("  --resize <WxH>      Resize to dimensions (e.g., 800x600)");
 }
 
-fn list_filters() {
+fn list_filters(as_json: bool) {
     let registry = FilterRegistry::with_builtins();
-    let grouped = registry.grouped_by_category();
 
+    if as_json {
+        let mut filters = Vec::new();
+        for (_, entry) in registry.filters() {
+            let metadata = &entry.metadata;
+            let inputs = metadata
+                .inputs
+                .iter()
+                .map(|p| CliPortDefinition {
+                    name: p.name.clone(),
+                    port_type: format!("{:?}", p.port_type),
+                    required: !p.optional,
+                })
+                .collect();
+            let outputs = metadata
+                .outputs
+                .iter()
+                .map(|p| CliPortDefinition {
+                    name: p.name.clone(),
+                    port_type: format!("{:?}", p.port_type),
+                    required: !p.optional,
+                })
+                .collect();
+            let parameters = metadata
+                .parameters
+                .iter()
+                .map(|param| CliParameterDefinition {
+                    name: param.name.clone(),
+                    param_type: format!("{:?}", param.param_type),
+                    default: format!("{:?}", param.default_value),
+                    description: param.description.clone(),
+                })
+                .collect();
+
+            filters.push(CliFilterMetadata {
+                id: metadata.id.clone(),
+                name: metadata.name.clone(),
+                description: metadata.description.clone(),
+                category: metadata.category.display_name().to_string(),
+                input_ports: inputs,
+                output_ports: outputs,
+                parameters,
+                tags: metadata.tags.clone(),
+            });
+        }
+
+        if let Ok(json) = serde_json::to_string_pretty(&filters) {
+            println!("{json}");
+        } else {
+            eprintln!("Failed to serialize filter registry");
+        }
+        return;
+    }
+
+    let grouped = registry.grouped_by_category();
     println!("Available filters ({} total):", registry.len());
     println!();
-
     for (category, filters) in grouped {
-        println!("  📁 {:?}", category);
+        println!("  [{:?}]", category);
         for metadata in filters {
-            println!("      • {} - {}", metadata.id, metadata.description);
+            println!("      - {} : {}", metadata.id, metadata.description);
         }
         println!();
     }
@@ -273,6 +388,186 @@ fn process_image(args: &[String]) {
     }
 }
 
+fn load_graph_command(path: &str, dry_run: bool, execute: bool) -> i32 {
+    if !Path::new(path).exists() {
+        eprintln!("Graph file does not exist: {path}");
+        return 1;
+    }
+
+    let text = match std::fs::read_to_string(path) {
+        Ok(v) => v,
+        Err(err) => {
+            eprintln!("Failed to read graph file: {err}");
+            return 1;
+        }
+    };
+
+    let serialized = match parse_serialized_graph(&text) {
+        Ok(v) => v,
+        Err(err) => {
+            eprintln!("Invalid graph JSON: {err}");
+            return 1;
+        }
+    };
+
+    let registry = FilterRegistry::with_builtins();
+    let errors = validate_serialized_graph(&serialized, &registry);
+    if !errors.is_empty() {
+        for error in errors {
+            eprintln!("{error}");
+        }
+        return 1;
+    }
+
+    if dry_run {
+        println!("Graph validation passed");
+        return 0;
+    }
+
+    if execute {
+        let execution = execute_serialized_graph(&serialized, &registry);
+        let out = serde_json::to_string_pretty(&execution).unwrap_or_else(|_| {
+            "{\"success\":false,\"errors\":[\"serialization error\"],\"outputs\":{}}".to_string()
+        });
+        println!("{out}");
+        return if execution.success { 0 } else { 1 };
+    }
+
+    0
+}
+
+fn parse_serialized_graph(text: &str) -> Result<SerializedGraph, serde_json::Error> {
+    if let Ok(graph) = SerializedGraph::from_json(text) {
+        return Ok(graph);
+    }
+
+    let mut raw: serde_json::Value = serde_json::from_str(text)?;
+    if raw.get("version").is_none() {
+        raw["version"] = serde_json::Value::String(SerializedGraph::VERSION.to_string());
+    }
+    if raw.get("metadata").is_none() || !raw["metadata"].is_object() {
+        raw["metadata"] = serde_json::json!({});
+    }
+    if raw["metadata"].get("tags").is_none() {
+        raw["metadata"]["tags"] = serde_json::json!([]);
+    }
+    serde_json::from_value(raw)
+}
+
+fn validate_serialized_graph(graph: &SerializedGraph, registry: &FilterRegistry) -> Vec<String> {
+    let mut errors = Vec::new();
+    let mut node_ids = std::collections::HashSet::new();
+
+    for node in &graph.nodes {
+        node_ids.insert(node.id);
+        if !registry.contains(&node.filter_id) {
+            errors.push(format!("Unknown filter id: {}", node.filter_id));
+        }
+    }
+
+    for conn in &graph.connections {
+        if !node_ids.contains(&conn.from_node) {
+            errors.push(format!("Connection references unknown from_node: {}", conn.from_node));
+        }
+        if !node_ids.contains(&conn.to_node) {
+            errors.push(format!("Connection references unknown to_node: {}", conn.to_node));
+        }
+    }
+
+    errors
+}
+
+fn execute_serialized_graph(graph: &SerializedGraph, registry: &FilterRegistry) -> LoadGraphResult {
+    let mut processing_graph = ProcessingGraph::new();
+    let mut node_map: HashMap<NodeId, NodeId> = HashMap::new();
+
+    for node in &graph.nodes {
+        let Some(filter) = registry.create(&node.filter_id) else {
+            return LoadGraphResult {
+                success: false,
+                errors: vec![format!("Unknown filter id: {}", node.filter_id)],
+                outputs: HashMap::new(),
+            };
+        };
+
+        let mut graph_node = GraphNode::new(filter).with_position(node.position.x, node.position.y);
+        for (key, value) in &node.parameters {
+            graph_node = graph_node.with_parameter(key, value.clone());
+        }
+
+        let new_id = processing_graph.add_node(graph_node);
+        node_map.insert(node.id, new_id);
+    }
+
+    for conn in &graph.connections {
+        let Some(from) = node_map.get(&conn.from_node).copied() else {
+            return LoadGraphResult {
+                success: false,
+                errors: vec![format!("Unknown from_node {}", conn.from_node)],
+                outputs: HashMap::new(),
+            };
+        };
+        let Some(to) = node_map.get(&conn.to_node).copied() else {
+            return LoadGraphResult {
+                success: false,
+                errors: vec![format!("Unknown to_node {}", conn.to_node)],
+                outputs: HashMap::new(),
+            };
+        };
+        if let Err(err) = processing_graph.connect(from, &conn.from_port, to, &conn.to_port) {
+            return LoadGraphResult {
+                success: false,
+                errors: vec![format!("Connection error: {err}")],
+                outputs: HashMap::new(),
+            };
+        }
+    }
+
+    let validation = ValidationPipeline::default().validate(&processing_graph);
+    if !validation.errors.is_empty() {
+        return LoadGraphResult {
+            success: false,
+            errors: validation.errors.iter().map(ToString::to_string).collect(),
+            outputs: HashMap::new(),
+        };
+    }
+
+    if graph.nodes.is_empty() {
+        return LoadGraphResult {
+            success: true,
+            errors: Vec::new(),
+            outputs: HashMap::new(),
+        };
+    }
+
+    let engine = ExecutionEngine::new();
+    match engine.execute(&processing_graph, None) {
+        Ok(result) => {
+            let outputs = result
+                .outputs
+                .iter()
+                .map(|(node_id, values)| {
+                    (
+                        node_id.to_string(),
+                        serde_json::json!({ "outputCount": values.len() }),
+                    )
+                })
+                .collect();
+
+            LoadGraphResult {
+                success: true,
+                errors: Vec::new(),
+                outputs,
+            }
+        }
+        Err(err) => LoadGraphResult {
+            success: false,
+            errors: vec![format!("Execution failed: {err}")],
+            outputs: HashMap::new(),
+        },
+    }
+}
+
 fn parse_dimensions(s: &str) -> Option<(u32, u32)> {
     let parts: Vec<&str> = s.split('x').collect();
     if parts.len() == 2 {
@@ -281,5 +576,30 @@ fn parse_dimensions(s: &str) -> Option<(u32, u32)> {
         Some((w, h))
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_list_json_contains_filters() {
+        let registry = FilterRegistry::with_builtins();
+        assert!(registry.len() > 5);
+        assert!(registry.contains("load_image"));
+    }
+
+    #[test]
+    fn cli_validate_empty_graph() {
+        let registry = FilterRegistry::with_builtins();
+        let graph = SerializedGraph {
+            version: "1.0.0".to_string(),
+            metadata: ambara::graph::structure::GraphMetadata::default(),
+            nodes: vec![],
+            connections: vec![],
+        };
+        let errors = validate_serialized_graph(&graph, &registry);
+        assert!(errors.is_empty());
     }
 }

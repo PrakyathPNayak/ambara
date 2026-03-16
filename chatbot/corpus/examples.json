@@ -1,0 +1,1505 @@
+[
+    {
+        "query": "load image and save it",
+        "description": "Single-node IO chain",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "n1",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 80,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "path": "input.png"
+                    }
+                },
+                {
+                    "id": "n2",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 340,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "path": "output.png"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "n1",
+                    "from_port": "image",
+                    "to_node": "n2",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "blur image and save",
+        "description": "Load -> gaussian blur -> save",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "n1",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 80,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "path": "input.png"
+                    }
+                },
+                {
+                    "id": "n2",
+                    "filter_id": "gaussian_blur",
+                    "position": {
+                        "x": 260,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "sigma": 2.5
+                    }
+                },
+                {
+                    "id": "n3",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 460,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "path": "blurred.png"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "n1",
+                    "from_port": "image",
+                    "to_node": "n2",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "n2",
+                    "from_port": "image",
+                    "to_node": "n3",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "resize image then brighten and save",
+        "description": "Three-stage transform and adjust",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "n1",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 40,
+                        "y": 120
+                    },
+                    "parameters": {
+                        "path": "input.jpg"
+                    }
+                },
+                {
+                    "id": "n2",
+                    "filter_id": "resize",
+                    "position": {
+                        "x": 220,
+                        "y": 120
+                    },
+                    "parameters": {
+                        "width": 512,
+                        "height": 512,
+                        "preserve_aspect": false
+                    }
+                },
+                {
+                    "id": "n3",
+                    "filter_id": "brightness",
+                    "position": {
+                        "x": 400,
+                        "y": 120
+                    },
+                    "parameters": {
+                        "amount": 0.2
+                    }
+                },
+                {
+                    "id": "n4",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 580,
+                        "y": 120
+                    },
+                    "parameters": {
+                        "path": "out.jpg"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "n1",
+                    "from_port": "image",
+                    "to_node": "n2",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "n2",
+                    "from_port": "image",
+                    "to_node": "n3",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "n3",
+                    "from_port": "image",
+                    "to_node": "n4",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "blur with radius 5 and save",
+        "description": "Parameter-specific blur",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "n1",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 20,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "path": "in.png"
+                    }
+                },
+                {
+                    "id": "n2",
+                    "filter_id": "box_blur",
+                    "position": {
+                        "x": 220,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "radius": 5
+                    }
+                },
+                {
+                    "id": "n3",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 420,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "path": "out.png"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "n1",
+                    "from_port": "image",
+                    "to_node": "n2",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "n2",
+                    "from_port": "image",
+                    "to_node": "n3",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "stack astrophotos calibrate and stretch",
+        "description": "Astrophotography chain",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "n1",
+                    "filter_id": "load_folder",
+                    "position": {
+                        "x": 20,
+                        "y": 200
+                    },
+                    "parameters": {
+                        "path": "lights/"
+                    }
+                },
+                {
+                    "id": "n2",
+                    "filter_id": "image_stack",
+                    "position": {
+                        "x": 220,
+                        "y": 200
+                    },
+                    "parameters": {}
+                },
+                {
+                    "id": "n3",
+                    "filter_id": "dark_frame_subtract",
+                    "position": {
+                        "x": 420,
+                        "y": 200
+                    },
+                    "parameters": {}
+                },
+                {
+                    "id": "n4",
+                    "filter_id": "histogram_stretch",
+                    "position": {
+                        "x": 620,
+                        "y": 200
+                    },
+                    "parameters": {
+                        "black_point": 0.02,
+                        "white_point": 0.98
+                    }
+                },
+                {
+                    "id": "n5",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 820,
+                        "y": 200
+                    },
+                    "parameters": {
+                        "path": "astro_out.png"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "n1",
+                    "from_port": "images",
+                    "to_node": "n2",
+                    "to_port": "images"
+                },
+                {
+                    "from_node": "n2",
+                    "from_port": "image",
+                    "to_node": "n3",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "n3",
+                    "from_port": "image",
+                    "to_node": "n4",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "n4",
+                    "from_port": "image",
+                    "to_node": "n5",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "batch process folder with blur",
+        "description": "Batch blur pipeline",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "n1",
+                    "filter_id": "load_folder",
+                    "position": {
+                        "x": 80,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "path": "in/"
+                    }
+                },
+                {
+                    "id": "n2",
+                    "filter_id": "batch_gaussian_blur",
+                    "position": {
+                        "x": 300,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "sigma": 1.8
+                    }
+                },
+                {
+                    "id": "n3",
+                    "filter_id": "batch_save_images",
+                    "position": {
+                        "x": 540,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "path": "out/"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "n1",
+                    "from_port": "images",
+                    "to_node": "n2",
+                    "to_port": "images"
+                },
+                {
+                    "from_node": "n2",
+                    "from_port": "images",
+                    "to_node": "n3",
+                    "to_port": "images"
+                }
+            ]
+        }
+    },
+    {
+        "query": "convert to grayscale and invert",
+        "description": "Color conversion chain",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "n1",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 70,
+                        "y": 70
+                    },
+                    "parameters": {
+                        "path": "input.png"
+                    }
+                },
+                {
+                    "id": "n2",
+                    "filter_id": "grayscale",
+                    "position": {
+                        "x": 250,
+                        "y": 70
+                    },
+                    "parameters": {}
+                },
+                {
+                    "id": "n3",
+                    "filter_id": "invert",
+                    "position": {
+                        "x": 430,
+                        "y": 70
+                    },
+                    "parameters": {}
+                },
+                {
+                    "id": "n4",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 610,
+                        "y": 70
+                    },
+                    "parameters": {
+                        "path": "gray_inv.png"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "n1",
+                    "from_port": "image",
+                    "to_node": "n2",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "n2",
+                    "from_port": "image",
+                    "to_node": "n3",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "n3",
+                    "from_port": "image",
+                    "to_node": "n4",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "blend two images at half opacity",
+        "description": "Two-input compositing",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "a",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 20,
+                        "y": 40
+                    },
+                    "parameters": {
+                        "path": "a.png"
+                    }
+                },
+                {
+                    "id": "b",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 20,
+                        "y": 160
+                    },
+                    "parameters": {
+                        "path": "b.png"
+                    }
+                },
+                {
+                    "id": "c",
+                    "filter_id": "blend",
+                    "position": {
+                        "x": 260,
+                        "y": 100
+                    },
+                    "parameters": {
+                        "opacity": 0.5
+                    }
+                },
+                {
+                    "id": "d",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 500,
+                        "y": 100
+                    },
+                    "parameters": {
+                        "path": "blend.png"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "a",
+                    "from_port": "image",
+                    "to_node": "c",
+                    "to_port": "base"
+                },
+                {
+                    "from_node": "b",
+                    "from_port": "image",
+                    "to_node": "c",
+                    "to_port": "overlay"
+                },
+                {
+                    "from_node": "c",
+                    "from_port": "image",
+                    "to_node": "d",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "apply contrast and saturation tweaks",
+        "description": "Color correction chain",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "n1",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 60,
+                        "y": 100
+                    },
+                    "parameters": {
+                        "path": "in.jpg"
+                    }
+                },
+                {
+                    "id": "n2",
+                    "filter_id": "contrast",
+                    "position": {
+                        "x": 250,
+                        "y": 100
+                    },
+                    "parameters": {
+                        "amount": 0.15
+                    }
+                },
+                {
+                    "id": "n3",
+                    "filter_id": "saturation",
+                    "position": {
+                        "x": 440,
+                        "y": 100
+                    },
+                    "parameters": {
+                        "amount": -0.1
+                    }
+                },
+                {
+                    "id": "n4",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 630,
+                        "y": 100
+                    },
+                    "parameters": {
+                        "path": "color.jpg"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "n1",
+                    "from_port": "image",
+                    "to_node": "n2",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "n2",
+                    "from_port": "image",
+                    "to_node": "n3",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "n3",
+                    "from_port": "image",
+                    "to_node": "n4",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "crop center and rotate",
+        "description": "Crop and rotate chain",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "n1",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 80,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "path": "in.png"
+                    }
+                },
+                {
+                    "id": "n2",
+                    "filter_id": "crop",
+                    "position": {
+                        "x": 270,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "x": 128,
+                        "y": 128,
+                        "width": 256,
+                        "height": 256
+                    }
+                },
+                {
+                    "id": "n3",
+                    "filter_id": "rotate",
+                    "position": {
+                        "x": 460,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "degrees": 90
+                    }
+                },
+                {
+                    "id": "n4",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 650,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "path": "croprot.png"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "n1",
+                    "from_port": "image",
+                    "to_node": "n2",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "n2",
+                    "from_port": "image",
+                    "to_node": "n3",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "n3",
+                    "from_port": "image",
+                    "to_node": "n4",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "flip and overlay watermark image",
+        "description": "Overlay composition",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "base",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 30,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "path": "base.png"
+                    }
+                },
+                {
+                    "id": "wm",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 30,
+                        "y": 220
+                    },
+                    "parameters": {
+                        "path": "wm.png"
+                    }
+                },
+                {
+                    "id": "flip",
+                    "filter_id": "flip",
+                    "position": {
+                        "x": 230,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "horizontal": true
+                    }
+                },
+                {
+                    "id": "ov",
+                    "filter_id": "overlay",
+                    "position": {
+                        "x": 430,
+                        "y": 140
+                    },
+                    "parameters": {
+                        "x": 20,
+                        "y": 20
+                    }
+                },
+                {
+                    "id": "save",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 620,
+                        "y": 140
+                    },
+                    "parameters": {
+                        "path": "wm_out.png"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "base",
+                    "from_port": "image",
+                    "to_node": "flip",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "flip",
+                    "from_port": "image",
+                    "to_node": "ov",
+                    "to_port": "base"
+                },
+                {
+                    "from_node": "wm",
+                    "from_port": "image",
+                    "to_node": "ov",
+                    "to_port": "overlay"
+                },
+                {
+                    "from_node": "ov",
+                    "from_port": "image",
+                    "to_node": "save",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "compute edge mask with clamp",
+        "description": "Math-like adjustment with clamp",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "n1",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 40,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "path": "in.png"
+                    }
+                },
+                {
+                    "id": "n2",
+                    "filter_id": "brightness",
+                    "position": {
+                        "x": 220,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "amount": 0.4
+                    }
+                },
+                {
+                    "id": "n3",
+                    "filter_id": "clamp",
+                    "position": {
+                        "x": 400,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "min": 0.0,
+                        "max": 1.0
+                    }
+                },
+                {
+                    "id": "n4",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 580,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "path": "clamp.png"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "n1",
+                    "from_port": "image",
+                    "to_node": "n2",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "n2",
+                    "from_port": "image",
+                    "to_node": "n3",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "n3",
+                    "from_port": "image",
+                    "to_node": "n4",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "folder resize and save all",
+        "description": "Batch resize example",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "x1",
+                    "filter_id": "load_folder",
+                    "position": {
+                        "x": 80,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "path": "dataset/"
+                    }
+                },
+                {
+                    "id": "x2",
+                    "filter_id": "batch_resize",
+                    "position": {
+                        "x": 300,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "width": 512,
+                        "height": 512
+                    }
+                },
+                {
+                    "id": "x3",
+                    "filter_id": "batch_save_images",
+                    "position": {
+                        "x": 520,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "path": "dataset_out/"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "x1",
+                    "from_port": "images",
+                    "to_node": "x2",
+                    "to_port": "images"
+                },
+                {
+                    "from_node": "x2",
+                    "from_port": "images",
+                    "to_node": "x3",
+                    "to_port": "images"
+                }
+            ]
+        }
+    },
+    {
+        "query": "preview image after blur",
+        "description": "Preview node chain",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "p1",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 60,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "path": "input.png"
+                    }
+                },
+                {
+                    "id": "p2",
+                    "filter_id": "gaussian_blur",
+                    "position": {
+                        "x": 260,
+                        "y": 80
+                    },
+                    "parameters": {
+                        "sigma": 1.2
+                    }
+                },
+                {
+                    "id": "p3",
+                    "filter_id": "image_preview",
+                    "position": {
+                        "x": 460,
+                        "y": 80
+                    },
+                    "parameters": {}
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "p1",
+                    "from_port": "image",
+                    "to_node": "p2",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "p2",
+                    "from_port": "image",
+                    "to_node": "p3",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "apply invert then contrast",
+        "description": "Simple artistic effect",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "a1",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 80,
+                        "y": 140
+                    },
+                    "parameters": {
+                        "path": "in.png"
+                    }
+                },
+                {
+                    "id": "a2",
+                    "filter_id": "invert",
+                    "position": {
+                        "x": 250,
+                        "y": 140
+                    },
+                    "parameters": {}
+                },
+                {
+                    "id": "a3",
+                    "filter_id": "contrast",
+                    "position": {
+                        "x": 420,
+                        "y": 140
+                    },
+                    "parameters": {
+                        "amount": 0.2
+                    }
+                },
+                {
+                    "id": "a4",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 590,
+                        "y": 140
+                    },
+                    "parameters": {
+                        "path": "fx.png"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "a1",
+                    "from_port": "image",
+                    "to_node": "a2",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "a2",
+                    "from_port": "image",
+                    "to_node": "a3",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "a3",
+                    "from_port": "image",
+                    "to_node": "a4",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "flip vertically and grayscale",
+        "description": "Transform plus color",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "f1",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 80,
+                        "y": 120
+                    },
+                    "parameters": {
+                        "path": "in.jpg"
+                    }
+                },
+                {
+                    "id": "f2",
+                    "filter_id": "flip",
+                    "position": {
+                        "x": 250,
+                        "y": 120
+                    },
+                    "parameters": {
+                        "vertical": true
+                    }
+                },
+                {
+                    "id": "f3",
+                    "filter_id": "grayscale",
+                    "position": {
+                        "x": 420,
+                        "y": 120
+                    },
+                    "parameters": {}
+                },
+                {
+                    "id": "f4",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 590,
+                        "y": 120
+                    },
+                    "parameters": {
+                        "path": "flip_gray.jpg"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "f1",
+                    "from_port": "image",
+                    "to_node": "f2",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "f2",
+                    "from_port": "image",
+                    "to_node": "f3",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "f3",
+                    "from_port": "image",
+                    "to_node": "f4",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "overlay logo at corner and save",
+        "description": "Logo overlay",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "l1",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 60,
+                        "y": 100
+                    },
+                    "parameters": {
+                        "path": "base.png"
+                    }
+                },
+                {
+                    "id": "l2",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 60,
+                        "y": 220
+                    },
+                    "parameters": {
+                        "path": "logo.png"
+                    }
+                },
+                {
+                    "id": "l3",
+                    "filter_id": "overlay",
+                    "position": {
+                        "x": 300,
+                        "y": 160
+                    },
+                    "parameters": {
+                        "x": 16,
+                        "y": 16
+                    }
+                },
+                {
+                    "id": "l4",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 520,
+                        "y": 160
+                    },
+                    "parameters": {
+                        "path": "logo_out.png"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "l1",
+                    "from_port": "image",
+                    "to_node": "l3",
+                    "to_port": "base"
+                },
+                {
+                    "from_node": "l2",
+                    "from_port": "image",
+                    "to_node": "l3",
+                    "to_port": "overlay"
+                },
+                {
+                    "from_node": "l3",
+                    "from_port": "image",
+                    "to_node": "l4",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "remove hot pixels in astro image",
+        "description": "Astro cleanup",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "h1",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 80,
+                        "y": 100
+                    },
+                    "parameters": {
+                        "path": "light.png"
+                    }
+                },
+                {
+                    "id": "h2",
+                    "filter_id": "hot_pixel_removal",
+                    "position": {
+                        "x": 300,
+                        "y": 100
+                    },
+                    "parameters": {
+                        "threshold": 0.9
+                    }
+                },
+                {
+                    "id": "h3",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 520,
+                        "y": 100
+                    },
+                    "parameters": {
+                        "path": "clean.png"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "h1",
+                    "from_port": "image",
+                    "to_node": "h2",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "h2",
+                    "from_port": "image",
+                    "to_node": "h3",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "stack and flat-field correct",
+        "description": "Astro calibration",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "s1",
+                    "filter_id": "load_folder",
+                    "position": {
+                        "x": 50,
+                        "y": 140
+                    },
+                    "parameters": {
+                        "path": "lights/"
+                    }
+                },
+                {
+                    "id": "s2",
+                    "filter_id": "image_stack",
+                    "position": {
+                        "x": 250,
+                        "y": 140
+                    },
+                    "parameters": {}
+                },
+                {
+                    "id": "s3",
+                    "filter_id": "flat_field_correct",
+                    "position": {
+                        "x": 450,
+                        "y": 140
+                    },
+                    "parameters": {}
+                },
+                {
+                    "id": "s4",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 650,
+                        "y": 140
+                    },
+                    "parameters": {
+                        "path": "calibrated.png"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "s1",
+                    "from_port": "images",
+                    "to_node": "s2",
+                    "to_port": "images"
+                },
+                {
+                    "from_node": "s2",
+                    "from_port": "image",
+                    "to_node": "s3",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "s3",
+                    "from_port": "image",
+                    "to_node": "s4",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "apply unsharp style by blur subtract blend",
+        "description": "Approximate unsharp mask",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "u1",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 20,
+                        "y": 100
+                    },
+                    "parameters": {
+                        "path": "in.png"
+                    }
+                },
+                {
+                    "id": "u2",
+                    "filter_id": "gaussian_blur",
+                    "position": {
+                        "x": 220,
+                        "y": 100
+                    },
+                    "parameters": {
+                        "sigma": 1.0
+                    }
+                },
+                {
+                    "id": "u3",
+                    "filter_id": "blend",
+                    "position": {
+                        "x": 420,
+                        "y": 100
+                    },
+                    "parameters": {
+                        "opacity": 0.6
+                    }
+                },
+                {
+                    "id": "u4",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 620,
+                        "y": 100
+                    },
+                    "parameters": {
+                        "path": "sharp.png"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "u1",
+                    "from_port": "image",
+                    "to_node": "u3",
+                    "to_port": "base"
+                },
+                {
+                    "from_node": "u2",
+                    "from_port": "image",
+                    "to_node": "u3",
+                    "to_port": "overlay"
+                },
+                {
+                    "from_node": "u3",
+                    "from_port": "image",
+                    "to_node": "u4",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "brightness contrast saturation chain",
+        "description": "Multi-adjust chain",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {},
+            "nodes": [
+                {
+                    "id": "c1",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 60,
+                        "y": 90
+                    },
+                    "parameters": {
+                        "path": "in.png"
+                    }
+                },
+                {
+                    "id": "c2",
+                    "filter_id": "brightness",
+                    "position": {
+                        "x": 230,
+                        "y": 90
+                    },
+                    "parameters": {
+                        "amount": 0.2
+                    }
+                },
+                {
+                    "id": "c3",
+                    "filter_id": "contrast",
+                    "position": {
+                        "x": 400,
+                        "y": 90
+                    },
+                    "parameters": {
+                        "amount": 0.15
+                    }
+                },
+                {
+                    "id": "c4",
+                    "filter_id": "saturation",
+                    "position": {
+                        "x": 570,
+                        "y": 90
+                    },
+                    "parameters": {
+                        "amount": -0.1
+                    }
+                },
+                {
+                    "id": "c5",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 740,
+                        "y": 90
+                    },
+                    "parameters": {
+                        "path": "adj.png"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "c1",
+                    "from_port": "image",
+                    "to_node": "c2",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "c2",
+                    "from_port": "image",
+                    "to_node": "c3",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "c3",
+                    "from_port": "image",
+                    "to_node": "c4",
+                    "to_port": "image"
+                },
+                {
+                    "from_node": "c4",
+                    "from_port": "image",
+                    "to_node": "c5",
+                    "to_port": "image"
+                }
+            ]
+        }
+    },
+    {
+        "query": "comfy ui plugin assisted load and save",
+        "description": "Plugin-compatible placeholder workflow",
+        "graph": {
+            "version": "1.0.0",
+            "metadata": {
+                "plugin_hint": "comfyui_bridge"
+            },
+            "nodes": [
+                {
+                    "id": "k1",
+                    "filter_id": "load_image",
+                    "position": {
+                        "x": 80,
+                        "y": 110
+                    },
+                    "parameters": {
+                        "path": "in.png"
+                    }
+                },
+                {
+                    "id": "k2",
+                    "filter_id": "save_image",
+                    "position": {
+                        "x": 320,
+                        "y": 110
+                    },
+                    "parameters": {
+                        "path": "out.png"
+                    }
+                }
+            ],
+            "connections": [
+                {
+                    "from_node": "k1",
+                    "from_port": "image",
+                    "to_node": "k2",
+                    "to_port": "image"
+                }
+            ]
+        }
+    }
+]

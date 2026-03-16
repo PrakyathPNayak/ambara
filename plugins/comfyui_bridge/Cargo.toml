@@ -1,0 +1,23 @@
+[package]
+name = "comfyui_bridge"
+version = "0.1.0"
+edition = "2021"
+description = "ComfyUI bridge plugin for Ambara"
+authors = ["Ambara Contributors"]
+license = "MIT"
+
+[lib]
+name = "comfyui_bridge"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+ambara = { path = "../.." }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+image = "0.25"
+base64 = "0.22"
+toml = "0.8"
+log = "0.4"

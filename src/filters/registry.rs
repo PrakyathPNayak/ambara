@@ -3,9 +3,31 @@
 use crate::core::node::{FilterNode, NodeMetadata, Category};
 use indexmap::IndexMap;
 use std::sync::Arc;
+use serde::{Deserialize, Serialize};
 
 /// Factory function for creating filter instances.
 pub type FilterFactory = Arc<dyn Fn() -> Box<dyn FilterNode> + Send + Sync>;
+
+/// Describes where a registered filter originated.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum FilterSource {
+    /// A built-in filter compiled into the Ambara core library.
+    Builtin,
+    /// A filter contributed by an external plugin.
+    Plugin {
+        /// The plugin's manifest ID (e.g. `"com.example.myplugin"`).
+        plugin_id: String,
+        /// The plugin's semver version string.
+        plugin_version: String,
+    },
+}
+
+impl Default for FilterSource {
+    fn default() -> Self {
+        FilterSource::Builtin
+    }
+}
 
 /// Registry entry containing metadata and factory.
 #[derive(Clone)]
@@ -18,6 +40,8 @@ pub struct RegistryEntry {
     pub enabled: bool,
     /// Tags for organization and search.
     pub tags: Vec<String>,
+    /// Where this filter came from (builtin or which plugin).
+    pub source: FilterSource,
 }
 
 /// Registry for all available filter types.
@@ -67,6 +91,7 @@ impl FilterRegistry {
             metadata,
             enabled: true,
             tags: Vec::new(),
+                source: FilterSource::Builtin,
         };
 
         self.filters.insert(id.clone(), entry);
@@ -93,6 +118,7 @@ impl FilterRegistry {
             metadata,
             enabled: true,
             tags,
+                source: FilterSource::Builtin,
         };
 
         self.filters.insert(id.clone(), entry);
@@ -117,6 +143,73 @@ impl FilterRegistry {
     pub fn get_entry(&self, id: &str) -> Option<&RegistryEntry> {
         self.filters.get(id)
     }
+
+        /// Register a filter contributed by an external plugin.
+        ///
+        /// Unlike [`register`], this method accepts a pre-built [`NodeMetadata`]
+        /// (obtained from the plugin via C ABI) and a [`FilterSource`] that
+        /// records which plugin contributed the filter.
+        ///
+        /// # Arguments
+        ///
+        /// * `factory` - Closure that creates a boxed `FilterNode`.
+        /// * `metadata` - Pre-fetched metadata from the plugin.
+        /// * `source` - Attribution of the contributing plugin.
+        pub fn register_plugin_filter<F>(
+            &mut self,
+            factory: F,
+            metadata: NodeMetadata,
+            source: FilterSource,
+        ) where
+            F: Fn() -> Box<dyn FilterNode> + Send + Sync + 'static,
+        {
+            let id = metadata.id.clone();
+            let category = metadata.category.clone();
+
+            let entry = RegistryEntry {
+                factory: Arc::new(factory),
+                metadata,
+                enabled: true,
+                tags: Vec::new(),
+                source,
+            };
+
+            self.filters.insert(id.clone(), entry);
+            self.categories
+                .entry(category)
+                .or_insert_with(Vec::new)
+                .push(id);
+        }
+
+        /// Return all filter IDs contributed by a specific plugin.
+        ///
+        /// Useful for removing a plugin's filters when it is unloaded.
+        pub fn plugin_filters_for(&self, plugin_id: &str) -> Vec<String> {
+            self.filters
+                .iter()
+                .filter_map(|(id, entry)| match &entry.source {
+                    FilterSource::Plugin { plugin_id: pid, .. } if pid == plugin_id => {
+                        Some(id.clone())
+                    }
+                    _ => None,
+                })
+                .collect()
+        }
+
+        /// Return the [`FilterSource`] for the given filter ID, if it exists.
+        pub fn filter_source(&self, id: &str) -> Option<&FilterSource> {
+            self.filters.get(id).map(|e| &e.source)
+        }
+
+        /// Unregister all filters contributed by a specific plugin.
+        ///
+        /// Called when a plugin is unloaded to clean up its filters.
+        pub fn unregister_plugin_filters(&mut self, plugin_id: &str) {
+            let ids: Vec<String> = self.plugin_filters_for(plugin_id);
+            for id in ids {
+                self.unregister(&id);
+            }
+        }
 
     /// Check if a filter is registered.
     pub fn contains(&self, id: &str) -> bool {

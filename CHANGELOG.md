@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-03-16
+
+### Added
+- Chatbot integration sidecar under `chatbot/` with corpus extraction, retrieval, generation, validation, and FastAPI endpoints.
+- Autonomous tooling scripts: `scripts/probe_env.sh`, `scripts/screenshotter.py`, `scripts/auto_loop.py`, and `scripts/verify_completion.sh`.
+- New React chat UI components and hook:
+  - `ui/src/components/chat/ChatPanel.tsx`
+  - `ui/src/components/chat/GraphPreviewCard.tsx`
+  - `ui/src/hooks/useChatApi.ts`
+- Chat UI tests with Vitest and Testing Library.
+- New documentation:
+  - `docs/chatbot-system.md`
+  - `docs/chatbot-quickstart.md`
+  - `docs/chatbot-dacp.md`
+
+### Changed
+- Extended Rust CLI (`src/main.rs`) with:
+  - `list --json`
+  - `load-graph <file> --dry-run`
+  - `load-graph <file> --execute`
+- Added Vitest `jsdom` test environment in `ui/vite.config.ts`.
+
+### Fixed
+- Graph validation now handles malformed JSON gracefully in repair-loop scenarios.
+- Retriever embedding path now caches model loading and uses deterministic fallback embedding for faster, more reliable test execution.
+
 ## [0.1.2] - 2026-01-04
 
 ### Added

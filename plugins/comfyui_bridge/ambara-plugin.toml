@@ -1,0 +1,23 @@
+[plugin]
+id = "com.ambara.comfyui_bridge"
+name = "ComfyUI Bridge"
+version = "0.1.0"
+description = "Bridge plugin for ComfyUI integration"
+author = "Ambara Contributors"
+license = "MIT"
+ambara_abi_version = 1
+min_ambara_version = "0.2.0"
+max_ambara_version = "0.3.0"
+
+[plugin.capabilities]
+network = true
+filesystem_read = false
+filesystem_write = false
+gpu = false
+
+[plugin.filters]
+count = 0
+ids = []
+
+[plugin.config]
+comfyui_url = "http://127.0.0.1:8188"

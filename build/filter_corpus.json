@@ -1,0 +1,2438 @@
+[
+  {
+    "id": "load_image",
+    "name": "Load Image",
+    "description": "Load an image from a file path",
+    "category": "Input",
+    "input_ports": [],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "path",
+        "type": "String",
+        "default": "String(\"\")",
+        "description": "Path to the image file"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "load_folder",
+    "name": "Load Folder",
+    "description": "Load all images from a folder (batch processing)",
+    "category": "Input",
+    "input_ports": [],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Array(Image)",
+        "required": true
+      },
+      {
+        "name": "count",
+        "type": "Integer",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "directory",
+        "type": "String",
+        "default": "String(\"\")",
+        "description": "Directory containing images to load"
+      },
+      {
+        "name": "recursive",
+        "type": "Boolean",
+        "default": "Boolean(false)",
+        "description": "Search subfolders recursively"
+      },
+      {
+        "name": "pattern",
+        "type": "String",
+        "default": "String(\"*\")",
+        "description": "Filename pattern (e.g., *.png, image_*.jpg)"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "save_image",
+    "name": "Save Image",
+    "description": "Save an image to a directory with customizable filename and format",
+    "category": "Output",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "path",
+        "type": "String",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "directory",
+        "type": "String",
+        "default": "String(\"./output\")",
+        "description": "Output directory (defaults to ./output)"
+      },
+      {
+        "name": "filename",
+        "type": "String",
+        "default": "String(\"output\")",
+        "description": "Output filename without extension (defaults to 'output')"
+      },
+      {
+        "name": "format",
+        "type": "String",
+        "default": "String(\"png\")",
+        "description": "Output format: png, jpg, webp, bmp, tiff"
+      },
+      {
+        "name": "quality",
+        "type": "Integer",
+        "default": "Integer(90)",
+        "description": "Quality for lossy formats like JPEG/WebP (1-100)"
+      },
+      {
+        "name": "create_dirs",
+        "type": "Boolean",
+        "default": "Boolean(true)",
+        "description": "Create output directory if it doesn't exist"
+      },
+      {
+        "name": "overwrite",
+        "type": "Boolean",
+        "default": "Boolean(true)",
+        "description": "Overwrite if file already exists"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "batch_save_images",
+    "name": "Batch Save Images",
+    "description": "Save multiple images to a directory with auto-incrementing filenames",
+    "category": "Output",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Array(Image)",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "paths",
+        "type": "Array(String)",
+        "required": true
+      },
+      {
+        "name": "count",
+        "type": "Integer",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "directory",
+        "type": "String",
+        "default": "String(\"./output\")",
+        "description": "Output directory (defaults to ./output)"
+      },
+      {
+        "name": "prefix",
+        "type": "String",
+        "default": "String(\"image_\")",
+        "description": "Filename prefix (e.g., 'image_' -> image_001.png)"
+      },
+      {
+        "name": "format",
+        "type": "String",
+        "default": "String(\"png\")",
+        "description": "Output format: png, jpg, webp, bmp, tiff"
+      },
+      {
+        "name": "start_index",
+        "type": "Integer",
+        "default": "Integer(1)",
+        "description": "Starting index for numbering (e.g., 1 -> 001, 002, ...)"
+      },
+      {
+        "name": "digits",
+        "type": "Integer",
+        "default": "Integer(3)",
+        "description": "Number of digits for padding (e.g., 3 -> 001, 4 -> 0001)"
+      },
+      {
+        "name": "quality",
+        "type": "Integer",
+        "default": "Integer(90)",
+        "description": "Quality for lossy formats like JPEG/WebP (1-100)"
+      },
+      {
+        "name": "create_dirs",
+        "type": "Boolean",
+        "default": "Boolean(true)",
+        "description": "Create output directory if it doesn't exist"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "gaussian_blur",
+    "name": "Gaussian Blur",
+    "description": "Apply a Gaussian blur effect to an image (GPU accelerated when available)",
+    "category": "Blur",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "sigma",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Blur intensity (standard deviation)"
+      },
+      {
+        "name": "use_gpu",
+        "type": "Boolean",
+        "default": "Boolean(true)",
+        "description": "Use GPU acceleration if available"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "box_blur",
+    "name": "Box Blur",
+    "description": "Apply a fast box blur effect to an image",
+    "category": "Blur",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "radius_x",
+        "type": "Integer",
+        "default": "Integer(3)",
+        "description": "Horizontal blur radius"
+      },
+      {
+        "name": "radius_y",
+        "type": "Integer",
+        "default": "Integer(3)",
+        "description": "Vertical blur radius"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "brightness",
+    "name": "Brightness",
+    "description": "Adjust the brightness of an image",
+    "category": "Color",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "amount",
+        "type": "Float",
+        "default": "Float(0.0)",
+        "description": "Brightness adjustment (-1.0 to 1.0)"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "contrast",
+    "name": "Contrast",
+    "description": "Adjust the contrast of an image",
+    "category": "Color",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "amount",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Contrast multiplier (0.0 to 3.0)"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "saturation",
+    "name": "Saturation",
+    "description": "Adjust the color saturation of an image",
+    "category": "Color",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "amount",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Saturation multiplier (0.0 = grayscale, 1.0 = original)"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "grayscale",
+    "name": "Grayscale",
+    "description": "Convert an image to grayscale (GPU accelerated when available)",
+    "category": "Color",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "use_gpu",
+        "type": "Boolean",
+        "default": "Boolean(true)",
+        "description": "Use GPU acceleration if available"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "invert",
+    "name": "Invert Colors",
+    "description": "Invert the colors of an image (GPU accelerated when available)",
+    "category": "Color",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "invert_alpha",
+        "type": "Boolean",
+        "default": "Boolean(false)",
+        "description": "Also invert the alpha channel"
+      },
+      {
+        "name": "use_gpu",
+        "type": "Boolean",
+        "default": "Boolean(true)",
+        "description": "Use GPU acceleration if available"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "resize",
+    "name": "Resize",
+    "description": "Resize an image to specified dimensions",
+    "category": "Transform",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "width",
+        "type": "Integer",
+        "default": "Integer(1920)",
+        "description": "Target width in pixels"
+      },
+      {
+        "name": "height",
+        "type": "Integer",
+        "default": "Integer(1080)",
+        "description": "Target height in pixels"
+      },
+      {
+        "name": "preserve_aspect",
+        "type": "Boolean",
+        "default": "Boolean(true)",
+        "description": "Preserve aspect ratio (uses width as primary)"
+      },
+      {
+        "name": "filter",
+        "type": "String",
+        "default": "String(\"lanczos3\")",
+        "description": "Resampling filter"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "rotate",
+    "name": "Rotate",
+    "description": "Rotate an image by a specified angle",
+    "category": "Transform",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "angle",
+        "type": "String",
+        "default": "String(\"90\")",
+        "description": "Rotation angle"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "flip",
+    "name": "Flip",
+    "description": "Flip an image horizontally or vertically",
+    "category": "Transform",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "horizontal",
+        "type": "Boolean",
+        "default": "Boolean(true)",
+        "description": "Flip horizontally"
+      },
+      {
+        "name": "vertical",
+        "type": "Boolean",
+        "default": "Boolean(false)",
+        "description": "Flip vertically"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "crop",
+    "name": "Crop",
+    "description": "Crop a region from an image",
+    "category": "Transform",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "x",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "Left edge X coordinate"
+      },
+      {
+        "name": "y",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "Top edge Y coordinate"
+      },
+      {
+        "name": "width",
+        "type": "Integer",
+        "default": "Integer(100)",
+        "description": "Crop width"
+      },
+      {
+        "name": "height",
+        "type": "Integer",
+        "default": "Integer(100)",
+        "description": "Crop height"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "blend",
+    "name": "Blend",
+    "description": "Blend two images together using various blend modes",
+    "category": "Composite",
+    "input_ports": [
+      {
+        "name": "base",
+        "type": "Image",
+        "required": true
+      },
+      {
+        "name": "blend",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "mode",
+        "type": "String",
+        "default": "String(\"normal\")",
+        "description": "Blend mode"
+      },
+      {
+        "name": "opacity",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Blend layer opacity"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "overlay",
+    "name": "Overlay",
+    "description": "Place one image on top of another at a specific position",
+    "category": "Composite",
+    "input_ports": [
+      {
+        "name": "base",
+        "type": "Image",
+        "required": true
+      },
+      {
+        "name": "overlay",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "x",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "X position of overlay"
+      },
+      {
+        "name": "y",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "Y position of overlay"
+      },
+      {
+        "name": "opacity",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Overlay opacity"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "passthrough",
+    "name": "Passthrough",
+    "description": "Passes the input through unchanged",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "input",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "output",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "preview",
+    "name": "Preview",
+    "description": "Preview an image and display its information",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      },
+      {
+        "name": "width",
+        "type": "Integer",
+        "required": true
+      },
+      {
+        "name": "height",
+        "type": "Integer",
+        "required": true
+      },
+      {
+        "name": "has_alpha",
+        "type": "Boolean",
+        "required": true
+      },
+      {
+        "name": "info",
+        "type": "String",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "split_channels",
+    "name": "Split Channels",
+    "description": "Split an image into its Red, Green, Blue, and Alpha channels",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "red",
+        "type": "Image",
+        "required": true
+      },
+      {
+        "name": "green",
+        "type": "Image",
+        "required": true
+      },
+      {
+        "name": "blue",
+        "type": "Image",
+        "required": true
+      },
+      {
+        "name": "alpha",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "merge_channels",
+    "name": "Merge Channels",
+    "description": "Merge separate Red, Green, Blue, and Alpha channels into one image",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "red",
+        "type": "Image",
+        "required": true
+      },
+      {
+        "name": "green",
+        "type": "Image",
+        "required": true
+      },
+      {
+        "name": "blue",
+        "type": "Image",
+        "required": true
+      },
+      {
+        "name": "alpha",
+        "type": "Image",
+        "required": false
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "note",
+    "name": "Note",
+    "description": "Add a note or comment to document your graph",
+    "category": "Utility",
+    "input_ports": [],
+    "output_ports": [],
+    "parameters": [
+      {
+        "name": "text",
+        "type": "String",
+        "default": "String(\"Add your notes here...\")",
+        "description": "Note content"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "image_info",
+    "name": "Image Info",
+    "description": "Get detailed information about an image",
+    "category": "Analyze",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "width",
+        "type": "Integer",
+        "required": true
+      },
+      {
+        "name": "height",
+        "type": "Integer",
+        "required": true
+      },
+      {
+        "name": "channels",
+        "type": "Integer",
+        "required": true
+      },
+      {
+        "name": "has_alpha",
+        "type": "Boolean",
+        "required": true
+      },
+      {
+        "name": "pixel_count",
+        "type": "Integer",
+        "required": true
+      },
+      {
+        "name": "aspect_ratio",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "image_preview",
+    "name": "Image Preview",
+    "description": "Display a preview thumbnail of an image in the node graph",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      },
+      {
+        "name": "thumbnail",
+        "type": "String",
+        "required": true
+      },
+      {
+        "name": "width",
+        "type": "Integer",
+        "required": true
+      },
+      {
+        "name": "height",
+        "type": "Integer",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "max_size",
+        "type": "Integer",
+        "default": "Integer(200)",
+        "description": "Maximum thumbnail dimension (width or height)"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "collect_images",
+    "name": "Collect Images",
+    "description": "Collect multiple images into an array for batch processing",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "image1",
+        "type": "Image",
+        "required": true
+      },
+      {
+        "name": "image2",
+        "type": "Image",
+        "required": false
+      },
+      {
+        "name": "image3",
+        "type": "Image",
+        "required": false
+      },
+      {
+        "name": "image4",
+        "type": "Image",
+        "required": false
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Array(Image)",
+        "required": true
+      },
+      {
+        "name": "count",
+        "type": "Integer",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "get_image_from_array",
+    "name": "Get Image From Array",
+    "description": "Extract a single image from an array by index",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Array(Image)",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "index",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "Index of image to extract (0-based)"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "array_length",
+    "name": "Array Length",
+    "description": "Get the number of items in an array",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "array",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "length",
+        "type": "Integer",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "value_display",
+    "name": "Value Display",
+    "description": "Display any value type (numbers, booleans, strings) for debugging",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "value",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "value",
+        "type": "Any",
+        "required": true
+      },
+      {
+        "name": "display",
+        "type": "String",
+        "required": true
+      },
+      {
+        "name": "type",
+        "type": "String",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "integer_constant",
+    "name": "Integer",
+    "description": "Provides a constant integer value",
+    "category": "Utility",
+    "input_ports": [],
+    "output_ports": [
+      {
+        "name": "value",
+        "type": "Integer",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "value",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "Integer value"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "float_constant",
+    "name": "Float",
+    "description": "Provides a constant floating point value",
+    "category": "Utility",
+    "input_ports": [],
+    "output_ports": [
+      {
+        "name": "value",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "value",
+        "type": "Float",
+        "default": "Float(0.0)",
+        "description": "Float value"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "string_constant",
+    "name": "String",
+    "description": "Provides a constant string value",
+    "category": "Utility",
+    "input_ports": [],
+    "output_ports": [
+      {
+        "name": "value",
+        "type": "String",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "value",
+        "type": "String",
+        "default": "String(\"\")",
+        "description": "String value"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "boolean_constant",
+    "name": "Boolean",
+    "description": "Provides a constant boolean value",
+    "category": "Utility",
+    "input_ports": [],
+    "output_ports": [
+      {
+        "name": "value",
+        "type": "Boolean",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "value",
+        "type": "Boolean",
+        "default": "Boolean(false)",
+        "description": "Boolean value"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "color_constant",
+    "name": "Color",
+    "description": "Provides a constant color value",
+    "category": "Utility",
+    "input_ports": [],
+    "output_ports": [
+      {
+        "name": "value",
+        "type": "Color",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "value",
+        "type": "Color",
+        "default": "Color(Color { r: 255, g: 255, b: 255, a: 255 })",
+        "description": "Color value (RGBA, 0.0-1.0)"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "add",
+    "name": "Add",
+    "description": "Add two numbers (a + b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "subtract",
+    "name": "Subtract",
+    "description": "Subtract two numbers (a - b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "multiply",
+    "name": "Multiply",
+    "description": "Multiply two numbers (a \u00d7 b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "divide",
+    "name": "Divide",
+    "description": "Divide two numbers (a \u00f7 b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "modulo",
+    "name": "Modulo",
+    "description": "Modulo operation (a % b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "power",
+    "name": "Power",
+    "description": "Raise a to the power of b (a^b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "min",
+    "name": "Min",
+    "description": "Return the minimum of two numbers",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "max",
+    "name": "Max",
+    "description": "Return the maximum of two numbers",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "clamp",
+    "name": "Clamp",
+    "description": "Clamp a value between min and max",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "value",
+        "type": "Float",
+        "required": true
+      },
+      {
+        "name": "min",
+        "type": "Float",
+        "required": true
+      },
+      {
+        "name": "max",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "equal",
+    "name": "Equal",
+    "description": "Check if two numbers are equal (a == b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "not_equal",
+    "name": "Not Equal",
+    "description": "Check if two numbers are not equal (a != b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "less_than",
+    "name": "Less Than",
+    "description": "Check if a is less than b (a < b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "less_than_or_equal",
+    "name": "Less Than or Equal",
+    "description": "Check if a is less than or equal to b (a <= b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "greater_than",
+    "name": "Greater Than",
+    "description": "Check if a is greater than b (a > b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "greater_than_or_equal",
+    "name": "Greater Than or Equal",
+    "description": "Check if a is greater than or equal to b (a >= b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "and",
+    "name": "And",
+    "description": "Logical AND operation (a && b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Boolean",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Boolean",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "or",
+    "name": "Or",
+    "description": "Logical OR operation (a || b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Boolean",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Boolean",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "not",
+    "name": "Not",
+    "description": "Logical NOT operation (!a)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "value",
+        "type": "Boolean",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "xor",
+    "name": "Xor",
+    "description": "Logical XOR operation (a ^ b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Boolean",
+        "required": true
+      },
+      {
+        "name": "b",
+        "type": "Boolean",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "to_integer",
+    "name": "To Integer",
+    "description": "Convert a value to an integer",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "value",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Integer",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "to_float",
+    "name": "To Float",
+    "description": "Convert a value to a floating-point number",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "value",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "to_string",
+    "name": "To String",
+    "description": "Convert a value to a string",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "value",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "String",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "to_boolean",
+    "name": "To Boolean",
+    "description": "Convert a value to a boolean",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "value",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "image_stack",
+    "name": "Image Stack",
+    "description": "Stack multiple images to reduce noise and increase signal-to-noise ratio",
+    "category": "Custom",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Array(Image)",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "method",
+        "type": "String",
+        "default": "String(\"mean\")",
+        "description": "Stacking method: mean, median, sigma_clip, max, min"
+      },
+      {
+        "name": "sigma",
+        "type": "Float",
+        "default": "Float(2.0)",
+        "description": "Sigma value for sigma clipping (only used with sigma_clip method)"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "dark_frame_subtract",
+    "name": "Dark Frame Subtract",
+    "description": "Subtract dark frame to remove thermal noise from astrophotos",
+    "category": "Custom",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      },
+      {
+        "name": "dark",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "scale",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Scale factor for dark frame subtraction"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "flat_field_correct",
+    "name": "Flat Field Correct",
+    "description": "Apply flat field correction to remove vignetting and dust artifacts",
+    "category": "Custom",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      },
+      {
+        "name": "flat",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "normalize",
+        "type": "Boolean",
+        "default": "Boolean(true)",
+        "description": "Normalize flat field to mean value"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "hot_pixel_removal",
+    "name": "Hot Pixel Removal",
+    "description": "Detect and remove hot/dead pixels using median filtering",
+    "category": "Custom",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "threshold",
+        "type": "Float",
+        "default": "Float(50.0)",
+        "description": "Deviation threshold to detect hot pixels"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "histogram_stretch",
+    "name": "Histogram Stretch",
+    "description": "Stretch histogram to enhance faint details in astrophotos",
+    "category": "Custom",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "black_point",
+        "type": "Float",
+        "default": "Float(0.0)",
+        "description": "Black point (0-1)"
+      },
+      {
+        "name": "white_point",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "White point (0-1)"
+      },
+      {
+        "name": "midtone",
+        "type": "Float",
+        "default": "Float(0.5)",
+        "description": "Midtone balance (0-1, 0.5 is neutral)"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "batch_brightness",
+    "name": "Batch Brightness",
+    "description": "Adjust brightness for single image or batch of images",
+    "category": "Adjust",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "brightness",
+        "type": "Float",
+        "default": "Float(0.0)",
+        "description": "Brightness adjustment (-1.0 to 1.0)"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "batch_resize",
+    "name": "Batch Resize",
+    "description": "Resize single image or batch of images",
+    "category": "Transform",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "width",
+        "type": "Integer",
+        "default": "Integer(800)",
+        "description": "Target width in pixels"
+      },
+      {
+        "name": "height",
+        "type": "Integer",
+        "default": "Integer(600)",
+        "description": "Target height in pixels"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "batch_contrast",
+    "name": "Batch Contrast",
+    "description": "Adjust contrast for single image or batch of images",
+    "category": "Adjust",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "contrast",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Contrast multiplier (0.0 to 2.0)"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "batch_gaussian_blur",
+    "name": "Batch Gaussian Blur",
+    "description": "Apply Gaussian blur to single image or batch of images",
+    "category": "Blur",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "sigma",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Blur sigma (standard deviation)"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "batch_saturation",
+    "name": "Batch Saturation",
+    "description": "Adjust saturation for single image or batch of images",
+    "category": "Adjust",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "saturation",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Saturation multiplier (0.0 to 2.0)"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "batch_rotate",
+    "name": "Batch Rotate",
+    "description": "Rotate single image or batch of images",
+    "category": "Transform",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "angle",
+        "type": "Float",
+        "default": "Float(90.0)",
+        "description": "Rotation angle in degrees (90, 180, 270)"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "batch_grayscale",
+    "name": "Batch Grayscale",
+    "description": "Convert single image or batch of images to grayscale",
+    "category": "Adjust",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "batch_invert",
+    "name": "Batch Invert",
+    "description": "Invert colors of single image or batch of images",
+    "category": "Adjust",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "batch_crop",
+    "name": "Batch Crop",
+    "description": "Crop single image or batch of images",
+    "category": "Transform",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "x",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "X coordinate of crop region"
+      },
+      {
+        "name": "y",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "Y coordinate of crop region"
+      },
+      {
+        "name": "width",
+        "type": "Integer",
+        "default": "Integer(100)",
+        "description": "Width of crop region"
+      },
+      {
+        "name": "height",
+        "type": "Integer",
+        "default": "Integer(100)",
+        "description": "Height of crop region"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "batch_flip",
+    "name": "Batch Flip",
+    "description": "Flip single image or batch of images",
+    "category": "Transform",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "direction",
+        "type": "String",
+        "default": "String(\"horizontal\")",
+        "description": "Flip direction: 'horizontal' or 'vertical'"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "array_map",
+    "name": "Array Map",
+    "description": "Apply an operation to each image in an array (parallel processing)",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "required": true
+      },
+      {
+        "name": "count",
+        "type": "Integer",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "array_filter",
+    "name": "Array Filter",
+    "description": "Filter images in an array based on size/properties",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Array(Image)",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Array(Image)",
+        "required": true
+      },
+      {
+        "name": "count",
+        "type": "Integer",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "min_width",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "Minimum width (0 = no limit)"
+      },
+      {
+        "name": "min_height",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "Minimum height (0 = no limit)"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "array_concat",
+    "name": "Array Concat",
+    "description": "Concatenate multiple arrays or images into one array",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "images1",
+        "type": "Any",
+        "required": true
+      },
+      {
+        "name": "images2",
+        "type": "Any",
+        "required": false
+      },
+      {
+        "name": "images3",
+        "type": "Any",
+        "required": false
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Array(Image)",
+        "required": true
+      },
+      {
+        "name": "count",
+        "type": "Integer",
+        "required": true
+      }
+    ],
+    "parameters": [],
+    "tags": [],
+    "examples": []
+  },
+  {
+    "id": "array_slice",
+    "name": "Array Slice",
+    "description": "Extract a range of images from an array",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Array(Image)",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Array(Image)",
+        "required": true
+      },
+      {
+        "name": "count",
+        "type": "Integer",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "start",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "Start index (inclusive)"
+      },
+      {
+        "name": "end",
+        "type": "Integer",
+        "default": "Integer(-1)",
+        "description": "End index (exclusive, -1 = end)"
+      }
+    ],
+    "tags": [],
+    "examples": []
+  }
+]

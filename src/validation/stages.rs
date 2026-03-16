@@ -398,6 +398,7 @@ fn create_placeholder(port_type: &crate::core::types::PortType) -> Value {
         PortType::Vector3 => Value::Vector3(0.0, 0.0, 0.0),
         PortType::Array(inner) => Value::Array(vec![create_placeholder(inner)]),
         PortType::Map(_) => Value::Map(std::collections::HashMap::new()),
+        PortType::Custom(_) => Value::None,
         PortType::Any => Value::None,
     }
 }

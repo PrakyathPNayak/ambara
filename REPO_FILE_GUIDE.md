@@ -1,4 +1,4 @@
-# Ambara Repository File Guide
+s# Ambara Repository File Guide
 
 This document explains the purpose of the most important files and modules in this repository.
 It focuses on the “source of truth” code and configuration that defines Ambara’s behavior.

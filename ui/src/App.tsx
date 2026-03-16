@@ -4,12 +4,14 @@ import { useGraphStore } from './store/graphStore';
 import { useSettingsStore } from './store/settingsStore';
 import { GraphCanvas } from './components/canvas/GraphCanvas';
 import { FilterPalette } from './components/sidebar/FilterPalette';
+import { PluginPanel } from './components/sidebar/PluginPanel';
+import { ChatPanel } from './components/chat/ChatPanel';
 import { PropertiesPanel } from './components/sidebar/PropertiesPanel';
 import { Settings } from './components/sidebar/Settings';
 import { ToastContainer } from './components/Toast';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { useToast } from './hooks/useToast';
-import { FilterInfo, FilterNodeData, ParameterValue } from './types';
+import { FilterInfo, FilterNodeData, ParameterValue, PluginInfo } from './types';
 import * as api from './api/commands';
 import './App.css';
 
@@ -20,25 +22,38 @@ let nodeIdCounter = 0;
 
 function App() {
   const [filters, setFilters] = useState<FilterInfo[]>(fallbackFilters);
+  const [plugins, setPlugins] = useState<PluginInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [backendConnected, setBackendConnected] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [bottomTab, setBottomTab] = useState<'plugins' | 'chat'>('plugins');
   const { addNode, updateNodeData, getGraphState, loadGraph, clearGraph } = useGraphStore();
   const { settings, openSettings } = useSettingsStore();
   const toast = useToast();
 
+  const refreshFilters = useCallback(async () => {
+    const backendFilters = await api.getFilters();
+    setFilters(backendFilters);
+  }, []);
+
+  const refreshPlugins = useCallback(async () => {
+    const loadedPlugins = await api.getPlugins();
+    setPlugins(loadedPlugins);
+  }, []);
+
   // Load filters from backend
   useEffect(() => {
     let isMounted = true;
-    
-    api.getFilters()
-      .then((backendFilters) => {
+
+    Promise.all([api.getFilters(), api.getPlugins()])
+      .then(([backendFilters, loadedPlugins]) => {
         if (!isMounted) return;
         console.log('Loaded filters from backend:', backendFilters);
         setFilters(backendFilters);
+        setPlugins(loadedPlugins);
         setBackendConnected(true);
         setLoading(false);
-        toast.success('Filters loaded successfully');
+        toast.success('Filters and plugins loaded successfully');
       })
       .catch((err) => {
         if (!isMounted) return;
@@ -47,15 +62,40 @@ function App() {
         setLoading(false);
         toast.error('Failed to connect to backend');
       });
-    
+
     return () => {
       isMounted = false;
     };
   }, []);
 
+  const handleLoadPlugin = useCallback(async () => {
+    try {
+      const path = await api.openFileDialog([
+        { name: 'Plugin Library', extensions: ['so', 'dll', 'dylib'] },
+      ]);
+      if (!path) return;
+
+      const plugin = await api.loadPlugin(path);
+      await Promise.all([refreshPlugins(), refreshFilters()]);
+      toast.success(`Loaded plugin ${plugin.name}`);
+    } catch (err) {
+      toast.error(`Failed to load plugin: ${String(err)}`);
+    }
+  }, [refreshFilters, refreshPlugins, toast]);
+
+  const handleUnloadPlugin = useCallback(async (pluginId: string) => {
+    try {
+      await api.unloadPlugin(pluginId);
+      await Promise.all([refreshPlugins(), refreshFilters()]);
+      toast.success(`Unloaded plugin ${pluginId}`);
+    } catch (err) {
+      toast.error(`Failed to unload plugin: ${String(err)}`);
+    }
+  }, [refreshFilters, refreshPlugins, toast]);
+
   const handleAddFilter = useCallback((filter: FilterInfo) => {
     const id = `node_${++nodeIdCounter}`;
-    
+
     // Convert filter parameters to ParameterValue objects with defaults
     const parameters: ParameterValue[] = (filter.parameters || []).map(param => ({
       name: param.name,
@@ -126,19 +166,19 @@ function App() {
       if (result.success) {
         // Update preview nodes with their thumbnails and all nodes with output values
         Object.entries(result.outputs).forEach(([nodeId, output]) => {
-          const outputData = output as { thumbnail?: string; width?: number; height?: number; [key: string]: unknown };
+          const outputData = output as { thumbnail?: string; width?: number; height?: number;[key: string]: unknown };
           const updates: Partial<FilterNodeData> = {};
-          
+
           // Set preview data for preview nodes
           if (outputData.thumbnail) {
             updates.previewUrl = outputData.thumbnail;
             updates.previewWidth = outputData.width;
             updates.previewHeight = outputData.height;
           }
-          
+
           // Set output values for all nodes
           updates.outputValues = outputData;
-          
+
           updateNodeData(nodeId, updates);
         });
         toast.success(`Execution completed in ${result.executionTime}ms`);
@@ -205,6 +245,66 @@ function App() {
     setShowClearConfirm(true);
   }, []);
 
+  const handleInsertGeneratedGraph = useCallback((graph: Record<string, unknown>) => {
+    const serializedNodes = Array.isArray((graph as { nodes?: unknown[] }).nodes)
+      ? ((graph as { nodes?: unknown[] }).nodes as Array<Record<string, unknown>>)
+      : [];
+    const serializedConnections = Array.isArray((graph as { connections?: unknown[] }).connections)
+      ? ((graph as { connections?: unknown[] }).connections as Array<Record<string, unknown>>)
+      : [];
+
+    const nodes = serializedNodes.map((node, index) => {
+      const filterType = String(node.filter_id ?? 'unknown_filter');
+      const filter = filters.find((f) => f.id === filterType);
+      const params = (node.parameters && typeof node.parameters === 'object') ? (node.parameters as Record<string, unknown>) : {};
+
+      const nodeData: FilterNodeData = {
+        filterType,
+        label: filter?.name ?? filterType,
+        category: filter?.category ?? 'Custom',
+        inputs: filter?.inputs ?? [],
+        outputs: filter?.outputs ?? [],
+        parameters: Object.entries(params).map(([name, value]) => ({
+          name,
+          value,
+          type: 'Any',
+        })),
+        isValid: true,
+      };
+
+      const position = (node.position && typeof node.position === 'object') ? (node.position as { x?: number; y?: number }) : {};
+
+      return {
+        id: String(node.id ?? `generated_${index}`),
+        type: filterType === 'image_preview' ? 'preview' : 'filter',
+        position: {
+          x: typeof position.x === 'number' ? position.x : 100 + index * 80,
+          y: typeof position.y === 'number' ? position.y : 100,
+        },
+        data: nodeData,
+      };
+    });
+
+    const edges = serializedConnections.map((conn, index) => {
+      const fromNode = String(conn.from_node ?? '');
+      const toNode = String(conn.to_node ?? '');
+      const fromPort = String(conn.from_port ?? 'output');
+      const toPort = String(conn.to_port ?? 'input');
+      return {
+        id: `e_generated_${index}_${fromNode}_${toNode}`,
+        source: fromNode,
+        target: toNode,
+        sourceHandle: fromPort,
+        targetHandle: toPort,
+        type: 'smoothstep',
+        animated: true,
+      };
+    });
+
+    loadGraph({ nodes, edges });
+    toast.success('Inserted generated graph into canvas');
+  }, [filters, loadGraph, toast]);
+
   const confirmClearGraph = useCallback(() => {
     clearGraph();
     setShowClearConfirm(false);
@@ -223,7 +323,37 @@ function App() {
             <p>⚠️ Backend not connected. Make sure Tauri is running.</p>
           </div>
         ) : null}
-        <FilterPalette filters={filters} onAddFilter={handleAddFilter} />
+        <div className="left-sidebar">
+          <FilterPalette filters={filters} onAddFilter={handleAddFilter} />
+          <div className="sidebar-bottom">
+            <div className="sidebar-tab-bar">
+              <button
+                className={`sidebar-tab${bottomTab === 'plugins' ? ' active' : ''}`}
+                onClick={() => setBottomTab('plugins')}
+              >
+                Plugins
+              </button>
+              <button
+                className={`sidebar-tab${bottomTab === 'chat' ? ' active' : ''}`}
+                onClick={() => setBottomTab('chat')}
+              >
+                AI Chat
+              </button>
+            </div>
+            <div className="sidebar-tab-content">
+              {bottomTab === 'plugins' ? (
+                <PluginPanel
+                  plugins={plugins}
+                  onLoadPlugin={handleLoadPlugin}
+                  onUnloadPlugin={handleUnloadPlugin}
+                  onRefresh={refreshPlugins}
+                />
+              ) : (
+                <ChatPanel onInsertGraph={handleInsertGeneratedGraph} />
+              )}
+            </div>
+          </div>
+        </div>
         <GraphCanvas
           onValidate={handleValidate}
           onExecute={handleExecute}
