@@ -53,7 +53,8 @@ class IntentClassifier:
 
         if any(token in lowered for token in self.GRAPH_KEYWORDS):
             return "GRAPH_REQUEST"
-        if any(token in lowered for token in self.QUESTION_KEYWORDS) and "?" in lowered:
+        # A question mark is helpful but not required — natural language often omits it
+        if any(token in lowered for token in self.QUESTION_KEYWORDS):
             return "QUESTION"
         if any(token in lowered for token in self.CLARIFICATION_KEYWORDS):
             return "CLARIFICATION"

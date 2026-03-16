@@ -1,94 +1,44 @@
-# Ambara v0.2.0 Release Notes
+# Ambara v0.5.0 Release Notes
 
-**Release Date:** January 2026
+**Release Date:** 16 March 2026
 
-## 🚀 Major Feature: Chunked/Tiled Processing
+## Highlights
 
-Process images larger than available memory with intelligent tiled execution:
+- Chatbot responses now produce query-aware pipelines instead of a fixed default graph.
+- Natural-language questions now return relevant filter guidance instead of generic fallback text.
+- Offline fallback graph generation now avoids invalid batch-versus-image port combinations.
+- Release metadata has been aligned so pushing the `v0.5.0` tag triggers the existing multi-platform release workflow.
 
-### New Core Infrastructure (`src/core/chunked.rs`)
-- **TileRegion**: Define rectangular regions with overlap support for seamless blending
-- **ProcessingConfig**: Configure tile sizes (64-4096px), overlap, and memory limits
-- **SpatialExtent**: Track image dimensions and coordinate systems
-- **TileIterator**: Efficient iteration over image tiles
-- **MemoryTracker**: Real-time memory monitoring with configurable thresholds (100MB - 8GB)
+## What Changed
 
-### Traits for Large Image Handling
-- **ChunkedImageSource**: Read tiles from disk-backed images (TIFF, large PNG, etc.)
-- **ChunkedImageSink**: Write processed tiles with automatic stitching
-- **SpatialAwareFilter**: Filters declare spatial requirements (pointwise, neighborhood, global)
+### Chatbot generation
+- Removed the hardcoded default response path that always produced the same graph.
+- Added retrieval-driven pipeline construction for local/mock fallback mode.
+- Preserved real LLM generation for configured Anthropic/OpenAI backends.
+- Kept repair-loop behavior intact for test-injected and real LLM-backed generation.
 
-### Processing Functions
-- `process_chunked()`: Full tiled processing pipeline with progress callbacks
-- `process_pointwise()`: Optimized path for pixel-independent operations
-- Automatic overlap calculation based on filter spatial requirements
+### Conversational responses
+- Improved intent handling so natural language questions do not require a trailing `?`.
+- Added relevant-filter summaries for non-graph chat requests.
+- Improved graph-generation success and failure messages so the UI reflects what was actually generated.
 
-## 🎨 New UI: Execution Settings Panel
+### Release readiness
+- Bumped workspace, UI, and Tauri app versions to `0.5.0`.
+- Updated changelog and release notes for the `v0.5.0` tag-driven GitHub Actions release flow.
 
-Added a new Settings component in the sidebar with:
+## Verification
 
-- **Memory Limit Slider**: Configure max memory usage (100MB - 8GB)
-- **Auto-Chunk Toggle**: Enable automatic tiled processing for large images
-- **Tile Size Slider**: Adjust tile dimensions (256 - 4096 pixels)
-- **Parallel Execution Toggle**: Enable/disable multi-threaded processing
-- **Cache Toggle**: Enable/disable intermediate result caching
-- Settings persist across sessions via localStorage
+- `python3 -m pytest chatbot/tests/`: 25 passed
+- `cargo test --lib`: 111 passed, 2 ignored
+- `cargo check --workspace`: passed
+- `npm --prefix ui run build`: passed
 
-## 🔧 API Enhancements
+## Release workflow
 
-### FilterNode Trait Extensions
-- `spatial_extent()`: Filters declare their spatial requirements
-- `supports_chunked_processing()`: Opt-in for chunked execution
+Pushing tag `v0.5.0` triggers [.github/workflows/build-release.yml](.github/workflows/build-release.yml), which builds Linux, macOS, and Windows artifacts and publishes a GitHub release using this file as the release body.
 
-### ExecutionOptions Builder
-New builder methods for memory-aware execution:
-```rust
-ExecutionOptions::default()
-    .with_memory_limit(1024 * 1024 * 1024) // 1GB
-    .with_auto_chunk(true)
-    .with_tile_size(512)
-```
+## Links
 
-## 📊 Test Coverage
-
-9 comprehensive tests for chunked processing:
-- Memory tracking accuracy
-- Tile iteration correctness
-- Overlap handling
-- Configuration validation
-- Edge cases (small images, single tiles)
-
-## 📝 Documentation
-
-- **PITCH.md**: Comprehensive pitch document for companies
-- **REPO_FILE_GUIDE.md**: Documentation of all important source files
-
-## 🐛 Technical Changes
-
-- Updated Tauri backend with ExecutionSettings integration
-- Added Zustand store with localStorage persistence for settings
-- All changes compile and tests pass
-- DEB and RPM packages build successfully
-
-## 📦 Installation
-
-Download the appropriate binary for your platform from the assets below, or build from source:
-
-```bash
-git clone https://github.com/PrakyathPNayak/ambara.git
-cd ambara
-cargo build --release
-```
-
-For the desktop application:
-```bash
-cd ui
-npm install
-npm run tauri build
-```
-
-## 🔗 Links
-
-- [Full Changelog](https://github.com/PrakyathPNayak/ambara/compare/v0.1.2...v0.2.0)
+- [Full Changelog](https://github.com/PrakyathPNayak/ambara/compare/v0.4.0...v0.5.0)
 - [Documentation](https://github.com/PrakyathPNayak/ambara#readme)
 - [Report Issues](https://github.com/PrakyathPNayak/ambara/issues)

@@ -44,10 +44,10 @@ SCHEMA_PATH = ROOT / "chatbot" / "corpus" / "graph_schema.json"
 FILTER_IDS_PATH = ROOT / "build" / "filter_id_set.json"
 
 
-app = FastAPI(title="Ambara Chatbot API", version="0.4.0")
+app = FastAPI(title="Ambara Chatbot API", version="0.5.0")
 sessions = SessionStore()
 classifier = IntentClassifier()
-chat_llm = LLMClient(force_mock=True)
+chat_llm = LLMClient(force_mock=False)
 
 
 def _ensure_corpus() -> None:
@@ -93,7 +93,7 @@ def _generator() -> GraphGenerator:
         chroma_path=str(CHROMA_PATH),
         corpus_path=str(CORPUS_PATH),
         examples_path=str(EXAMPLES_PATH),
-        force_mock_llm=True,
+        force_mock_llm=False,
     )
 
 
@@ -137,7 +137,12 @@ def chat(req: ChatRequest) -> ChatResponse:
     if intent in {"GRAPH_REQUEST", "CLARIFICATION"}:
         result = _generator().generate(req.message)
         if result.valid:
-            reply = result.explanation or "Generated a graph for your request."
+            filter_names = ", ".join(result.retrieved_filters[:3]) if result.retrieved_filters else "relevant filters"
+            node_count = len(result.graph.get("nodes", [])) if result.graph else 0
+            reply = (
+                f"I built a {node_count}-node pipeline using {filter_names}."
+                f" Click 'Insert Graph' to load it into the canvas."
+            )
             sessions.append_message(req.session_id, {"role": "assistant", "content": reply})
             return ChatResponse(
                 reply=reply,
@@ -145,14 +150,29 @@ def chat(req: ChatRequest) -> ChatResponse:
                 graph_generated=True,
                 graph=result.graph,
             )
-        reply = "I could not generate a valid graph yet. Please refine your request."
+        errors_summary = "; ".join(result.errors[:2]) if result.errors else "unknown error"
+        reply = f"I could not build a valid graph: {errors_summary}. Try describing the operation differently."
         sessions.append_message(req.session_id, {"role": "assistant", "content": reply})
         return ChatResponse(reply=reply, session_id=req.session_id, graph_generated=False, graph=None)
 
-    if intent == "QUESTION":
-        reply = "Ambara supports graph-based image processing with built-in and plugin filters."
+    # For QUESTION and OTHER intents: retrieve relevant filters and give an informative reply
+    from chatbot.retrieval.retriever import FilterRetriever as _FR  # local to avoid import cycles
+    retriever = _FR(str(CHROMA_PATH), str(CORPUS_PATH))
+    relevant = retriever.retrieve(req.message, top_k=4)
+    if relevant:
+        descriptions = "; ".join(
+            f"{f['id']} — {f.get('description', '')[:70]}"
+            for f in relevant[:3]
+        )
+        reply = (
+            f"Here are some Ambara filters relevant to your query: {descriptions}."
+            " To build a pipeline around these, describe what you'd like to do with them."
+        )
     else:
-        reply = "I can help build Ambara processing graphs. Ask for operations like blur, resize, or blend."
+        reply = (
+            "Ambara supports 74+ image-processing filters — blur, resize, crop, rotate, color correction, "
+            "compositing, batch processing, and more. Describe your image processing goal and I'll build a pipeline."
+        )
 
     sessions.append_message(req.session_id, {"role": "assistant", "content": reply})
     return ChatResponse(reply=reply, session_id=req.session_id, graph_generated=False, graph=None)

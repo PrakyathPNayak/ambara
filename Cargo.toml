@@ -1,6 +1,6 @@
 [package]
 name = "ambara"
-version = "0.2.0"
+version = "0.5.0"
 edition = "2021"
 description = "A node-based image processing application with plugin support and ComfyUI integration"
 authors = ["Ambara Contributors"]

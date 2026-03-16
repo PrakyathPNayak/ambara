@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-03-16
+
+### Fixed
+- Chatbot responses now use query-aware retrieval and graph construction instead of returning the same default pipeline for unrelated requests.
+- Conversational replies now surface relevant filters for user questions instead of generic fallback text.
+- Graph generation now avoids incompatible batch/image port combinations, producing valid graphs in offline fallback mode.
+- Chatbot backend now uses real LLM backends when configured, while preserving deterministic local fallback behavior.
+
+### Verified
+- Python chatbot test suite: 25 passed.
+- Rust library tests: 111 passed, 2 ignored.
+
 ## [0.4.0] - 2026-03-16
 
 ### Added

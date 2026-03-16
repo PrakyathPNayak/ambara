@@ -97,6 +97,7 @@ class LLMClient:
             return self._generate_ollama(prompt, temperature)
         except RuntimeError:
             LOGGER.warning("Ollama unavailable, falling back to mock backend")
+            self.backend = "mock"
             return _mock_graph_json()
 
     def _generate_anthropic(self, prompt: dict[str, Any], temperature: float) -> str:
