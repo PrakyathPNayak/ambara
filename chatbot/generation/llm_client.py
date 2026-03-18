@@ -96,9 +96,11 @@ class LLMClient:
         try:
             return self._generate_ollama(prompt, temperature)
         except RuntimeError:
-            LOGGER.warning("Ollama unavailable, falling back to mock backend")
-            self.backend = "mock"
-            return _mock_graph_json()
+            LOGGER.warning("Ollama unavailable; real LLM backend is not reachable")
+            raise RuntimeError(
+                "Ollama backend is unavailable. Configure OPENAI_API_KEY or ANTHROPIC_API_KEY, "
+                "or run a local Ollama server with a chat model."
+            )
 
     def _generate_anthropic(self, prompt: dict[str, Any], temperature: float) -> str:
         """Call Anthropic messages API.
@@ -131,7 +133,10 @@ class LLMClient:
             "system": system,
             "messages": messages,
         }
-        response = requests.post(url, headers=headers, json=body, timeout=60)
+        try:
+            response = requests.post(url, headers=headers, json=body, timeout=60)
+        except requests.RequestException as err:
+            raise RuntimeError(f"Anthropic request failed: {err}") from err
         if response.status_code >= 400:
             raise RuntimeError(f"Anthropic request failed: {response.status_code} {response.text}")
         data = response.json()
@@ -166,7 +171,10 @@ class LLMClient:
             "temperature": temperature,
             "messages": prompt.get("messages", []),
         }
-        response = requests.post(url, headers=headers, json=body, timeout=60)
+        try:
+            response = requests.post(url, headers=headers, json=body, timeout=60)
+        except requests.RequestException as err:
+            raise RuntimeError(f"OpenAI request failed: {err}") from err
         if response.status_code >= 400:
             raise RuntimeError(f"OpenAI request failed: {response.status_code} {response.text}")
         data = response.json()
@@ -192,7 +200,10 @@ class LLMClient:
             "options": {"temperature": temperature},
             "messages": prompt.get("messages", []),
         }
-        response = requests.post(url, json=body, timeout=60)
+        try:
+            response = requests.post(url, json=body, timeout=60)
+        except requests.RequestException as err:
+            raise RuntimeError(f"Ollama request failed: {err}") from err
         if response.status_code >= 400:
             raise RuntimeError(f"Ollama request failed: {response.status_code} {response.text}")
         data = response.json()

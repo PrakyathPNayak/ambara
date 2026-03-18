@@ -137,8 +137,12 @@ def chat(req: ChatRequest) -> ChatResponse:
     if intent in {"GRAPH_REQUEST", "CLARIFICATION"}:
         result = _generator().generate(req.message)
         if result.valid:
-            filter_names = ", ".join(result.retrieved_filters[:3]) if result.retrieved_filters else "relevant filters"
-            node_count = len(result.graph.get("nodes", [])) if result.graph else 0
+            graph_nodes = result.graph.get("nodes", []) if result.graph else []
+            node_count = len(graph_nodes)
+            used_ids = [str(n.get("filter_id", "")) for n in graph_nodes if isinstance(n, dict)]
+            # Keep order while removing duplicates.
+            dedup_used_ids = list(dict.fromkeys([fid for fid in used_ids if fid]))
+            filter_names = ", ".join(dedup_used_ids[:4]) if dedup_used_ids else "relevant filters"
             reply = (
                 f"I built a {node_count}-node pipeline using {filter_names}."
                 f" Click 'Insert Graph' to load it into the canvas."
@@ -151,7 +155,10 @@ def chat(req: ChatRequest) -> ChatResponse:
                 graph=result.graph,
             )
         errors_summary = "; ".join(result.errors[:2]) if result.errors else "unknown error"
-        reply = f"I could not build a valid graph: {errors_summary}. Try describing the operation differently."
+        reply = (
+            f"I could not build a valid graph: {errors_summary}. "
+            "Please configure a real LLM backend (OpenAI/Anthropic/Ollama) and try again."
+        )
         sessions.append_message(req.session_id, {"role": "assistant", "content": reply})
         return ChatResponse(reply=reply, session_id=req.session_id, graph_generated=False, graph=None)
 

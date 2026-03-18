@@ -96,6 +96,7 @@ class GraphValidator:
         except json.JSONDecodeError as err:
             return ValidationResultModel(valid=False, errors=[f"Invalid JSON: {err}"])
         nodes = {n.get("id"): n for n in data.get("nodes", [])}
+        used_input_ports: set[tuple[str, str]] = set()
 
         for conn in data.get("connections", []):
             src_node = nodes.get(conn.get("from_node"))
@@ -116,6 +117,15 @@ class GraphValidator:
                 errors.append(f"Invalid from_port {conn.get('from_port')} for node {conn.get('from_node')}")
             if dst_names and conn.get("to_port") not in dst_names:
                 errors.append(f"Invalid to_port {conn.get('to_port')} for node {conn.get('to_node')}")
+
+            # Disallow fan-in collisions to the exact same destination input port.
+            port_key = (str(conn.get("to_node")), str(conn.get("to_port")))
+            if port_key in used_input_ports:
+                errors.append(
+                    f"Duplicate connection into input port {conn.get('to_port')} for node {conn.get('to_node')}"
+                )
+            else:
+                used_input_ports.add(port_key)
 
         return ValidationResultModel(valid=len(errors) == 0, errors=errors)
 

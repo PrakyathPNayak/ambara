@@ -61,6 +61,12 @@ class GraphPromptBuilder:
             "Do not include markdown fences. Use only filter IDs from the supplied list. "
             "Always include load_image and save_image nodes unless explicitly extending a partial graph. "
             "Set practical defaults for parameters and ensure valid connections. "
+            "Use exact port names from filter metadata (do not invent names). "
+            "For batch/folder requests, use a batch-only chain (load_folder -> batch_* transforms -> batch_save_images) "
+            "with images-to-images connections and do not mix single-image nodes in that chain. "
+            "Graphs are DAGs and MAY branch: a node can have multiple outgoing edges and merge nodes may have "
+            "multiple inputs. If the request implies compositing/blending/comparing images, generate at least one "
+            "multi-branch subgraph before the output node. "
             f"Schema: {json.dumps(self.graph_schema)}"
         )
 
@@ -69,6 +75,10 @@ class GraphPromptBuilder:
             f"Allowed filter IDs: {filter_ids}",
             f"Retrieved filters: {json.dumps(filters)}",
             f"Examples: {json.dumps(examples)}",
+            (
+                "Branching guidance: use connections list to represent branches. Example pattern: "
+                "A->C(in1) and B->C(in2), then C->D."
+            ),
         ]
         if partial_graph is not None:
             user_lines.append(f"Partial graph to extend: {json.dumps(partial_graph)}")
