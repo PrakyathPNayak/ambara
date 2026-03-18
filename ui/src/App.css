@@ -23,8 +23,8 @@ body,
 }
 
 .left-sidebar {
-  width: 260px;
-  min-width: 260px;
+  width: 250px;
+  min-width: 240px;
   display: flex;
   flex-direction: column;
   border-right: 1px solid #333;
@@ -32,49 +32,62 @@ body,
   overflow: hidden;
 }
 
-.sidebar-bottom {
-  flex: 0 0 auto;
+.right-sidebar {
+  width: 340px;
+  min-width: 310px;
   display: flex;
   flex-direction: column;
-  border-top: 1px solid #333;
-  height: 290px;
-}
-
-.sidebar-tab-bar {
-  display: flex;
-  background: #1e1e1e;
-  border-bottom: 1px solid #333;
-  flex-shrink: 0;
-}
-
-.sidebar-tab {
-  flex: 1;
-  padding: 7px 8px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: none;
-  color: #888;
-  font-size: 12px;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-}
-
-.sidebar-tab:hover {
-  color: #ccc;
-  background: #2a2a2a;
-}
-
-.sidebar-tab.active {
-  color: #4ea8f8;
-  border-bottom-color: #4ea8f8;
-  background: #252526;
-}
-
-.sidebar-tab-content {
-  flex: 1;
+  gap: 8px;
+  border-left: 1px solid #333;
+  background: #1f2126;
+  padding: 8px;
+  min-height: 0;
   overflow: hidden;
+}
+
+.right-sidebar-header {
   display: flex;
-  flex-direction: column;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
+.right-settings-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #404040;
+  background: #262a31;
+  color: #c7cdd8;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.right-settings-btn:hover {
+  background: #2f3540;
+  border-color: #515866;
+}
+
+.right-chat-window {
+  min-height: 260px;
+  height: 55%;
+  flex: 1 1 auto;
+  border: 1px solid #343946;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1f232b;
+  min-width: 0;
+  display: flex;
+}
+
+.right-properties-window {
+  flex: 0 0 42%;
+  min-height: 180px;
+  overflow: hidden;
+  border: 1px solid #333;
+  border-radius: 8px;
+  background: #252526;
+  display: flex;
 }
 
 .loading-overlay {
@@ -109,4 +122,48 @@ body,
   border-radius: 8px;
   z-index: 100;
   border: 1px solid #ff6666;
+}
+
+@media (max-width: 1200px) {
+  .left-sidebar {
+    width: 230px;
+    min-width: 210px;
+  }
+
+  .right-sidebar {
+    width: 320px;
+    min-width: 285px;
+  }
+}
+
+@media (max-width: 980px) {
+  .app {
+    flex-direction: column;
+  }
+
+  .left-sidebar,
+  .right-sidebar {
+    width: 100%;
+    min-width: 0;
+    border: none;
+  }
+
+  .left-sidebar {
+    max-height: 34vh;
+    border-bottom: 1px solid #333;
+  }
+
+  .right-sidebar {
+    height: 42vh;
+    padding: 8px;
+    border-top: 1px solid #333;
+  }
+
+  .right-chat-window {
+    height: 58%;
+  }
+
+  .right-properties-window {
+    flex-basis: 36%;
+  }
 }

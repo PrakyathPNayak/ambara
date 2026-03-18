@@ -40,7 +40,36 @@ cargo build --release
 cargo test
 ```
 
-### Running the UI
+### Running the Project (Recommended)
+
+Use the root launcher so chatbot API + UI boot together:
+
+```bash
+cd ambara
+./tauri-ui
+```
+
+This starts:
+- FastAPI chatbot on `http://127.0.0.1:8765`
+- UI dev server on `http://127.0.0.1:1420` (when supported)
+- Native Tauri desktop window
+
+### Running Components Manually
+
+Use this when debugging one layer at a time.
+
+```bash
+# Terminal 1: chatbot sidecar
+cd ambara
+bash chatbot/api/startup.sh
+
+# Terminal 2: UI
+cd ambara/ui
+npm install
+npm run tauri dev
+```
+
+### Running the UI Only
 
 ```bash
 # Navigate to the UI directory
@@ -280,13 +309,22 @@ natural language and inject it into the UI canvas.
 - Corpus and embedding tools: `chatbot/corpus/`
 - React chat panel: `ui/src/components/chat/`
 
-### Quick Run
+### Chatbot Quick Run
 
 ```bash
 cd /home/prakyathpnayak/Documents/programming/rust/ambara
 bash chatbot/api/startup.sh
 cd ui
 npm run dev
+```
+
+Sanity checks:
+
+```bash
+curl -s http://127.0.0.1:8765/health
+curl -s -X POST http://127.0.0.1:8765/graph/generate \
+    -H 'Content-Type: application/json' \
+    -d '{"query":"Build me a pipeline for cropping and resizing images in batch"}'
 ```
 
 ### Docs

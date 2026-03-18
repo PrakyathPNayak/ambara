@@ -1,5 +1,5 @@
 import { memo, useMemo, useState } from 'react';
-import { Handle, Position } from '@xyflow/react';
+import { Handle, NodeResizer, Position } from '@xyflow/react';
 import { FilterNodeData, PortType } from '../../types';
 import './PreviewNode.css';
 
@@ -56,6 +56,13 @@ function PreviewNodeComponent({ data, selected }: PreviewNodeProps) {
     <div 
       className={`preview-node ${selected ? 'selected' : ''}`}
     >
+      <NodeResizer
+        minWidth={220}
+        minHeight={170}
+        isVisible={!!selected}
+        lineStyle={{ borderColor: '#8f9aff', borderWidth: '1px' }}
+        handleStyle={{ width: '8px', height: '8px', borderRadius: '2px', background: '#8f9aff' }}
+      />
       <div className="preview-node-header">
         <span className="preview-node-title">📷 {data.label}</span>
         <button 

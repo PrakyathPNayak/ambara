@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import { Handle, Position } from '@xyflow/react';
+import { Handle, NodeResizer, Position } from '@xyflow/react';
 import { FilterNodeData, PortType } from '../../types';
 import './FilterNode.css';
 
@@ -99,6 +99,13 @@ function FilterNodeComponent({ data, selected }: FilterNodeProps) {
       className={`filter-node ${selected ? 'selected' : ''} ${data.isValid === false ? 'invalid' : ''}`}
       data-category={categoryAttr}
     >
+      <NodeResizer
+        minWidth={180}
+        minHeight={90}
+        isVisible={!!selected}
+        lineStyle={{ borderColor: '#57a6ff', borderWidth: '1px' }}
+        handleStyle={{ width: '8px', height: '8px', borderRadius: '2px', background: '#57a6ff' }}
+      />
       <div 
         className="filter-node-header"
         style={{ backgroundColor: categoryColor }}

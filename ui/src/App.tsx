@@ -4,14 +4,13 @@ import { useGraphStore } from './store/graphStore';
 import { useSettingsStore } from './store/settingsStore';
 import { GraphCanvas } from './components/canvas/GraphCanvas';
 import { FilterPalette } from './components/sidebar/FilterPalette';
-import { PluginPanel } from './components/sidebar/PluginPanel';
 import { ChatPanel } from './components/chat/ChatPanel';
 import { PropertiesPanel } from './components/sidebar/PropertiesPanel';
 import { Settings } from './components/sidebar/Settings';
 import { ToastContainer } from './components/Toast';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { useToast } from './hooks/useToast';
-import { FilterInfo, FilterNodeData, ParameterValue, PluginInfo } from './types';
+import { FilterInfo, FilterNodeData, ParameterValue } from './types';
 import * as api from './api/commands';
 import './App.css';
 
@@ -22,11 +21,9 @@ let nodeIdCounter = 0;
 
 function App() {
   const [filters, setFilters] = useState<FilterInfo[]>(fallbackFilters);
-  const [plugins, setPlugins] = useState<PluginInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [backendConnected, setBackendConnected] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [bottomTab, setBottomTab] = useState<'plugins' | 'chat'>('plugins');
   const { addNode, updateNodeData, getGraphState, loadGraph, clearGraph } = useGraphStore();
   const { settings, openSettings } = useSettingsStore();
   const toast = useToast();
@@ -36,21 +33,15 @@ function App() {
     setFilters(backendFilters);
   }, []);
 
-  const refreshPlugins = useCallback(async () => {
-    const loadedPlugins = await api.getPlugins();
-    setPlugins(loadedPlugins);
-  }, []);
-
   // Load filters from backend
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([api.getFilters(), api.getPlugins()])
-      .then(([backendFilters, loadedPlugins]) => {
+    api.getFilters()
+      .then((backendFilters) => {
         if (!isMounted) return;
         console.log('Loaded filters from backend:', backendFilters);
         setFilters(backendFilters);
-        setPlugins(loadedPlugins);
         setBackendConnected(true);
         setLoading(false);
         toast.success('Filters and plugins loaded successfully');
@@ -76,22 +67,12 @@ function App() {
       if (!path) return;
 
       const plugin = await api.loadPlugin(path);
-      await Promise.all([refreshPlugins(), refreshFilters()]);
+      await refreshFilters();
       toast.success(`Loaded plugin ${plugin.name}`);
     } catch (err) {
       toast.error(`Failed to load plugin: ${String(err)}`);
     }
-  }, [refreshFilters, refreshPlugins, toast]);
-
-  const handleUnloadPlugin = useCallback(async (pluginId: string) => {
-    try {
-      await api.unloadPlugin(pluginId);
-      await Promise.all([refreshPlugins(), refreshFilters()]);
-      toast.success(`Unloaded plugin ${pluginId}`);
-    } catch (err) {
-      toast.error(`Failed to unload plugin: ${String(err)}`);
-    }
-  }, [refreshFilters, refreshPlugins, toast]);
+  }, [refreshFilters, toast]);
 
   const handleAddFilter = useCallback((filter: FilterInfo) => {
     const id = `node_${++nodeIdCounter}`;
@@ -325,34 +306,6 @@ function App() {
         ) : null}
         <div className="left-sidebar">
           <FilterPalette filters={filters} onAddFilter={handleAddFilter} />
-          <div className="sidebar-bottom">
-            <div className="sidebar-tab-bar">
-              <button
-                className={`sidebar-tab${bottomTab === 'plugins' ? ' active' : ''}`}
-                onClick={() => setBottomTab('plugins')}
-              >
-                Plugins
-              </button>
-              <button
-                className={`sidebar-tab${bottomTab === 'chat' ? ' active' : ''}`}
-                onClick={() => setBottomTab('chat')}
-              >
-                AI Chat
-              </button>
-            </div>
-            <div className="sidebar-tab-content">
-              {bottomTab === 'plugins' ? (
-                <PluginPanel
-                  plugins={plugins}
-                  onLoadPlugin={handleLoadPlugin}
-                  onUnloadPlugin={handleUnloadPlugin}
-                  onRefresh={refreshPlugins}
-                />
-              ) : (
-                <ChatPanel onInsertGraph={handleInsertGeneratedGraph} />
-              )}
-            </div>
-          </div>
         </div>
         <GraphCanvas
           onValidate={handleValidate}
@@ -360,9 +313,26 @@ function App() {
           onSave={handleSave}
           onLoad={handleLoad}
           onClear={handleClearGraph}
-          onSettings={openSettings}
+          onLoadPlugin={handleLoadPlugin}
         />
-        <PropertiesPanel onParameterChange={handleParameterChange} />
+        <div className="right-sidebar">
+          <div className="right-sidebar-header">
+            <button
+              type="button"
+              className="right-settings-btn"
+              title="Settings"
+              onClick={openSettings}
+            >
+              ⚙
+            </button>
+          </div>
+          <div className="right-chat-window">
+            <ChatPanel onInsertGraph={handleInsertGeneratedGraph} />
+          </div>
+          <div className="right-properties-window">
+            <PropertiesPanel onParameterChange={handleParameterChange} />
+          </div>
+        </div>
         <Settings />
         <ToastContainer toasts={toast.toasts} onClose={toast.closeToast} />
         {showClearConfirm && (

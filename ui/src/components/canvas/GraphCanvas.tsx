@@ -28,10 +28,10 @@ interface GraphCanvasProps {
   onSave: () => void;
   onLoad: () => void;
   onClear: () => void;
-  onSettings?: () => void;
+  onLoadPlugin: () => void;
 }
 
-export function GraphCanvas({ onValidate, onExecute, onSave, onLoad, onClear, onSettings }: GraphCanvasProps) {
+export function GraphCanvas({ onValidate, onExecute, onSave, onLoad, onClear, onLoadPlugin }: GraphCanvasProps) {
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, setSelectedNode } =
     useGraphStore();
 
@@ -100,19 +100,19 @@ export function GraphCanvas({ onValidate, onExecute, onSave, onLoad, onClear, on
         minZoom={0.05}
         maxZoom={4}
       >
-        <Background 
-          variant={BackgroundVariant.Dots} 
-          gap={20} 
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={20}
           size={1}
           color="#333"
         />
         <Controls className="graph-controls" />
-        <MiniMap 
+        <MiniMap
           nodeColor={minimapNodeColor}
           maskColor="rgba(0, 0, 0, 0.8)"
           className="graph-minimap"
         />
-        
+
         <Panel position="top-right" className="graph-toolbar">
           <button className="toolbar-btn" onClick={onValidate} title="Validate Graph">
             ✓ Validate
@@ -122,25 +122,24 @@ export function GraphCanvas({ onValidate, onExecute, onSave, onLoad, onClear, on
           </button>
           <div className="toolbar-separator" />
           <button className="toolbar-btn" onClick={onLoad} title="Load Graph">
-            📂 Load
+            Load
           </button>
           <button className="toolbar-btn" onClick={onSave} title="Save Graph">
-            💾 Save
+            Save
           </button>
-          <button 
-            className="toolbar-btn danger" 
+          <button
+            className="toolbar-btn danger"
             onClick={onClear}
             title="Clear Graph"
           >
-            🗑 Clear
+            Clear
           </button>
-          <div className="toolbar-separator" />
-          <button 
-            className="toolbar-btn" 
-            onClick={onSettings}
-            title="Settings"
+          <button
+            className="toolbar-btn"
+            onClick={onLoadPlugin}
+            title="Load Plugin"
           >
-            ⚙️ Settings
+            Load Plugin
           </button>
         </Panel>
       </ReactFlow>

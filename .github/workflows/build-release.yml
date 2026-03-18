@@ -4,6 +4,16 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release version without leading v (for example 0.6.0)'
+        required: true
+        default: '0.6.0'
+
+env:
+  RELEASE_VERSION: ${{ github.event.inputs.release_version || '0.6.0' }}
+  RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', github.event.inputs.release_version || '0.6.0') }}
 
 jobs:
   build-linux:
@@ -106,6 +116,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Ambara ${{ env.RELEASE_TAG }}
           files: |
             ambara-linux-appimage/*
             ambara-linux-deb/*

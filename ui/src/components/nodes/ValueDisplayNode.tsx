@@ -1,5 +1,5 @@
 import React from 'react';
-import { Handle, Position, NodeProps, Node } from '@xyflow/react';
+import { Handle, NodeResizer, Position, NodeProps, Node } from '@xyflow/react';
 import './ValueDisplayNode.css';
 
 interface ValueDisplayData {
@@ -16,7 +16,7 @@ interface ValueDisplayData {
 
 type ValueDisplayNodeType = Node<ValueDisplayData>;
 
-const ValueDisplayNode: React.FC<NodeProps<ValueDisplayNodeType>> = ({ data }) => {
+const ValueDisplayNode: React.FC<NodeProps<ValueDisplayNodeType>> = ({ data, selected }) => {
   const displayValue = data.displayValue || 'No value';
   const valueType = data.valueType || 'Unknown';
   
@@ -25,6 +25,13 @@ const ValueDisplayNode: React.FC<NodeProps<ValueDisplayNodeType>> = ({ data }) =
   
   return (
     <div className={`value-display-node ${typeClass}`}>
+      <NodeResizer
+        minWidth={180}
+        minHeight={130}
+        isVisible={!!selected}
+        lineStyle={{ borderColor: '#89a3ff', borderWidth: '1px' }}
+        handleStyle={{ width: '8px', height: '8px', borderRadius: '2px', background: '#89a3ff' }}
+      />
       <div className="value-display-header">
         <h3 className="value-display-title">
           <svg className="value-display-icon" fill="currentColor" viewBox="0 0 20 20">
