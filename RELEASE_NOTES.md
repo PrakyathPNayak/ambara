@@ -1,3 +1,37 @@
+# Ambara v0.7.1 Release Notes
+
+**Release Date:** 19 March 2026
+
+## Highlights
+
+- **17 new filters** — 91 total filters across all 16 categories. All previously empty categories (Sharpen, Edge, Noise, Draw, Text) now have implementations.
+- **UI color fix** — All 16 node categories now display correct header and border colors in the graph editor. Fixed mismatched keys (`Source`→`Input`, `Filter`→`Blur`, `Analysis`→`Analyze`).
+- **New Adjust filters** — Gamma correction (with LUT optimization) and Color Balance (independent RGB multipliers).
+- **New Color filters** — Sepia tone, Hue Rotate, Binary Threshold, and Posterize.
+- **Drawing primitives** — Rectangle, Circle, and Line drawing nodes with fill/outline, RGB colors, and thickness.
+- **Text overlay** — Built-in 8×13 bitmap font for rendering text directly on images, no external font files needed.
+- **Chatbot updated** — Filter catalog, deterministic keyword fallbacks, and ChromaDB embeddings all updated for the new filters.
+
+## New Filters by Category
+
+| Category | Filters | Description |
+|----------|---------|-------------|
+| Sharpen | `unsharp_mask`, `sharpen` | Classic unsharp masking and 3×3 convolution kernel |
+| Edge | `edge_detect`, `emboss` | Sobel/Prewitt edge detection, directional emboss effect |
+| Noise | `add_noise`, `denoise` | Gaussian/salt-and-pepper noise, median filter denoising |
+| Draw | `draw_rectangle`, `draw_circle`, `draw_line` | Shape drawing with fill/outline modes |
+| Text | `text_overlay` | Bitmap text rendering with configurable position, scale, color |
+| Color | `sepia`, `hue_rotate`, `threshold`, `posterize` | Tone/hue/quantization effects |
+| Adjust | `gamma`, `color_balance` | Gamma correction, per-channel RGB adjustment |
+
+## UI Fixes
+
+- Fixed `categoryColors` mapping in `FilterNode.tsx` — now uses exact Rust `Category` enum names.
+- Added CSS rules for `adjust`, `custom`, `sharpen`, `edge`, `noise`, `draw`, `text` categories.
+- All 16 categories now have distinct border colors and background tints.
+
+---
+
 # Ambara v0.7.0 Release Notes
 
 **Release Date:** 19 March 2026

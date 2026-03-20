@@ -20,8 +20,7 @@
         "description": "Path to the image file"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "load_folder",
@@ -61,8 +60,7 @@
         "description": "Filename pattern (e.g., *.png, image_*.jpg)"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "save_image",
@@ -121,8 +119,7 @@
         "description": "Overwrite if file already exists"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "batch_save_images",
@@ -192,8 +189,7 @@
         "description": "Create output directory if it doesn't exist"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "gaussian_blur",
@@ -228,8 +224,7 @@
         "description": "Use GPU acceleration if available"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "box_blur",
@@ -264,8 +259,7 @@
         "description": "Vertical blur radius"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "brightness",
@@ -294,8 +288,7 @@
         "description": "Brightness adjustment (-1.0 to 1.0)"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "contrast",
@@ -324,8 +317,7 @@
         "description": "Contrast multiplier (0.0 to 3.0)"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "saturation",
@@ -354,8 +346,7 @@
         "description": "Saturation multiplier (0.0 = grayscale, 1.0 = original)"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "grayscale",
@@ -384,8 +375,7 @@
         "description": "Use GPU acceleration if available"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "invert",
@@ -420,8 +410,193 @@
         "description": "Use GPU acceleration if available"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
+  },
+  {
+    "id": "sepia",
+    "name": "Sepia",
+    "description": "Apply a warm sepia tone to an image",
+    "category": "Color",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "intensity",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Sepia intensity (0.0 = original, 1.0 = full sepia)"
+      }
+    ],
+    "tags": []
+  },
+  {
+    "id": "hue_rotate",
+    "name": "Hue Rotate",
+    "description": "Rotate the hue of all pixels by a given angle",
+    "category": "Color",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "angle",
+        "type": "Float",
+        "default": "Float(0.0)",
+        "description": "Hue rotation angle in degrees"
+      }
+    ],
+    "tags": []
+  },
+  {
+    "id": "threshold",
+    "name": "Threshold",
+    "description": "Convert image to black and white using a threshold value",
+    "category": "Color",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "level",
+        "type": "Integer",
+        "default": "Integer(128)",
+        "description": "Threshold level (0-255)"
+      }
+    ],
+    "tags": []
+  },
+  {
+    "id": "posterize",
+    "name": "Posterize",
+    "description": "Reduce the number of color levels in an image",
+    "category": "Color",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "levels",
+        "type": "Integer",
+        "default": "Integer(4)",
+        "description": "Number of color levels per channel (2-256)"
+      }
+    ],
+    "tags": []
+  },
+  {
+    "id": "gamma",
+    "name": "Gamma Correction",
+    "description": "Apply gamma correction to adjust image luminance",
+    "category": "Adjust",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "gamma",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Gamma value (< 1.0 brightens, > 1.0 darkens)"
+      }
+    ],
+    "tags": []
+  },
+  {
+    "id": "color_balance",
+    "name": "Color Balance",
+    "description": "Adjust red, green, and blue channel levels independently",
+    "category": "Adjust",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "red",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Red channel multiplier"
+      },
+      {
+        "name": "green",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Green channel multiplier"
+      },
+      {
+        "name": "blue",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Blue channel multiplier"
+      }
+    ],
+    "tags": []
   },
   {
     "id": "resize",
@@ -468,8 +643,7 @@
         "description": "Resampling filter"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "rotate",
@@ -498,8 +672,7 @@
         "description": "Rotation angle"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "flip",
@@ -534,8 +707,7 @@
         "description": "Flip vertically"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "crop",
@@ -582,8 +754,7 @@
         "description": "Crop height"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "blend",
@@ -623,8 +794,7 @@
         "description": "Blend layer opacity"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "overlay",
@@ -670,8 +840,7 @@
         "description": "Overlay opacity"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "passthrough",
@@ -693,8 +862,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "preview",
@@ -736,8 +904,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "split_channels",
@@ -774,8 +941,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "merge_channels",
@@ -812,8 +978,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "note",
@@ -830,8 +995,7 @@
         "description": "Note content"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "image_info",
@@ -878,8 +1042,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "image_preview",
@@ -923,8 +1086,7 @@
         "description": "Maximum thumbnail dimension (width or height)"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "collect_images",
@@ -966,8 +1128,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "get_image_from_array",
@@ -996,8 +1157,7 @@
         "description": "Index of image to extract (0-based)"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "array_length",
@@ -1019,8 +1179,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "value_display",
@@ -1052,8 +1211,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "integer_constant",
@@ -1076,8 +1234,7 @@
         "description": "Integer value"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "float_constant",
@@ -1100,8 +1257,7 @@
         "description": "Float value"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "string_constant",
@@ -1124,8 +1280,7 @@
         "description": "String value"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "boolean_constant",
@@ -1148,8 +1303,7 @@
         "description": "Boolean value"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "color_constant",
@@ -1172,8 +1326,7 @@
         "description": "Color value (RGBA, 0.0-1.0)"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "add",
@@ -1200,8 +1353,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "subtract",
@@ -1228,13 +1380,12 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "multiply",
     "name": "Multiply",
-    "description": "Multiply two numbers (a \u00d7 b)",
+    "description": "Multiply two numbers (a × b)",
     "category": "Math",
     "input_ports": [
       {
@@ -1256,13 +1407,12 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "divide",
     "name": "Divide",
-    "description": "Divide two numbers (a \u00f7 b)",
+    "description": "Divide two numbers (a ÷ b)",
     "category": "Math",
     "input_ports": [
       {
@@ -1284,8 +1434,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "modulo",
@@ -1312,8 +1461,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "power",
@@ -1340,8 +1488,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "min",
@@ -1368,8 +1515,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "max",
@@ -1396,8 +1542,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "clamp",
@@ -1429,8 +1574,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "equal",
@@ -1457,8 +1601,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "not_equal",
@@ -1485,8 +1628,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "less_than",
@@ -1513,8 +1655,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "less_than_or_equal",
@@ -1541,8 +1682,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "greater_than",
@@ -1569,8 +1709,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "greater_than_or_equal",
@@ -1597,8 +1736,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "and",
@@ -1625,8 +1763,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "or",
@@ -1653,8 +1790,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "not",
@@ -1676,8 +1812,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "xor",
@@ -1704,8 +1839,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "to_integer",
@@ -1727,8 +1861,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "to_float",
@@ -1750,8 +1883,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "to_string",
@@ -1773,8 +1905,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "to_boolean",
@@ -1796,8 +1927,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "image_stack",
@@ -1832,8 +1962,7 @@
         "description": "Sigma value for sigma clipping (only used with sigma_clip method)"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "dark_frame_subtract",
@@ -1867,8 +1996,7 @@
         "description": "Scale factor for dark frame subtraction"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "flat_field_correct",
@@ -1902,8 +2030,7 @@
         "description": "Normalize flat field to mean value"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "hot_pixel_removal",
@@ -1932,8 +2059,7 @@
         "description": "Deviation threshold to detect hot pixels"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "histogram_stretch",
@@ -1974,8 +2100,7 @@
         "description": "Midtone balance (0-1, 0.5 is neutral)"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "batch_brightness",
@@ -2004,8 +2129,7 @@
         "description": "Brightness adjustment (-1.0 to 1.0)"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "batch_resize",
@@ -2040,8 +2164,7 @@
         "description": "Target height in pixels"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "batch_contrast",
@@ -2070,8 +2193,7 @@
         "description": "Contrast multiplier (0.0 to 2.0)"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "batch_gaussian_blur",
@@ -2100,8 +2222,7 @@
         "description": "Blur sigma (standard deviation)"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "batch_saturation",
@@ -2130,8 +2251,7 @@
         "description": "Saturation multiplier (0.0 to 2.0)"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "batch_rotate",
@@ -2160,8 +2280,7 @@
         "description": "Rotation angle in degrees (90, 180, 270)"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "batch_grayscale",
@@ -2183,8 +2302,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "batch_invert",
@@ -2206,8 +2324,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "batch_crop",
@@ -2254,8 +2371,7 @@
         "description": "Height of crop region"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "batch_flip",
@@ -2284,8 +2400,7 @@
         "description": "Flip direction: 'horizontal' or 'vertical'"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "array_map",
@@ -2312,8 +2427,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "array_filter",
@@ -2353,8 +2467,7 @@
         "description": "Minimum height (0 = no limit)"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "array_concat",
@@ -2391,8 +2504,7 @@
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": []
   },
   {
     "id": "array_slice",
@@ -2432,7 +2544,488 @@
         "description": "End index (exclusive, -1 = end)"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": []
+  },
+  {
+    "id": "unsharp_mask",
+    "name": "Unsharp Mask",
+    "description": "Sharpen an image using unsharp masking (blur + subtract)",
+    "category": "Sharpen",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "sigma",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Blur radius for the mask (higher = stronger effect)"
+      },
+      {
+        "name": "amount",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Sharpening strength (0.0 to 5.0)"
+      },
+      {
+        "name": "threshold",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "Minimum difference to sharpen (reduces noise sharpening)"
+      }
+    ],
+    "tags": []
+  },
+  {
+    "id": "sharpen",
+    "name": "Sharpen",
+    "description": "Apply a sharpening convolution kernel to an image",
+    "category": "Sharpen",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "strength",
+        "type": "Float",
+        "default": "Float(1.0)",
+        "description": "Sharpening strength (0.0 = none, 1.0 = standard)"
+      }
+    ],
+    "tags": []
+  },
+  {
+    "id": "edge_detect",
+    "name": "Edge Detect",
+    "description": "Detect edges using the Sobel operator",
+    "category": "Edge",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "method",
+        "type": "String",
+        "default": "String(\"sobel\")",
+        "description": "Edge detection method"
+      },
+      {
+        "name": "invert",
+        "type": "Boolean",
+        "default": "Boolean(false)",
+        "description": "Invert edges (white background, dark edges)"
+      }
+    ],
+    "tags": []
+  },
+  {
+    "id": "emboss",
+    "name": "Emboss",
+    "description": "Apply an emboss/relief effect to an image",
+    "category": "Edge",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "direction",
+        "type": "String",
+        "default": "String(\"top_left\")",
+        "description": "Light direction for emboss"
+      }
+    ],
+    "tags": []
+  },
+  {
+    "id": "add_noise",
+    "name": "Add Noise",
+    "description": "Add random noise to an image (Gaussian or salt-and-pepper)",
+    "category": "Noise",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "noise_type",
+        "type": "String",
+        "default": "String(\"gaussian\")",
+        "description": "Type of noise to add"
+      },
+      {
+        "name": "amount",
+        "type": "Float",
+        "default": "Float(0.1)",
+        "description": "Noise intensity (0.0 to 1.0)"
+      },
+      {
+        "name": "seed",
+        "type": "Integer",
+        "default": "Integer(42)",
+        "description": "Random seed for reproducibility"
+      }
+    ],
+    "tags": []
+  },
+  {
+    "id": "denoise",
+    "name": "Denoise",
+    "description": "Reduce noise using a median filter",
+    "category": "Noise",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "radius",
+        "type": "Integer",
+        "default": "Integer(1)",
+        "description": "Filter radius (1 = 3×3 kernel, 2 = 5×5, etc.)"
+      }
+    ],
+    "tags": []
+  },
+  {
+    "id": "draw_rectangle",
+    "name": "Draw Rectangle",
+    "description": "Draw a filled or outlined rectangle on an image",
+    "category": "Draw",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "x",
+        "type": "Integer",
+        "default": "Integer(10)",
+        "description": "Top-left X coordinate"
+      },
+      {
+        "name": "y",
+        "type": "Integer",
+        "default": "Integer(10)",
+        "description": "Top-left Y coordinate"
+      },
+      {
+        "name": "width",
+        "type": "Integer",
+        "default": "Integer(100)",
+        "description": "Rectangle width"
+      },
+      {
+        "name": "height",
+        "type": "Integer",
+        "default": "Integer(100)",
+        "description": "Rectangle height"
+      },
+      {
+        "name": "color_r",
+        "type": "Integer",
+        "default": "Integer(255)",
+        "description": "Red component (0-255)"
+      },
+      {
+        "name": "color_g",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "Green component (0-255)"
+      },
+      {
+        "name": "color_b",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "Blue component (0-255)"
+      },
+      {
+        "name": "filled",
+        "type": "Boolean",
+        "default": "Boolean(true)",
+        "description": "Fill the rectangle (false = outline only)"
+      },
+      {
+        "name": "thickness",
+        "type": "Integer",
+        "default": "Integer(2)",
+        "description": "Line thickness for outline mode"
+      }
+    ],
+    "tags": []
+  },
+  {
+    "id": "draw_circle",
+    "name": "Draw Circle",
+    "description": "Draw a filled or outlined circle on an image",
+    "category": "Draw",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "center_x",
+        "type": "Integer",
+        "default": "Integer(100)",
+        "description": "Center X coordinate"
+      },
+      {
+        "name": "center_y",
+        "type": "Integer",
+        "default": "Integer(100)",
+        "description": "Center Y coordinate"
+      },
+      {
+        "name": "radius",
+        "type": "Integer",
+        "default": "Integer(50)",
+        "description": "Circle radius"
+      },
+      {
+        "name": "color_r",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "Red component (0-255)"
+      },
+      {
+        "name": "color_g",
+        "type": "Integer",
+        "default": "Integer(255)",
+        "description": "Green component (0-255)"
+      },
+      {
+        "name": "color_b",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "Blue component (0-255)"
+      },
+      {
+        "name": "filled",
+        "type": "Boolean",
+        "default": "Boolean(true)",
+        "description": "Fill the circle"
+      }
+    ],
+    "tags": []
+  },
+  {
+    "id": "draw_line",
+    "name": "Draw Line",
+    "description": "Draw a straight line between two points on an image",
+    "category": "Draw",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "x1",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "Start X coordinate"
+      },
+      {
+        "name": "y1",
+        "type": "Integer",
+        "default": "Integer(0)",
+        "description": "Start Y coordinate"
+      },
+      {
+        "name": "x2",
+        "type": "Integer",
+        "default": "Integer(100)",
+        "description": "End X coordinate"
+      },
+      {
+        "name": "y2",
+        "type": "Integer",
+        "default": "Integer(100)",
+        "description": "End Y coordinate"
+      },
+      {
+        "name": "color_r",
+        "type": "Integer",
+        "default": "Integer(255)",
+        "description": "Red component (0-255)"
+      },
+      {
+        "name": "color_g",
+        "type": "Integer",
+        "default": "Integer(255)",
+        "description": "Green component (0-255)"
+      },
+      {
+        "name": "color_b",
+        "type": "Integer",
+        "default": "Integer(255)",
+        "description": "Blue component (0-255)"
+      },
+      {
+        "name": "thickness",
+        "type": "Integer",
+        "default": "Integer(2)",
+        "description": "Line thickness in pixels"
+      }
+    ],
+    "tags": []
+  },
+  {
+    "id": "text_overlay",
+    "name": "Text Overlay",
+    "description": "Add text to an image at a specified position",
+    "category": "Text",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "required": true
+      }
+    ],
+    "parameters": [
+      {
+        "name": "text",
+        "type": "String",
+        "default": "String(\"Hello Ambara\")",
+        "description": "Text to draw"
+      },
+      {
+        "name": "x",
+        "type": "Integer",
+        "default": "Integer(10)",
+        "description": "X position of text"
+      },
+      {
+        "name": "y",
+        "type": "Integer",
+        "default": "Integer(10)",
+        "description": "Y position of text"
+      },
+      {
+        "name": "scale",
+        "type": "Integer",
+        "default": "Integer(2)",
+        "description": "Text scale multiplier (1 = 8px, 2 = 16px, etc.)"
+      },
+      {
+        "name": "color_r",
+        "type": "Integer",
+        "default": "Integer(255)",
+        "description": "Text color red (0-255)"
+      },
+      {
+        "name": "color_g",
+        "type": "Integer",
+        "default": "Integer(255)",
+        "description": "Text color green (0-255)"
+      },
+      {
+        "name": "color_b",
+        "type": "Integer",
+        "default": "Integer(255)",
+        "description": "Text color blue (0-255)"
+      }
+    ],
+    "tags": []
   }
 ]

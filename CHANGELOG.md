@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-03-19
+
+### Added
+- 17 new filter implementations across 7 categories (91 total filters, up from 63):
+  - **Sharpen**: `unsharp_mask` (sigma/amount/threshold), `sharpen` (3×3 kernel convolution).
+  - **Edge**: `edge_detect` (Sobel/Prewitt with invert), `emboss` (directional relief, 4 directions).
+  - **Noise**: `add_noise` (Gaussian/salt-and-pepper), `denoise` (median filter).
+  - **Draw**: `draw_rectangle`, `draw_circle`, `draw_line` (filled/outline, RGB colors).
+  - **Text**: `text_overlay` (built-in 8×13 bitmap font, configurable position/scale/color).
+  - **Color**: `sepia`, `hue_rotate`, `threshold`, `posterize`.
+  - **Adjust**: `gamma` (gamma correction with LUT), `color_balance` (independent RGB channel multipliers).
+- New Rust source files: `sharpen.rs`, `edge.rs`, `noise.rs`, `draw.rs`, `text.rs`.
+- CSS rules for all 16 category variants (sharpen, edge, noise, draw, text, adjust, custom).
+
+### Fixed
+- UI `categoryColors` in FilterNode.tsx now uses correct Rust `Category` enum names (`Input` not `Source`, `Blur` not `Filter`, `Analyze` not `Analysis`).
+- All 16 node categories now display correct header and border colors in the graph editor.
+
+### Changed
+- Chatbot `FILTER_CATALOG` updated with all new filters and categories.
+- Deterministic fallback keywords expanded for sharpen, edge, noise, draw, text, sepia, gamma, etc.
+- ChromaDB embeddings rebuilt with 91 filters (was 63).
+- Filter corpus, ID set, and registry snapshot regenerated.
+
 ## [0.7.0] - 2026-03-19
 
 ### Added

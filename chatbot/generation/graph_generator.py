@@ -428,6 +428,14 @@ class GraphGenerator:
             ("stack", "image_stack"), ("hot pixel", "hot_pixel_removal"),
             ("dark frame", "dark_frame_subtract"), ("flat field", "flat_field_correct"),
             ("preview", "preview"), ("info", "image_info"),
+            ("sharpen", "sharpen"), ("unsharp", "unsharp_mask"),
+            ("edge", "edge_detect"), ("emboss", "emboss"),
+            ("noise", "add_noise"), ("denoise", "denoise"), ("median", "denoise"),
+            ("sepia", "sepia"), ("hue", "hue_rotate"),
+            ("threshold", "threshold"), ("posterize", "posterize"),
+            ("gamma", "gamma"), ("color balance", "color_balance"),
+            ("rectangle", "draw_rectangle"), ("circle", "draw_circle"), ("line", "draw_line"),
+            ("text", "text_overlay"), ("watermark", "text_overlay"),
         ]
 
         added = set()

@@ -16,15 +16,24 @@ const portColors: Record<PortType, string> = {
   Any: '#607D8B',
 };
 
-// Category colors
+// Category colors — must match Rust Category enum variant names
 const categoryColors: Record<string, string> = {
-  Source: '#4CAF50',
-  Transform: '#2196F3',
-  Color: '#E91E63',
-  Filter: '#9C27B0',
-  Analysis: '#FF9800',
+  Input: '#4CAF50',
   Output: '#F44336',
+  Transform: '#2196F3',
+  Adjust: '#FF5722',
+  Blur: '#9C27B0',
+  Sharpen: '#7B1FA2',
+  Edge: '#673AB7',
+  Noise: '#795548',
+  Draw: '#00BCD4',
+  Text: '#009688',
+  Composite: '#FF9800',
+  Color: '#E91E63',
+  Analyze: '#FF9800',
+  Math: '#03A9F4',
   Utility: '#607D8B',
+  Custom: '#78909C',
 };
 
 interface FilterNodeProps {

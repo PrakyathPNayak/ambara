@@ -44,10 +44,40 @@
   background: #4a2d3d;
 }
 
+.filter-node[data-category="adjust"] {
+  border-color: #FF5722;
+  background: #4a2d2d;
+}
+
 .filter-node[data-category="blur"],
 .filter-node[data-category="filter"] {
   border-color: #9C27B0;
   background: #3d2d4a;
+}
+
+.filter-node[data-category="sharpen"] {
+  border-color: #7B1FA2;
+  background: #3d2d4a;
+}
+
+.filter-node[data-category="edge"] {
+  border-color: #673AB7;
+  background: #352d4a;
+}
+
+.filter-node[data-category="noise"] {
+  border-color: #795548;
+  background: #3d3530;
+}
+
+.filter-node[data-category="draw"] {
+  border-color: #00BCD4;
+  background: #2d4448;
+}
+
+.filter-node[data-category="text"] {
+  border-color: #009688;
+  background: #2d4440;
 }
 
 .filter-node[data-category="utility"] {
@@ -69,6 +99,11 @@
 .filter-node[data-category="analysis"] {
   border-color: #FF9800;
   background: #4a3d2d;
+}
+
+.filter-node[data-category="custom"] {
+  border-color: #78909C;
+  background: #35414a;
 }
 
 .filter-node.invalid {

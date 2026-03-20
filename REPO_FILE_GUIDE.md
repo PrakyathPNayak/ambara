@@ -266,7 +266,8 @@ The built-ins are split by topic. Each file typically:
 
 - `src/filters/builtin/color.rs`
   - Color adjustments:
-    - `Brightness`, `Contrast`, `Saturation`, `Grayscale`, `Invert`.
+    - `Brightness`, `Contrast`, `Saturation`, `Grayscale`, `Invert`, `Sepia`, `HueRotate`, `Threshold`, `Posterize`, `GammaCorrection`, `ColorBalance`.
+  - Includes HSL color-space utility functions for hue rotation.
 
 - `src/filters/builtin/transform.rs`
   - Geometry transforms:
@@ -303,7 +304,30 @@ The built-ins are split by topic. Each file typically:
 
 - `src/filters/builtin/array.rs`
   - Array utilities (`ArrayMap`, `ArrayFilter`, etc.) that normalize “single vs array” processing.
+- `src/filters/builtin/sharpen.rs`
+  - Sharpening filters:
+    - `UnsharpMask` (Gaussian-blur-subtract approach with sigma/amount/threshold).
+    - `Sharpen` (3×3 convolution kernel with configurable strength).
 
+- `src/filters/builtin/edge.rs`
+  - Edge detection filters:
+    - `EdgeDetect` (Sobel/Prewitt method selection, optional invert).
+    - `Emboss` (directional relief effect, 4 direction presets).
+
+- `src/filters/builtin/noise.rs`
+  - Noise manipulation filters:
+    - `AddNoise` (Gaussian or salt-and-pepper noise with seed).
+    - `Denoise` (median filter with configurable radius).
+
+- `src/filters/builtin/draw.rs`
+  - Shape drawing filters:
+    - `DrawRectangle`, `DrawCircle`, `DrawLine`.
+    - All support filled/outline mode, RGB color, and thickness.
+
+- `src/filters/builtin/text.rs`
+  - Text rendering filter:
+    - `TextOverlay` (built-in 8×13 bitmap font, no external font files).
+    - Configurable text, position, scale, and RGB color.
 ---
 
 ## UI (React + Vite): `ui/`
