@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSettingsStore } from '../store/settingsStore';
 
 export type ChatRole = 'user' | 'assistant';
 
@@ -42,6 +43,8 @@ function getSessionId(): string {
 }
 
 export function useChatApi(): UseChatApiResult {
+    const apiUrl = useSettingsStore((state) => state.settings.apiUrl) || 'http://localhost:8765';
+    const wsUrl = apiUrl.replace(/^http/, 'ws');
     const [messages, setMessages] = useState<ChatMessage[]>(() => {
         const raw = localStorage.getItem(HISTORY_KEY);
         if (!raw) return [];
@@ -61,7 +64,7 @@ export function useChatApi(): UseChatApiResult {
     }, [messages]);
 
     useEffect(() => {
-        const ws = new WebSocket(`ws://localhost:8765/ws/${sessionId}`);
+        const ws = new WebSocket(`${wsUrl}/ws/${sessionId}`);
         wsRef.current = ws;
 
         ws.onopen = () => {
@@ -114,7 +117,7 @@ export function useChatApi(): UseChatApiResult {
         return () => {
             ws.close();
         };
-    }, [sessionId]);
+    }, [sessionId, wsUrl]);
 
     const sendMessage = useCallback(async (text: string) => {
         if (!text.trim()) return;
@@ -133,7 +136,7 @@ export function useChatApi(): UseChatApiResult {
             return;
         }
 
-        const response = await fetch('http://localhost:8765/chat', {
+        const response = await fetch(`${apiUrl}/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: text, session_id: sessionId, context: [] }),
@@ -149,7 +152,7 @@ export function useChatApi(): UseChatApiResult {
         };
         setMessages((prev) => [...prev, assistant]);
         setIsTyping(false);
-    }, [sessionId]);
+    }, [sessionId, apiUrl]);
 
     return {
         sendMessage,

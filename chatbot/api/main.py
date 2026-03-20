@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 
 from chatbot.api.intent_classifier import IntentClassifier
 from chatbot.api.models import (
@@ -22,6 +23,8 @@ from chatbot.api.models import (
     GraphValidationRequest,
     GraphValidationResult,
     HealthResponse,
+    LLMConfigRequest,
+    LLMConfigResponse,
 )
 from chatbot.api.session import SessionStore
 from chatbot.corpus.embedder import build_embeddings
@@ -44,7 +47,13 @@ SCHEMA_PATH = ROOT / "chatbot" / "corpus" / "graph_schema.json"
 FILTER_IDS_PATH = ROOT / "build" / "filter_id_set.json"
 
 
-app = FastAPI(title="Ambara Chatbot API", version="0.5.0")
+app = FastAPI(title="Ambara Chatbot API", version="0.6.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 sessions = SessionStore()
 classifier = IntentClassifier()
 chat_llm = LLMClient(force_mock=False)
@@ -93,7 +102,7 @@ def _generator() -> GraphGenerator:
         chroma_path=str(CHROMA_PATH),
         corpus_path=str(CORPUS_PATH),
         examples_path=str(EXAMPLES_PATH),
-        force_mock_llm=False,
+        llm_client=chat_llm,
     )
 
 
@@ -309,6 +318,53 @@ def health() -> HealthResponse:
         filters_loaded=filters_count,
         chroma_ready=chroma_ready,
         llm_backend=chat_llm.backend,
+        llm_model=chat_llm.model_name,
+    )
+
+
+@app.get("/llm/config", response_model=LLMConfigResponse)
+def get_llm_config() -> LLMConfigResponse:
+    """Return current LLM configuration.
+
+    Args:
+        None.
+
+    Returns:
+        Current LLM config.
+    """
+    return LLMConfigResponse(
+        provider=chat_llm.backend,
+        model=chat_llm.model_name,
+        api_url=chat_llm.ollama_url if chat_llm.backend == "ollama" else "",
+    )
+
+
+@app.put("/llm/config", response_model=LLMConfigResponse)
+def update_llm_config(req: LLMConfigRequest) -> LLMConfigResponse:
+    """Update LLM configuration at runtime.
+
+    Args:
+        req: New LLM config values.
+
+    Returns:
+        Updated LLM config.
+    """
+    global chat_llm
+    if req.provider:
+        chat_llm.backend = req.provider
+    if req.model:
+        chat_llm.model_name = req.model
+    if req.api_url and chat_llm.backend == "ollama":
+        chat_llm.ollama_url = req.api_url
+    if req.api_key:
+        if chat_llm.backend == "openai":
+            chat_llm.openai_key = req.api_key
+        elif chat_llm.backend == "anthropic":
+            chat_llm.anthropic_key = req.api_key
+    return LLMConfigResponse(
+        provider=chat_llm.backend,
+        model=chat_llm.model_name,
+        api_url=chat_llm.ollama_url if chat_llm.backend == "ollama" else "",
     )
 
 

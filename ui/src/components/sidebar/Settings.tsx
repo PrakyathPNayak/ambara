@@ -17,15 +17,18 @@ const formatMemory = (mb: number): string => {
  * Includes memory limit slider and processing options.
  */
 export const Settings: React.FC = () => {
-  const { 
-    settings, 
-    isSettingsOpen, 
+  const {
+    settings,
+    isSettingsOpen,
     closeSettings,
     setMemoryLimit,
     setAutoChunk,
     setTileSize,
     setParallel,
     setUseCache,
+    setApiUrl,
+    setLlmProvider,
+    setLlmModel,
     resetToDefaults,
   } = useSettingsStore();
 
@@ -44,10 +47,65 @@ export const Settings: React.FC = () => {
         </div>
 
         <div className="settings-content">
+          {/* AI / API Connection Section */}
+          <section className="settings-section">
+            <h3>AI / API Connection</h3>
+
+            <div className="setting-item">
+              <div className="setting-label">
+                <span>API URL</span>
+              </div>
+              <input
+                type="text"
+                value={settings.apiUrl}
+                onChange={(e) => setApiUrl(e.target.value)}
+                className="text-input"
+                placeholder="http://localhost:8765"
+              />
+              <p className="setting-description">
+                Base URL for the Ambara chatbot API server.
+              </p>
+            </div>
+
+            <div className="setting-item">
+              <div className="setting-label">
+                <span>LLM Provider</span>
+              </div>
+              <select
+                value={settings.llmProvider}
+                onChange={(e) => setLlmProvider(e.target.value)}
+                className="select-input"
+              >
+                <option value="ollama">Ollama (Local)</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+              </select>
+              <p className="setting-description">
+                LLM backend for graph generation. Ollama runs locally; others require API keys set as environment variables.
+              </p>
+            </div>
+
+            <div className="setting-item">
+              <div className="setting-label">
+                <span>Model</span>
+              </div>
+              <input
+                type="text"
+                value={settings.llmModel}
+                onChange={(e) => setLlmModel(e.target.value)}
+                className="text-input"
+                placeholder="qwen3:8b"
+              />
+              <p className="setting-description">
+                Model name (e.g., qwen3:8b for Ollama, gpt-4o for OpenAI, claude-sonnet-4-5 for Anthropic).
+              </p>
+            </div>
+          </section>
+
           {/* Memory Management Section */}
           <section className="settings-section">
             <h3>Memory Management</h3>
-            
+
             <div className="setting-item">
               <div className="setting-label">
                 <span>Memory Limit</span>
@@ -67,7 +125,7 @@ export const Settings: React.FC = () => {
                 <span>8 GB</span>
               </div>
               <p className="setting-description">
-                Maximum memory to use for image processing. Larger values allow processing 
+                Maximum memory to use for image processing. Larger values allow processing
                 bigger images in memory, while smaller values use tile-based processing.
               </p>
             </div>

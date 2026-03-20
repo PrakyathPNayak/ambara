@@ -15,12 +15,18 @@ export interface ExecutionSettings {
   parallel: boolean;
   /** Whether to enable caching. */
   useCache: boolean;
+  /** Chatbot API base URL. */
+  apiUrl: string;
+  /** LLM provider: ollama, openai, anthropic. */
+  llmProvider: string;
+  /** LLM model name. */
+  llmModel: string;
 }
 
 interface SettingsStore {
   settings: ExecutionSettings;
   isSettingsOpen: boolean;
-  
+
   // Actions
   updateSettings: (settings: Partial<ExecutionSettings>) => void;
   setMemoryLimit: (mb: number) => void;
@@ -28,6 +34,9 @@ interface SettingsStore {
   setTileSize: (size: number) => void;
   setParallel: (enabled: boolean) => void;
   setUseCache: (enabled: boolean) => void;
+  setApiUrl: (url: string) => void;
+  setLlmProvider: (provider: string) => void;
+  setLlmModel: (model: string) => void;
   toggleSettings: () => void;
   openSettings: () => void;
   closeSettings: () => void;
@@ -40,6 +49,9 @@ const defaultSettings: ExecutionSettings = {
   tileSize: 512,
   parallel: false,
   useCache: false,
+  apiUrl: 'http://localhost:8765',
+  llmProvider: 'ollama',
+  llmModel: 'qwen3:8b',
 };
 
 /**
@@ -90,6 +102,24 @@ export const useSettingsStore = create<SettingsStore>()(
         }));
       },
 
+      setApiUrl: (url) => {
+        set((state) => ({
+          settings: { ...state.settings, apiUrl: url },
+        }));
+      },
+
+      setLlmProvider: (provider) => {
+        set((state) => ({
+          settings: { ...state.settings, llmProvider: provider },
+        }));
+      },
+
+      setLlmModel: (model) => {
+        set((state) => ({
+          settings: { ...state.settings, llmModel: model },
+        }));
+      },
+
       toggleSettings: () => {
         set((state) => ({ isSettingsOpen: !state.isSettingsOpen }));
       },
@@ -109,6 +139,13 @@ export const useSettingsStore = create<SettingsStore>()(
     {
       name: 'ambara-settings',
       partialize: (state) => ({ settings: state.settings }),
+      merge: (persisted, current) => {
+        const persistedState = persisted as Partial<SettingsStore> | undefined;
+        return {
+          ...current,
+          settings: { ...defaultSettings, ...(persistedState?.settings ?? {}) },
+        };
+      },
     }
   )
 );

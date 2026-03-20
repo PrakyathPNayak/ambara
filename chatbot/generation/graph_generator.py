@@ -489,12 +489,13 @@ class GraphGenerator:
         corpus_path: str,
         examples_path: str,
         force_mock_llm: bool = False,
+        llm_client: LLMClient | None = None,
     ) -> None:
         self.filter_retriever = FilterRetriever(chroma_path, corpus_path)
         self.example_retriever = ExampleRetriever(chroma_path, examples_path)
         self.prompt_builder = GraphPromptBuilder(corpus_path)
         self.repair_builder = RepairPromptBuilder()
-        self.llm_client = LLMClient(force_mock=force_mock_llm)
+        self.llm_client = llm_client or LLMClient(force_mock=force_mock_llm)
         self.validator = GraphValidator(
             str(ROOT / "chatbot" / "corpus" / "graph_schema.json"),
             str(ROOT / "build" / "filter_id_set.json"),

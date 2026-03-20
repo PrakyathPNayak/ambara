@@ -64,12 +64,16 @@ class LLMClient:
 
         if force_mock:
             self.backend = "mock"
+            self.model_name = "mock"
         elif self.anthropic_key:
             self.backend = "anthropic"
+            self.model_name = "claude-sonnet-4-5"
         elif self.openai_key:
             self.backend = "openai"
+            self.model_name = "gpt-4o"
         else:
             self.backend = "ollama"
+            self.model_name = os.getenv("OLLAMA_MODEL", "qwen3:8b")
 
     def generate(self, prompt: dict[str, Any], temperature: float = 0.0) -> str:
         """Generate model response for prompt.
@@ -127,7 +131,7 @@ class LLMClient:
         messages = [m for m in prompt.get("messages", []) if m.get("role") != "system"]
         system = "\n".join(m.get("content", "") for m in prompt.get("messages", []) if m.get("role") == "system")
         body = {
-            "model": "claude-sonnet-4-5",
+            "model": self.model_name,
             "max_tokens": 1200,
             "temperature": temperature,
             "system": system,
@@ -167,7 +171,7 @@ class LLMClient:
             "content-type": "application/json",
         }
         body = {
-            "model": "gpt-4o",
+            "model": self.model_name,
             "temperature": temperature,
             "messages": prompt.get("messages", []),
         }
@@ -195,7 +199,7 @@ class LLMClient:
         """
         url = f"{self.ollama_url}/api/chat"
         body = {
-            "model": "llama3.1",
+            "model": self.model_name,
             "stream": False,
             "options": {"temperature": temperature},
             "messages": prompt.get("messages", []),

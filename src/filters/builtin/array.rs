@@ -9,7 +9,6 @@ use crate::core::node::{Category, FilterNode, NodeMetadata};
 use crate::core::port::{ParameterDefinition, PortDefinition};
 use crate::core::types::{PortType, Value};
 use crate::filters::registry::FilterRegistry;
-use rayon::prelude::*;
 
 /// Register array processing filters.
 pub fn register(registry: &mut FilterRegistry) {

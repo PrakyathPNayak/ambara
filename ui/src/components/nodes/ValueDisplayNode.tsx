@@ -19,10 +19,10 @@ type ValueDisplayNodeType = Node<ValueDisplayData>;
 const ValueDisplayNode: React.FC<NodeProps<ValueDisplayNodeType>> = ({ data, selected }) => {
   const displayValue = data.displayValue || 'No value';
   const valueType = data.valueType || 'Unknown';
-  
+
   // Determine color scheme based on type
   const typeClass = `type-${valueType.toLowerCase()}`;
-  
+
   return (
     <div className={`value-display-node ${typeClass}`}>
       <NodeResizer
@@ -41,16 +41,16 @@ const ValueDisplayNode: React.FC<NodeProps<ValueDisplayNodeType>> = ({ data, sel
           {data.name || 'Value Display'}
         </h3>
       </div>
-      
+
       <div className="value-display-content">
         <div className="value-display-value">
           <div className="value-display-label">Value</div>
           <div className="value-display-text">{displayValue}</div>
         </div>
-        
+
         <div className="value-display-type">{valueType}</div>
       </div>
-      
+
       <div className="value-display-ports">
         <div className="value-display-port-row">
           <Handle
@@ -61,7 +61,7 @@ const ValueDisplayNode: React.FC<NodeProps<ValueDisplayNodeType>> = ({ data, sel
           />
           <span className="value-display-port-label">value</span>
         </div>
-        
+
         <div className="value-display-port-row">
           <span className="value-display-port-label">value</span>
           <Handle
@@ -71,7 +71,7 @@ const ValueDisplayNode: React.FC<NodeProps<ValueDisplayNodeType>> = ({ data, sel
             className="node-handle source"
           />
         </div>
-        
+
         <div className="value-display-port-row">
           <span className="value-display-port-label">display</span>
           <Handle
@@ -81,7 +81,7 @@ const ValueDisplayNode: React.FC<NodeProps<ValueDisplayNodeType>> = ({ data, sel
             className="node-handle source"
           />
         </div>
-        
+
         <div className="value-display-port-row">
           <span className="value-display-port-label">type</span>
           <Handle

@@ -24,7 +24,7 @@
 use crate::core::error::ExecutionError;
 use crate::core::types::{ImageMetadata, ImageValue, ImageFormat};
 use crate::core::error::NodeId;
-use image::{DynamicImage, GenericImageView, ImageBuffer, Rgba};
+use image::{DynamicImage, ImageBuffer, Rgba};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;

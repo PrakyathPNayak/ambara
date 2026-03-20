@@ -82,6 +82,27 @@ class GraphExecuteResult(BaseModel):
     errors: list[str] = Field(default_factory=list)
 
 
+class LLMConfigRequest(BaseModel):
+    """Request payload for /llm/config endpoint."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str | None = None
+    model: str | None = None
+    api_key: str | None = None
+    api_url: str | None = None
+
+
+class LLMConfigResponse(BaseModel):
+    """Response payload for /llm/config endpoint."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str
+    model: str
+    api_url: str
+
+
 class HealthResponse(BaseModel):
     """Health endpoint response payload."""
 
@@ -91,3 +112,4 @@ class HealthResponse(BaseModel):
     filters_loaded: int
     chroma_ready: bool
     llm_backend: str
+    llm_model: str

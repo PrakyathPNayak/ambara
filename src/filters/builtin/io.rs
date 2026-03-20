@@ -93,7 +93,7 @@ impl FilterNode for LoadImage {
 
         // Calculate memory needed for this image
         let image_memory = ExecutionContext::calculate_image_memory(width, height);
-        let memory_limit = ctx.memory_limit();
+        let _memory_limit = ctx.memory_limit();
         let memory_limit_mb = ctx.memory_limit_mb();
 
         // Check if image would exceed memory limit

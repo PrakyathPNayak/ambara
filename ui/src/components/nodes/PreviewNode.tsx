@@ -23,8 +23,8 @@ interface PreviewNodeProps {
 
 function PreviewNodeComponent({ data, selected }: PreviewNodeProps) {
   const [isExpanded, setIsExpanded] = useState(true);
-  
-  const inputHandles = useMemo(() => 
+
+  const inputHandles = useMemo(() =>
     data.inputs.map((input) => (
       <div key={`input-${input.name}`} className="preview-handle-row input-row">
         <Handle
@@ -53,7 +53,7 @@ function PreviewNodeComponent({ data, selected }: PreviewNodeProps) {
     )), [data.outputs]);
 
   return (
-    <div 
+    <div
       className={`preview-node ${selected ? 'selected' : ''}`}
     >
       <NodeResizer
@@ -65,14 +65,14 @@ function PreviewNodeComponent({ data, selected }: PreviewNodeProps) {
       />
       <div className="preview-node-header">
         <span className="preview-node-title">📷 {data.label}</span>
-        <button 
+        <button
           className="preview-toggle"
           onClick={() => setIsExpanded(!isExpanded)}
         >
           {isExpanded ? '▼' : '▶'}
         </button>
       </div>
-      
+
       <div className="preview-node-body">
         <div className="preview-node-ports">
           <div className="preview-input-ports">
@@ -82,14 +82,14 @@ function PreviewNodeComponent({ data, selected }: PreviewNodeProps) {
             {outputHandles}
           </div>
         </div>
-        
+
         {isExpanded && (
           <div className="preview-image-container">
             {data.previewUrl ? (
               <>
-                <img 
-                  src={data.previewUrl} 
-                  alt="Preview" 
+                <img
+                  src={data.previewUrl}
+                  alt="Preview"
                   className="preview-image"
                   draggable={false}
                 />

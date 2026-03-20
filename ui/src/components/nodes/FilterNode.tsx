@@ -37,7 +37,7 @@ function FilterNodeComponent({ data, selected }: FilterNodeProps) {
   // Normalize category for CSS attribute
   const categoryAttr = (data.category || 'utility').toLowerCase();
 
-  const inputHandles = useMemo(() => 
+  const inputHandles = useMemo(() =>
     data.inputs.map((input) => (
       <div key={`input-${input.name}`} className="handle-row input-row">
         <Handle
@@ -57,7 +57,7 @@ function FilterNodeComponent({ data, selected }: FilterNodeProps) {
       // Get the output value if it exists
       const outputValue = data.outputValues?.[output.name];
       let displayValue: string | null = null;
-      
+
       // Only show non-image values
       if (outputValue !== undefined && output.portType !== 'Image' && output.portType !== 'ImageList') {
         if (typeof outputValue === 'number') {
@@ -75,7 +75,7 @@ function FilterNodeComponent({ data, selected }: FilterNodeProps) {
           }
         }
       }
-      
+
       return (
         <div key={`output-${output.name}`} className="handle-row output-row">
           <span className="handle-type">{output.portType}</span>
@@ -95,7 +95,7 @@ function FilterNodeComponent({ data, selected }: FilterNodeProps) {
     }), [data.outputs, data.outputValues]);
 
   return (
-    <div 
+    <div
       className={`filter-node ${selected ? 'selected' : ''} ${data.isValid === false ? 'invalid' : ''}`}
       data-category={categoryAttr}
     >
@@ -106,14 +106,14 @@ function FilterNodeComponent({ data, selected }: FilterNodeProps) {
         lineStyle={{ borderColor: '#57a6ff', borderWidth: '1px' }}
         handleStyle={{ width: '8px', height: '8px', borderRadius: '2px', background: '#57a6ff' }}
       />
-      <div 
+      <div
         className="filter-node-header"
         style={{ backgroundColor: categoryColor }}
       >
         <span className="filter-node-category">{data.category}</span>
         <span className="filter-node-title">{data.label}</span>
       </div>
-      
+
       <div className="filter-node-body">
         <div className="filter-node-ports">
           <div className="input-ports">
@@ -123,14 +123,14 @@ function FilterNodeComponent({ data, selected }: FilterNodeProps) {
             {outputHandles}
           </div>
         </div>
-        
+
         {data.parameters.length > 0 && (
           <div className="filter-node-params">
             {data.parameters.slice(0, 3).map((param) => (
               <div key={param.name} className="param-preview">
                 <span className="param-name">{param.name}:</span>
                 <span className="param-value">
-                  {typeof param.value === 'object' 
+                  {typeof param.value === 'object'
                     ? JSON.stringify(param.value).slice(0, 10) + '...'
                     : String(param.value).slice(0, 15)}
                 </span>
@@ -142,7 +142,7 @@ function FilterNodeComponent({ data, selected }: FilterNodeProps) {
           </div>
         )}
       </div>
-      
+
       {data.isValid === false && data.errorMessage && (
         <div className="filter-node-error">
           ⚠ {data.errorMessage}
