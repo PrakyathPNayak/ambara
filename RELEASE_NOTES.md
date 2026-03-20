@@ -1,49 +1,45 @@
-# Ambara v0.6.0 Release Notes
+# Ambara v0.7.0 Release Notes
 
-**Release Date:** 18 March 2026
+**Release Date:** 19 March 2026
 
 ## Highlights
 
-- Chatbot responses now produce query-aware pipelines instead of a fixed default graph.
-- Natural-language questions now return relevant filter guidance instead of generic fallback text.
-- Offline fallback graph generation now avoids invalid batch-versus-image port combinations.
-- Release workflow now supports the `v0.6.0` release tag and manual dispatch versioning.
-- UI layout has been refined for chatbot visibility, balanced pane sizing, and settings placement.
-- Node resizing now updates visible node dimensions (no phantom-only resize behavior).
+- **Complete pipeline redesign** — Graph generation now uses a multi-stage agentic pipeline inspired by HuggingGPT and ReAct patterns, replacing the old single-shot LLM approach.
+- **4-stage architecture** — Plan → Select → Connect → Validate+Repair, with each LLM call focused on one simple task.
+- **Deterministic connection wiring** — Stage 3 uses 100% code (no LLM) to wire graph connections, eliminating hallucinated port names.
+- **qwen3:8b optimized** — Compact filter catalog, filter cards, few-shot examples, and `<think>` tag stripping ensure reliable output from smaller models.
+- **Intelligent parameter inference** — Regex-based extraction of dimensions, opacity, angles from query text without extra LLM calls.
+- **Robust fallback** — Keyword-based deterministic generation when any pipeline stage fails.
 
 ## What Changed
 
-### Chatbot generation
-- Removed the hardcoded default response path that always produced the same graph.
-- Added retrieval-driven pipeline construction for local/mock fallback mode.
-- Preserved real LLM generation for configured Anthropic/OpenAI backends.
-- Kept repair-loop behavior intact for test-injected and real LLM-backed generation.
+### Pipeline architecture (new)
+- Added `chatbot/generation/planner.py` — Stage 1: decomposes query into ordered steps using compact filter catalog with 5 few-shot examples.
+- Added `chatbot/generation/selector.py` — Stage 2: selects best filter per step using compact "filter card" format and semantic retrieval.
+- Added `chatbot/generation/connector.py` — Stage 3: deterministic graph wiring with priority-based port matching (exact name → exact type → Any → coercion → fallback).
+- Rewrote `chatbot/generation/graph_generator.py` — Orchestrates all 4 stages with graceful degradation to deterministic fallback.
 
-### Conversational responses
-- Improved intent handling so natural language questions do not require a trailing `?`.
-- Added relevant-filter summaries for non-graph chat requests.
-- Improved graph-generation success and failure messages so the UI reflects what was actually generated.
+### Reliability improvements
+- qwen3 `<think>` tag stripping in plan/selection parsers.
+- Query-order-preserving keyword matching in deterministic fallback.
+- Astrophotography pipelines correctly use `load_folder` for stacking workflows.
+- Parameter values extracted from query text (e.g., "512x512", "70% opacity", "90 degrees") without LLM calls.
 
-### Release readiness
-- Updated release workflow for `v0.6.0` default tagging and manual release dispatch support.
-- Updated README run instructions with the recommended `./tauri-ui` launcher flow.
+### Test suite
+- Updated repair loop tests for new multi-stage architecture semantics.
+- All 28 Python tests passing.
+- All 121 Rust tests passing (111 + 2 + 8).
 
-### UI behavior
-- Moved settings trigger to the right-side panel header.
-- Tuned chat panel sizing and typography so history remains scrollable and input stays visible.
-- Added resize handles for node components and fixed CSS so resized wrappers are reflected visually.
+### Research
+- Added `papers/` directory with 7 research summaries (ReAct, Chain-of-Thought, HuggingGPT, Toolformer, Gorilla, TaskWeaver/ToolBench, synthesis) documenting the design rationale.
 
 ## Verification
 
-- `python3 -m pytest chatbot/tests/`: passing on focused suites used during release prep
-- `npm --prefix ui run build`: passed
-
-## Release workflow
-
-Pushing tag `v0.6.0` (or running workflow dispatch with `release_version=0.6.0`) triggers [.github/workflows/build-release.yml](.github/workflows/build-release.yml), which builds Linux, macOS, and Windows artifacts and publishes a GitHub release using this file as the release body.
+- `python3 -m pytest chatbot/tests/ --ignore=chatbot/tests/test_e2e.py`: 28 passed
+- `cargo test`: 121 passed, 0 failed
 
 ## Links
 
-- [Full Changelog](https://github.com/PrakyathPNayak/ambara/compare/v0.5.0...v0.6.0)
+- [Full Changelog](https://github.com/PrakyathPNayak/ambara/compare/v0.6.0...v0.7.0)
 - [Documentation](https://github.com/PrakyathPNayak/ambara#readme)
 - [Report Issues](https://github.com/PrakyathPNayak/ambara/issues)

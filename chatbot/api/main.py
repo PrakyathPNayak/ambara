@@ -47,7 +47,7 @@ SCHEMA_PATH = ROOT / "chatbot" / "corpus" / "graph_schema.json"
 FILTER_IDS_PATH = ROOT / "build" / "filter_id_set.json"
 
 
-app = FastAPI(title="Ambara Chatbot API", version="0.6.0")
+app = FastAPI(title="Ambara Chatbot API", version="0.7.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

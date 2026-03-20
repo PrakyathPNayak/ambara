@@ -454,7 +454,42 @@ This is the desktop “host” application. It compiles to a native binary and e
   - Tauri backend build output (generated).
 
 ---
+## Python chatbot sidecar: `chatbot/`
 
+### API and models
+
+- `chatbot/api/main.py` — FastAPI server (port 8765) with endpoints for chat, graph generation, validation, execution, and filter search.
+- `chatbot/models.py` — Pydantic models for API request/response types.
+
+### Generation pipeline (multi-stage agentic, v0.7.0)
+
+- `chatbot/generation/planner.py` — **Stage 1: Plan.** Decomposes user query into ordered processing steps using a compact filter catalog and few-shot examples. Handles qwen3 `<think>` tag stripping.
+- `chatbot/generation/selector.py` — **Stage 2: Select.** For each planned step, selects the best filter from top-5 candidates using compact "filter card" format. Handles `<think>` tag stripping.
+- `chatbot/generation/connector.py` — **Stage 3: Connect.** Deterministic (no LLM) graph wiring using port-type compatibility rules. Supports linear, batch, and branch topologies.
+- `chatbot/generation/graph_generator.py` — **Orchestrator.** Runs Plan → Select → Connect → Validate+Repair with graceful fallback to keyword-based deterministic generation.
+- `chatbot/generation/graph_validator.py` — Schema validation, filter ID whitelist, and connection port checks.
+- `chatbot/generation/llm_client.py` — Multi-backend LLM client (Ollama/Anthropic/OpenAI/Mock).
+- `chatbot/generation/prompt_builder.py` — Legacy prompt builder (used by repair stage).
+- `chatbot/generation/repair_prompt_builder.py` — Builds targeted repair prompts for Stage 4.
+
+### Retrieval
+
+- `chatbot/retrieval/retriever.py` — ChromaDB-backed semantic retrieval with sentence-transformers embeddings.
+
+### Corpus and scripts
+
+- `chatbot/corpus/` — Filter corpus JSON, graph schema, examples.
+- `chatbot/scripts/` — Corpus extraction and indexing utilities.
+
+### Tests
+
+- `chatbot/tests/` — pytest test suite (28 tests covering generation, retrieval, hallucination guards, repair, API, corpus, and E2E).
+
+### Research
+
+- `papers/` — 7 research paper summaries documenting the design rationale for the multi-stage pipeline.
+
+---
 ## Not documented (generated / not source-of-truth)
 
 The following are intentionally not described in detail:

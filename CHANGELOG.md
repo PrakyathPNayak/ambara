@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-03-19
+
+### Added
+- Multi-stage agentic pipeline for graph generation (Plan → Select → Connect → Validate+Repair).
+- `chatbot/generation/planner.py` — Stage 1: decomposes user queries into ordered processing steps.
+- `chatbot/generation/selector.py` — Stage 2: selects best filter per step using compact filter cards.
+- `chatbot/generation/connector.py` — Stage 3: deterministic graph wiring with port-type compatibility.
+- `papers/` directory with 7 research summaries documenting design rationale.
+- qwen3 `<think>` tag stripping for plan/selection parsing.
+- Regex-based parameter inference for dimensions, opacity, angles.
+- Query-order-preserving keyword matching in deterministic fallback.
+
+### Changed
+- Rewrote `chatbot/generation/graph_generator.py` with multi-stage orchestration (old version backed up as `graph_generator_legacy.py`).
+- API version bumped to 0.7.0.
+- Updated repair loop tests for new architecture semantics.
+
+### Fixed
+- Astrophotography pipelines now correctly use `load_folder` for stacking workflows.
+- "resize"/"resizing" keyword matching now works for both forms.
+- Branch examples use realistic overlay pattern instead of unreachable multi-branch topology.
+
+### Verified
+- Python chatbot test suite: 28 passed.
+- Rust library tests: 121 passed (111 + 2 + 8), 0 failed.
+
 ## [0.5.0] - 2026-03-16
 
 ### Fixed
