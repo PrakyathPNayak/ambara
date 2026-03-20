@@ -60,6 +60,7 @@ class LLMClient:
         self.force_mock = force_mock
         self.anthropic_key = os.getenv("ANTHROPIC_API_KEY")
         self.openai_key = os.getenv("OPENAI_API_KEY")
+        self.groq_key = os.getenv("GROQ_API_KEY")
         self.ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
 
         if force_mock:
@@ -68,6 +69,9 @@ class LLMClient:
         elif self.anthropic_key:
             self.backend = "anthropic"
             self.model_name = "claude-sonnet-4-5"
+        elif self.groq_key:
+            self.backend = "groq"
+            self.model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
         elif self.openai_key:
             self.backend = "openai"
             self.model_name = "gpt-4o"
@@ -96,6 +100,9 @@ class LLMClient:
 
         if self.backend == "openai":
             return self._generate_openai(prompt, temperature)
+
+        if self.backend == "groq":
+            return self._generate_groq(prompt, temperature)
 
         try:
             return self._generate_ollama(prompt, temperature)
@@ -213,3 +220,38 @@ class LLMClient:
         data = response.json()
         message = data.get("message", {})
         return message.get("content", _mock_graph_json())
+
+    def _generate_groq(self, prompt: dict[str, Any], temperature: float) -> str:
+        """Call Groq chat completions API (OpenAI-compatible).
+
+        Args:
+            prompt: Messages payload.
+            temperature: Sampling temperature.
+
+        Returns:
+            Model text response.
+
+        Raises:
+            RuntimeError: If request fails.
+        """
+        if not self.groq_key:
+            raise RuntimeError("GROQ_API_KEY missing")
+
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {
+            "authorization": f"Bearer {self.groq_key}",
+            "content-type": "application/json",
+        }
+        body = {
+            "model": self.model_name,
+            "temperature": temperature,
+            "messages": prompt.get("messages", []),
+        }
+        try:
+            response = requests.post(url, headers=headers, json=body, timeout=60)
+        except requests.RequestException as err:
+            raise RuntimeError(f"Groq request failed: {err}") from err
+        if response.status_code >= 400:
+            raise RuntimeError(f"Groq request failed: {response.status_code} {response.text}")
+        data = response.json()
+        return data["choices"][0]["message"]["content"]

@@ -328,6 +328,25 @@ The built-ins are split by topic. Each file typically:
   - Text rendering filter:
     - `TextOverlay` (built-in 8×13 bitmap font, no external font files).
     - Configurable text, position, scale, and RGB color.
+
+- `src/filters/builtin/api.rs`
+  - API/model integration filters:
+    - `HttpImageFetch` (download image from URL)
+    - `StableDiffusionGenerate` (text-to-image via API)
+    - `ImageClassify` (classification API bridge)
+    - `ModelInference` (generic image model REST inference)
+    - `StyleTransfer` (content + style API workflow)
+
+- `src/filters/builtin/comfyui.rs`
+  - ComfyUI workflow nodes (communicate with a running ComfyUI server):
+    - `ComfyCheckpointLoader` (load SD checkpoints, output model/CLIP/VAE refs)
+    - `ComfyClipTextEncode` (CLIP text encoding)
+    - `ComfyKSampler` (sampling/denoising with sampler/scheduler/CFG control)
+    - `ComfyVaeDecode` (decode latent to pixel image, download result)
+    - `ComfyLoraLoader` (apply LoRA with model/CLIP strength)
+    - `ComfyImageUpscale` (model-based upscaling via RealESRGAN etc.)
+    - `ComfyControlNetApply` (apply ControlNet to conditioning)
+    - `ComfyWorkflowRunner` (run arbitrary ComfyUI API-format workflow JSON)
 ---
 
 ## UI (React + Vite): `ui/`
@@ -485,20 +504,23 @@ This is the desktop “host” application. It compiles to a native binary and e
 - `chatbot/api/main.py` — FastAPI server (port 8765) with endpoints for chat, graph generation, validation, execution, and filter search.
 - `chatbot/models.py` — Pydantic models for API request/response types.
 
-### Generation pipeline (multi-stage agentic, v0.7.0)
+### Generation pipeline (agentic + code-as-RAG, v0.8.0)
 
 - `chatbot/generation/planner.py` — **Stage 1: Plan.** Decomposes user query into ordered processing steps using a compact filter catalog and few-shot examples. Handles qwen3 `<think>` tag stripping.
 - `chatbot/generation/selector.py` — **Stage 2: Select.** For each planned step, selects the best filter from top-5 candidates using compact "filter card" format. Handles `<think>` tag stripping.
 - `chatbot/generation/connector.py` — **Stage 3: Connect.** Deterministic (no LLM) graph wiring using port-type compatibility rules. Supports linear, batch, and branch topologies.
 - `chatbot/generation/graph_generator.py` — **Orchestrator.** Runs Plan → Select → Connect → Validate+Repair with graceful fallback to keyword-based deterministic generation.
 - `chatbot/generation/graph_validator.py` — Schema validation, filter ID whitelist, and connection port checks.
-- `chatbot/generation/llm_client.py` — Multi-backend LLM client (Ollama/Anthropic/OpenAI/Mock).
+- `chatbot/generation/llm_client.py` — Multi-backend LLM client (Ollama/Anthropic/OpenAI/Groq/Mock).
+- `chatbot/generation/tools.py` — Tool schema and execution layer used by the chat agent.
+- `chatbot/generation/agent.py` — ReAct-style router that decides when to answer directly, call tools, or generate a graph.
 - `chatbot/generation/prompt_builder.py` — Legacy prompt builder (used by repair stage).
 - `chatbot/generation/repair_prompt_builder.py` — Builds targeted repair prompts for Stage 4.
 
 ### Retrieval
 
 - `chatbot/retrieval/retriever.py` — ChromaDB-backed semantic retrieval with sentence-transformers embeddings.
+- `chatbot/retrieval/code_retriever.py` — Source-code parser/indexer that extracts filter metadata directly from Rust implementations (primary retrieval path for v0.8.0).
 
 ### Corpus and scripts
 
@@ -512,6 +534,14 @@ This is the desktop “host” application. It compiles to a native binary and e
 ### Research
 
 - `papers/` — 7 research paper summaries documenting the design rationale for the multi-stage pipeline.
+
+---
+## Infrastructure and configuration
+
+- `.env.example` — Template for environment variables (LLM keys, Ollama URL, ComfyUI URL).
+- `docker-compose.yml` — Docker Compose config with Ollama (GPU passthrough, auto-pull qwen2.5:7b) and chatbot sidecar.
+- `Dockerfile.chatbot` — Python 3.11 slim container for the FastAPI chatbot sidecar.
+- `chatbot/requirements.txt` — Python package dependencies for the chatbot.
 
 ---
 ## Not documented (generated / not source-of-truth)

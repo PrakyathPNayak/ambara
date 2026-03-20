@@ -67,6 +67,9 @@ lru = "0.12"
 # Base64 encoding for image previews
 base64 = "0.22"
 
+# HTTP client for API filters
+ureq = { version = "2", features = ["json"] }
+
 # Plugin system
 libloading = "0.8"
 toml = "0.8"

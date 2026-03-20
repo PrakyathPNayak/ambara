@@ -13,7 +13,6 @@ from typing import Any
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from chatbot.api.intent_classifier import IntentClassifier
 from chatbot.api.models import (
     ChatRequest,
     ChatResponse,
@@ -27,14 +26,12 @@ from chatbot.api.models import (
     LLMConfigResponse,
 )
 from chatbot.api.session import SessionStore
-from chatbot.corpus.embedder import build_embeddings
-from chatbot.corpus.extractor import extract_filter_docs
-from chatbot.corpus.schema_validator import validate_corpus
+from chatbot.generation.agent import Agent
 from chatbot.generation.graph_generator import GraphGenerator
 from chatbot.generation.graph_validator import GraphValidator
 from chatbot.generation.llm_client import LLMClient
 from chatbot.models import GenerationResultModel
-from chatbot.retrieval.retriever import FilterRetriever
+from chatbot.retrieval.code_retriever import CodeRetriever
 
 ROOT = Path(__file__).resolve().parents[2]
 LOGGER = logging.getLogger(__name__)
@@ -47,7 +44,7 @@ SCHEMA_PATH = ROOT / "chatbot" / "corpus" / "graph_schema.json"
 FILTER_IDS_PATH = ROOT / "build" / "filter_id_set.json"
 
 
-app = FastAPI(title="Ambara Chatbot API", version="0.7.0")
+app = FastAPI(title="Ambara Chatbot API", version="0.8.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -55,51 +52,45 @@ app.add_middleware(
     allow_headers=["*"],
 )
 sessions = SessionStore()
-classifier = IntentClassifier()
 chat_llm = LLMClient(force_mock=False)
+code_retriever = CodeRetriever()
 
 
 def _ensure_corpus() -> None:
-    """Ensure corpus exists for API startup.
+    """Ensure filter corpus and supporting artifacts are built from source code.
 
-    Args:
-        None.
-
-    Returns:
-        None.
-
-    Raises:
-        OSError: If corpus generation fails to write artifacts.
+    Uses CodeRetriever to parse Rust source files directly (code-as-RAG),
+    then exports corpus JSON for components that still need it.
     """
-    if not CORPUS_PATH.exists():
-        extract_filter_docs()
+    code_retriever.refresh()
+
+    # Export corpus JSON for graph validator and other components
+    if not CORPUS_PATH.exists() or _corpus_stale():
+        code_retriever.export_corpus(CORPUS_PATH)
 
     corpus = json.loads(CORPUS_PATH.read_text())
-    errors = validate_corpus(corpus)
-    if errors:
-        raise RuntimeError(f"Corpus validation failed: {errors}")
-
     if not FILTER_IDS_PATH.exists():
         FILTER_IDS_PATH.write_text(json.dumps([item["id"] for item in corpus], indent=2))
 
-    if not CHROMA_PATH.exists():
-        build_embeddings()
+
+def _corpus_stale() -> bool:
+    """Check if corpus JSON is older than any Rust source file."""
+    if not CORPUS_PATH.exists():
+        return True
+    corpus_mtime = CORPUS_PATH.stat().st_mtime
+    src_dir = ROOT / "src" / "filters" / "builtin"
+    for rs_file in src_dir.glob("*.rs"):
+        if rs_file.name == "mod.rs":
+            continue
+        if rs_file.stat().st_mtime > corpus_mtime:
+            return True
+    return False
 
 
 def _generator() -> GraphGenerator:
-    """Create graph generator instance.
-
-    Args:
-        None.
-
-    Returns:
-        Graph generator.
-
-    Raises:
-        OSError: If supporting files are missing.
-    """
+    """Create graph generator instance using CodeRetriever."""
     return GraphGenerator(
-        chroma_path=str(CHROMA_PATH),
+        code_retriever=code_retriever,
         corpus_path=str(CORPUS_PATH),
         examples_path=str(EXAMPLES_PATH),
         llm_client=chat_llm,
@@ -129,69 +120,28 @@ def on_startup() -> None:
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest) -> ChatResponse:
-    """Handle conversational chat and optional graph generation.
+    """Handle conversational chat via the agentic router.
 
-    Args:
-        req: Chat request payload.
-
-    Returns:
-        Chat response payload.
-
-    Raises:
-        RuntimeError: If generation fails unexpectedly.
+    The agent decides whether to explain, search, or generate a graph
+    based on the user's message and conversation history.
     """
     sessions.append_message(req.session_id, {"role": "user", "content": req.message})
-    intent = classifier.classify(req.message)
+    history = sessions.get_history(req.session_id)
 
-    if intent in {"GRAPH_REQUEST", "CLARIFICATION"}:
-        result = _generator().generate(req.message)
-        if result.valid:
-            graph_nodes = result.graph.get("nodes", []) if result.graph else []
-            node_count = len(graph_nodes)
-            used_ids = [str(n.get("filter_id", "")) for n in graph_nodes if isinstance(n, dict)]
-            # Keep order while removing duplicates.
-            dedup_used_ids = list(dict.fromkeys([fid for fid in used_ids if fid]))
-            filter_names = ", ".join(dedup_used_ids[:4]) if dedup_used_ids else "relevant filters"
-            reply = (
-                f"I built a {node_count}-node pipeline using {filter_names}."
-                f" Click 'Insert Graph' to load it into the canvas."
-            )
-            sessions.append_message(req.session_id, {"role": "assistant", "content": reply})
-            return ChatResponse(
-                reply=reply,
-                session_id=req.session_id,
-                graph_generated=True,
-                graph=result.graph,
-            )
-        errors_summary = "; ".join(result.errors[:2]) if result.errors else "unknown error"
-        reply = (
-            f"I could not build a valid graph: {errors_summary}. "
-            "Please configure a real LLM backend (OpenAI/Anthropic/Ollama) and try again."
-        )
-        sessions.append_message(req.session_id, {"role": "assistant", "content": reply})
-        return ChatResponse(reply=reply, session_id=req.session_id, graph_generated=False, graph=None)
+    agent = Agent(
+        llm_client=chat_llm,
+        retriever=code_retriever,
+        generator=_generator(),
+    )
+    result = agent.run(req.message, session_history=history)
 
-    # For QUESTION and OTHER intents: retrieve relevant filters and give an informative reply
-    from chatbot.retrieval.retriever import FilterRetriever as _FR  # local to avoid import cycles
-    retriever = _FR(str(CHROMA_PATH), str(CORPUS_PATH))
-    relevant = retriever.retrieve(req.message, top_k=4)
-    if relevant:
-        descriptions = "; ".join(
-            f"{f['id']} — {f.get('description', '')[:70]}"
-            for f in relevant[:3]
-        )
-        reply = (
-            f"Here are some Ambara filters relevant to your query: {descriptions}."
-            " To build a pipeline around these, describe what you'd like to do with them."
-        )
-    else:
-        reply = (
-            "Ambara supports 74+ image-processing filters — blur, resize, crop, rotate, color correction, "
-            "compositing, batch processing, and more. Describe your image processing goal and I'll build a pipeline."
-        )
-
-    sessions.append_message(req.session_id, {"role": "assistant", "content": reply})
-    return ChatResponse(reply=reply, session_id=req.session_id, graph_generated=False, graph=None)
+    sessions.append_message(req.session_id, {"role": "assistant", "content": result.reply})
+    return ChatResponse(
+        reply=result.reply,
+        session_id=req.session_id,
+        graph_generated=result.graph_generated,
+        graph=result.graph,
+    )
 
 
 @app.post("/graph/generate", response_model=GenerationResultModel)
@@ -264,59 +214,28 @@ def graph_execute(req: GraphExecuteRequest) -> GraphExecuteResult:
 
 @app.get("/filters")
 def filters() -> list[dict[str, Any]]:
-    """Return full filter corpus.
-
-    Args:
-        None.
-
-    Returns:
-        List of filter docs.
-
-    Raises:
-        OSError: If corpus file is unavailable.
-    """
+    """Return full filter corpus from code-as-RAG retriever."""
     _ensure_corpus()
-    return json.loads(CORPUS_PATH.read_text())
+    return code_retriever.build_corpus_json()
 
 
 @app.get("/filters/search")
 def filters_search(q: str = Query(...), top_k: int = Query(5)) -> list[dict[str, Any]]:
-    """Search filters by semantic retrieval.
-
-    Args:
-        q: Query string.
-        top_k: Maximum number of results.
-
-    Returns:
-        Matching filter docs.
-
-    Raises:
-        RuntimeError: If retrieval setup fails.
-    """
-    retriever = FilterRetriever(str(CHROMA_PATH), str(CORPUS_PATH))
-    return retriever.retrieve(q, top_k=top_k)
+    """Search filters by keyword using code-as-RAG retriever."""
+    code_retriever._ensure_loaded()
+    results = code_retriever.search(q, top_k=top_k)
+    return [r.to_dict() for r in results]
 
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    """Service health and readiness endpoint.
-
-    Args:
-        None.
-
-    Returns:
-        Health response.
-
-    Raises:
-        OSError: If corpus cannot be read.
-    """
+    """Service health and readiness endpoint."""
     _ensure_corpus()
-    filters_count = len(json.loads(CORPUS_PATH.read_text())) if CORPUS_PATH.exists() else 0
-    chroma_ready = CHROMA_PATH.exists()
+    filters_count = len(code_retriever.all_filter_ids)
     return HealthResponse(
         status="ok",
         filters_loaded=filters_count,
-        chroma_ready=chroma_ready,
+        chroma_ready=True,  # No longer needed but kept for API compat
         llm_backend=chat_llm.backend,
         llm_model=chat_llm.model_name,
     )
@@ -361,6 +280,8 @@ def update_llm_config(req: LLMConfigRequest) -> LLMConfigResponse:
             chat_llm.openai_key = req.api_key
         elif chat_llm.backend == "anthropic":
             chat_llm.anthropic_key = req.api_key
+        elif chat_llm.backend == "groq":
+            chat_llm.groq_key = req.api_key
     return LLMConfigResponse(
         provider=chat_llm.backend,
         model=chat_llm.model_name,

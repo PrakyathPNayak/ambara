@@ -26,7 +26,7 @@ from chatbot.generation.planner import build_plan_prompt, parse_plan
 from chatbot.generation.repair_prompt_builder import RepairPromptBuilder
 from chatbot.generation.selector import build_select_prompt, format_filter_card, parse_selection
 from chatbot.models import GenerationResultModel
-from chatbot.retrieval.retriever import FilterRetriever
+from chatbot.retrieval.code_retriever import CodeRetriever
 
 LOGGER = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parents[2]
@@ -68,21 +68,45 @@ class GraphGenerator:
 
     def __init__(
         self,
-        chroma_path: str,
-        corpus_path: str,
-        examples_path: str,
+        code_retriever: CodeRetriever | None = None,
+        corpus_path: str = "",
+        examples_path: str = "",
         force_mock_llm: bool = False,
         llm_client: LLMClient | None = None,
+        # Legacy params for backward compat
+        chroma_path: str = "",
     ) -> None:
-        self.filter_retriever = FilterRetriever(chroma_path, corpus_path)
+        self.code_retriever = code_retriever or CodeRetriever()
+        self.code_retriever._ensure_loaded()
         self.repair_builder = RepairPromptBuilder()
         self.llm_client = llm_client or LLMClient(force_mock=force_mock_llm)
+
+        # Build corpus_by_id from CodeRetriever
+        self.corpus_by_id: dict[str, dict[str, Any]] = {
+            info.id: info.to_dict()
+            for info in self.code_retriever.all_filters
+        }
+
+        # Validator still uses file-based corpus for schema checking
+        corpus_path = corpus_path or str(ROOT / "build" / "filter_corpus.json")
+        filter_ids_path = str(ROOT / "build" / "filter_id_set.json")
+
+        # Ensure corpus file exists for validator
+        corpus_file = Path(corpus_path)
+        if not corpus_file.exists():
+            self.code_retriever.export_corpus(corpus_file)
+
+        # Ensure filter IDs file exists
+        ids_file = Path(filter_ids_path)
+        if not ids_file.exists():
+            ids_file.parent.mkdir(parents=True, exist_ok=True)
+            ids_file.write_text(json.dumps(list(self.corpus_by_id.keys()), indent=2))
+
         self.validator = GraphValidator(
             str(ROOT / "chatbot" / "corpus" / "graph_schema.json"),
-            str(ROOT / "build" / "filter_id_set.json"),
+            filter_ids_path,
             corpus_path,
         )
-        self.corpus_by_id: dict[str, dict[str, Any]] = dict(self.filter_retriever.by_id)
 
     # ------------------------------------------------------------------
     # Public API
@@ -115,7 +139,8 @@ class GraphGenerator:
 
     def _plan(self, query: str) -> dict[str, Any] | None:
         """Ask the LLM to decompose the query into processing steps."""
-        prompt = build_plan_prompt(query)
+        dynamic_catalog = self.code_retriever.build_catalog()
+        prompt = build_plan_prompt(query, catalog_override=dynamic_catalog)
         try:
             raw = self.llm_client.generate(prompt, temperature=0.0)
         except RuntimeError as err:
@@ -155,9 +180,10 @@ class GraphGenerator:
                 })
                 continue
 
-            # Retrieve candidates via semantic search.
+            # Retrieve candidates via code-as-RAG search.
             search_query = f"{operation} {description}".strip()
-            candidates = self.filter_retriever.retrieve(search_query, top_k=5)
+            candidates_info = self.code_retriever.search(search_query, top_k=5)
+            candidates = [c.to_dict() for c in candidates_info]
             if not candidates:
                 LOGGER.warning("No candidates found for step: %s", step)
                 continue

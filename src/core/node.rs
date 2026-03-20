@@ -44,6 +44,8 @@ pub enum Category {
     Math,
     /// Utility nodes
     Utility,
+    /// API and external service integrations
+    Api,
     /// Custom/user-defined
     Custom,
 }
@@ -67,6 +69,7 @@ impl Category {
             Category::Analyze => "Analyze",
             Category::Math => "Math",
             Category::Utility => "Utility",
+            Category::Api => "Api",
             Category::Custom => "Custom",
         }
     }
@@ -89,6 +92,7 @@ impl Category {
             Category::Analyze,
             Category::Math,
             Category::Utility,
+            Category::Api,
             Category::Custom,
         ]
     }

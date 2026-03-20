@@ -1,3 +1,87 @@
+# Ambara v0.9.0 Release Notes
+
+**Release Date:** 21 March 2026
+
+## Highlights
+
+- **8 ComfyUI workflow nodes** — Full ComfyUI integration as native Ambara nodes. Load checkpoints, encode prompts with CLIP, sample with KSampler, decode with VAE, apply LoRAs, upscale, use ControlNets, or run arbitrary ComfyUI workflows.
+- **Groq API support** — Set `GROQ_API_KEY` to use Groq's ultra-fast inference (llama-3.3-70b-versatile by default). Auto-selected when the key is present.
+- **Docker Compose with Ollama + GPU** — One-command setup: `docker compose up` starts Ollama with NVIDIA GPU passthrough, auto-pulls `qwen2.5:7b` (fits RTX 4050 6 GB VRAM), and launches the chatbot sidecar.
+- **Environment configuration** — New `.env.example` documents all config options.
+
+## What Changed
+
+### ComfyUI nodes (`src/filters/builtin/comfyui.rs`)
+- `comfy_checkpoint_loader` — Load a Stable Diffusion checkpoint; outputs model/CLIP/VAE references.
+- `comfy_clip_text_encode` — Encode text prompts via CLIP.
+- `comfy_ksampler` — Core sampling step with sampler, scheduler, CFG, seed, and denoise controls.
+- `comfy_vae_decode` — Decode latent images to pixel images; downloads result from ComfyUI.
+- `comfy_lora_loader` — Apply LoRA with independent model/CLIP strength.
+- `comfy_image_upscale` — Upscale via RealESRGAN or other upscale models in ComfyUI.
+- `comfy_controlnet_apply` — Guide generation with ControlNet (canny, depth, pose, etc.).
+- `comfy_workflow_runner` — Paste any ComfyUI API-format workflow JSON and execute it.
+
+### Chatbot
+- Added Groq backend (`_generate_groq`) using the OpenAI-compatible API at `api.groq.com`.
+- Backend auto-selection priority: Anthropic → Groq → OpenAI → Ollama (local).
+- Runtime `/llm/config` endpoint now supports updating Groq API key.
+
+### Infrastructure
+- `docker-compose.yml` — Ollama + chatbot services with GPU passthrough.
+- `Dockerfile.chatbot` — Python 3.11 slim image for the chatbot sidecar.
+- `chatbot/requirements.txt` — Pinned Python dependencies.
+- `.env.example` — Full environment variable documentation.
+
+---
+
+# Ambara v0.8.0 Release Notes
+
+**Release Date:** 20 March 2026
+
+## Highlights
+
+- **Code-as-RAG retrieval** — The chatbot now reads Ambara's Rust source code directly to retrieve filter metadata and behavior. This removes drift between implementation and retrieval corpus.
+- **Agentic chat router** — The old keyword intent classifier has been replaced with an LLM-driven tool-using agent that decides when to explain filters, search, suggest pipelines, or generate full graphs.
+- **API/model integration filters** — Added 5 new built-in filters for external model and API workflows:
+	- `http_image_fetch`
+	- `stable_diffusion_generate`
+	- `image_classify`
+	- `model_inference`
+	- `style_transfer`
+- **New `Api` category** — Built-in categories now include an explicit API integration class for model-serving and remote inference nodes.
+- **Dynamic planning catalog** — Planning prompt catalog is now generated from live code-retriever data instead of a stale static string.
+
+## What Changed
+
+### Chatbot backend
+- Added `chatbot/retrieval/code_retriever.py` for source-level filter parsing and in-memory indexing.
+- Added `chatbot/generation/tools.py` with structured tool schemas and runtime tool execution.
+- Added `chatbot/generation/agent.py` implementing a ReAct-style multi-round tool loop.
+- Updated `chatbot/api/main.py`:
+	- `/chat` now uses `Agent`
+	- `/filters` and `/filters/search` now use code-as-RAG source retrieval
+	- startup corpus generation now derives from parsed source
+
+### Graph generation
+- Updated `chatbot/generation/graph_generator.py` to consume `CodeRetriever` instead of ChromaDB retrieval.
+- Updated `chatbot/generation/planner.py` to accept dynamic catalog injection.
+
+### Rust filter system
+- Added `src/filters/builtin/api.rs` with API/model filters.
+- Updated `src/filters/builtin/mod.rs` to register the new `api` module.
+- Updated `src/core/node.rs` to add `Category::Api`.
+- Added `ureq` dependency in `Cargo.toml` for HTTP calls.
+
+### Tests
+- Added `chatbot/tests/test_code_retriever.py` to validate code-retriever indexing/search, tool executor behavior, and agent mock-mode interactions.
+
+## Verification
+
+- `cargo check`: successful
+- Python test execution in this environment was blocked by a broken interpreter (`ModuleNotFoundError: encodings`), so pytest could not be run in-session.
+
+---
+
 # Ambara v0.7.1 Release Notes
 
 **Release Date:** 19 March 2026

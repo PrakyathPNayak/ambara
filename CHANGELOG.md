@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-03-21
+
+### Added
+- 8 ComfyUI workflow nodes in `src/filters/builtin/comfyui.rs`:
+  - `comfy_checkpoint_loader` — load SD checkpoints through ComfyUI
+  - `comfy_clip_text_encode` — CLIP text encoding
+  - `comfy_ksampler` — full KSampler with sampler/scheduler/CFG control
+  - `comfy_vae_decode` — decode latent images to pixels
+  - `comfy_lora_loader` — load LoRA models with strength control
+  - `comfy_image_upscale` — model-based image upscaling (RealESRGAN, etc.)
+  - `comfy_controlnet_apply` — apply ControlNet to conditioning
+  - `comfy_workflow_runner` — run arbitrary ComfyUI workflow JSON
+- Groq API backend in `chatbot/generation/llm_client.py` (auto-selected when `GROQ_API_KEY` is set).
+- Docker Compose configuration (`docker-compose.yml`) with:
+  - Ollama service with NVIDIA GPU passthrough
+  - Auto-pull of `qwen2.5:7b` (optimised for RTX 4050 / 6 GB VRAM)
+  - Chatbot sidecar service
+- `Dockerfile.chatbot` for containerised chatbot deployment.
+- `chatbot/requirements.txt` for Python dependency management.
+- `.env.example` documenting all environment variables.
+
+### Changed
+- `src/filters/builtin/mod.rs` now registers the `comfyui` module.
+- `chatbot/api/main.py` runtime config endpoint now supports Groq API key updates.
+- LLM auto-selection priority: Anthropic → Groq → OpenAI → Ollama.
+
+## [0.8.0] - 2026-03-20
+
+### Added
+- Code-as-RAG retrieval via `chatbot/retrieval/code_retriever.py`, which parses Rust filter source directly instead of relying on embedding-only metadata.
+- Agentic tool layer in `chatbot/generation/tools.py` with structured tool schemas and executor functions:
+  - `search_filters`, `get_filter_details`, `list_categories`, `get_compatible_filters`, `generate_graph`, `explain_filter`, `suggest_pipeline`, `explain_graph`.
+- LLM-driven agent router in `chatbot/generation/agent.py` replacing keyword intent routing for chat behavior.
+- New API/model filters in `src/filters/builtin/api.rs`:
+  - `http_image_fetch`
+  - `stable_diffusion_generate`
+  - `image_classify`
+  - `model_inference`
+  - `style_transfer`
+- New Rust filter category `Api` in `src/core/node.rs`.
+- Test coverage for code-as-RAG, tools, and agent mock-mode in `chatbot/tests/test_code_retriever.py`.
+
+### Changed
+- `chatbot/api/main.py` now routes `/chat` through the new agent and uses `CodeRetriever` for filter listing/search.
+- `chatbot/generation/graph_generator.py` now consumes `CodeRetriever` as the primary filter source and builds a dynamic planning catalog from live source data.
+- `chatbot/generation/planner.py` now supports dynamic catalog injection for up-to-date planning prompts.
+- `src/filters/builtin/mod.rs` now registers the new `api` module.
+- `Cargo.toml` now includes `ureq` for blocking HTTP API filters.
+
+### Notes
+- Python runtime in this environment is currently broken (`encodings` module missing), so pytest execution could not be completed here. Rust compile validation (`cargo check`) succeeded after the new filter integration.
+
 ## [0.7.1] - 2026-03-19
 
 ### Added

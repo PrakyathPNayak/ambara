@@ -109,15 +109,18 @@ PLAN_EXAMPLES = [
 ]
 
 
-def build_plan_prompt(query: str) -> dict[str, list[dict[str, str]]]:
+def build_plan_prompt(query: str, catalog_override: str | None = None) -> dict[str, list[dict[str, str]]]:
     """Build the prompt for the planning stage.
 
     Args:
         query: User's natural language request.
+        catalog_override: Optional dynamic catalog string from CodeRetriever.
+            If None, uses the static FILTER_CATALOG.
 
     Returns:
         OpenAI/Anthropic-style messages dict.
     """
+    catalog = catalog_override or FILTER_CATALOG
     examples_text = "\n\n".join(
         f'Query: "{ex["query"]}"\nPlan:\n```json\n{json.dumps(ex["plan"], indent=2)}\n```'
         for ex in PLAN_EXAMPLES
@@ -128,7 +131,7 @@ def build_plan_prompt(query: str) -> dict[str, list[dict[str, str]]]:
         "Your job is to break down the user's image processing request into an ordered "
         "list of concrete processing steps.\n\n"
         "AVAILABLE OPERATIONS BY CATEGORY:\n"
-        f"{FILTER_CATALOG}\n\n"
+        f"{catalog}\n\n"
         "RULES:\n"
         "1. Every pipeline must start with an input operation (load_image or load_folder).\n"
         "2. Every pipeline must end with an output operation (save_image or batch_save_images).\n"

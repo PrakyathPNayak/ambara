@@ -20,6 +20,8 @@ mod edge;
 mod noise;
 mod draw;
 mod text;
+mod api;
+mod comfyui;
 
 use crate::filters::registry::FilterRegistry;
 
@@ -43,6 +45,8 @@ pub fn register_all(registry: &mut FilterRegistry) {
     noise::register(registry);
     draw::register(registry);
     text::register(registry);
+    api::register(registry);
+    comfyui::register(registry);
 }
 
 // Re-export for direct access
