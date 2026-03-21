@@ -12,6 +12,8 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    networks:
+      - ambara
     healthcheck:
       test: [ "CMD", "ollama", "list" ]
       interval: 10s
@@ -37,6 +39,8 @@ services:
       "
     environment:
       - OLLAMA_HOST=http://ollama:11434
+    networks:
+      - ambara
 
   # ---------------------------------------------------------------------------
   # Ambara chatbot sidecar (Python FastAPI)
@@ -64,6 +68,12 @@ services:
       - ./src:/app/src:ro
       - ./chatbot:/app/chatbot
       - ./build:/app/build
+    networks:
+      - ambara
 
 volumes:
   ollama_data:
+
+networks:
+  ambara:
+    driver: bridge
