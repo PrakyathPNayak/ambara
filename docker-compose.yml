@@ -1,8 +1,8 @@
-version: "3.8"
-
 services:
   # ---------------------------------------------------------------------------
-  # Ollama — local LLM inference server with GPU passthrough
+  # Ollama — local LLM inference server (CPU mode)
+  # For GPU support, run:  docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
+  # CPU-only:              docker compose up
   # ---------------------------------------------------------------------------
   ollama:
     image: ollama/ollama:latest
@@ -12,17 +12,8 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: [ "CMD", "curl", "-f", "http://localhost:11434/api/tags" ]
       interval: 10s
       timeout: 5s
       retries: 5
