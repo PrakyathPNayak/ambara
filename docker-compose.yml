@@ -13,10 +13,11 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:11434/api/tags" ]
+      test: [ "CMD", "wget", "-qO", "/dev/null", "http://localhost:11434/api/tags" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 20s
 
   # ---------------------------------------------------------------------------
   # Model bootstrap — pulls the best model for RTX 4050 (6 GB usable VRAM)
