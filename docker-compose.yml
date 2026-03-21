@@ -1,8 +1,9 @@
 services:
   # ---------------------------------------------------------------------------
-  # Ollama — local LLM inference server (CPU mode)
-  # For GPU support, run:  docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
-  # CPU-only:              docker compose up
+  # Ollama — local LLM inference server
+  # Starts the server, then pulls qwen2.5:7b (fits in 6 GB VRAM on RTX 4050)
+  # For GPU passthrough:  docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
+  # CPU-only:             docker compose up
   # ---------------------------------------------------------------------------
   ollama:
     image: ollama/ollama:latest
@@ -12,35 +13,23 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-    networks:
-      - ambara
+    entrypoint: >
+      sh -c "
+        /bin/ollama serve &
+        SERVE_PID=$$!
+        echo '[ambara] Waiting for Ollama server to be ready...'
+        until /bin/ollama list > /dev/null 2>&1; do sleep 2; done
+        echo '[ambara] Pulling qwen2.5:7b (this may take a while on first run)...'
+        /bin/ollama pull qwen2.5:7b
+        echo '[ambara] Model ready. Serving.'
+        wait $$SERVE_PID
+      "
     healthcheck:
       test: [ "CMD", "ollama", "list" ]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 20s
-
-  # ---------------------------------------------------------------------------
-  # Model bootstrap — pulls the best model for RTX 4050 (6 GB usable VRAM)
-  # qwen2.5:7b is a strong 7B parameter model that fits in ~5 GB VRAM
-  # ---------------------------------------------------------------------------
-  ollama-pull:
-    image: ollama/ollama:latest
-    container_name: ambara-ollama-pull
-    depends_on:
-      ollama:
-        condition: service_healthy
-    restart: "no"
-    entrypoint: >
-      sh -c "
-        ollama pull qwen2.5:7b &&
-        echo '✓ qwen2.5:7b ready'
-      "
-    environment:
-      - OLLAMA_HOST=http://ollama:11434
-    networks:
-      - ambara
+      retries: 20
+      start_period: 60s
 
   # ---------------------------------------------------------------------------
   # Ambara chatbot sidecar (Python FastAPI)
@@ -68,12 +57,6 @@ services:
       - ./src:/app/src:ro
       - ./chatbot:/app/chatbot
       - ./build:/app/build
-    networks:
-      - ambara
 
 volumes:
   ollama_data:
-
-networks:
-  ambara:
-    driver: bridge
