@@ -84,9 +84,151 @@
 }
 
 .chat-content {
-    white-space: pre-wrap;
     font-size: 12px;
-    line-height: 1.35;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+/* Markdown rendered elements */
+.chat-content p {
+    margin: 0 0 6px;
+}
+
+.chat-content p:last-child {
+    margin-bottom: 0;
+}
+
+.chat-content ul,
+.chat-content ol {
+    margin: 4px 0;
+    padding-left: 18px;
+}
+
+.chat-content li {
+    margin: 2px 0;
+}
+
+.chat-content strong {
+    color: #e8eef4;
+}
+
+.chat-content em {
+    color: #b0becf;
+}
+
+/* Inline code */
+.chat-content code {
+    background: #14171d;
+    color: #8ab4f8;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+}
+
+/* Code blocks */
+.chat-content pre {
+    background: #0d1117;
+    border: 1px solid #2b3240;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin: 6px 0;
+    overflow-x: auto;
+    max-height: 240px;
+}
+
+.chat-content pre code {
+    background: none;
+    padding: 0;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #d8dee9;
+}
+
+/* Syntax highlighting theme (highlight.js dark) */
+.chat-content .hljs-keyword,
+.chat-content .hljs-selector-tag {
+    color: #c678dd;
+}
+
+.chat-content .hljs-string,
+.chat-content .hljs-attr {
+    color: #98c379;
+}
+
+.chat-content .hljs-number,
+.chat-content .hljs-literal {
+    color: #d19a66;
+}
+
+.chat-content .hljs-built_in,
+.chat-content .hljs-type {
+    color: #e5c07b;
+}
+
+.chat-content .hljs-comment {
+    color: #5c6370;
+    font-style: italic;
+}
+
+.chat-content .hljs-function {
+    color: #61afef;
+}
+
+.chat-content .hljs-variable,
+.chat-content .hljs-title {
+    color: #e06c75;
+}
+
+.chat-content .hljs-params {
+    color: #d8dee9;
+}
+
+/* Blockquote */
+.chat-content blockquote {
+    border-left: 3px solid #4f89c7;
+    margin: 6px 0;
+    padding: 2px 8px;
+    color: #9ba4b0;
+    background: #1a1f28;
+    border-radius: 0 4px 4px 0;
+}
+
+/* Tables */
+.chat-content table {
+    border-collapse: collapse;
+    margin: 6px 0;
+    font-size: 11px;
+    width: 100%;
+}
+
+.chat-content th,
+.chat-content td {
+    border: 1px solid #343946;
+    padding: 3px 6px;
+    text-align: left;
+}
+
+.chat-content th {
+    background: #1a1f28;
+    color: #8ab4f8;
+}
+
+/* Horizontal rule */
+.chat-content hr {
+    border: none;
+    border-top: 1px solid #343946;
+    margin: 8px 0;
+}
+
+/* Links */
+.chat-content a {
+    color: #8ab4f8;
+    text-decoration: none;
+}
+
+.chat-content a:hover {
+    text-decoration: underline;
 }
 
 .chat-meta {
@@ -97,13 +239,20 @@
 
 .chat-input-row {
     display: flex;
-    gap: 8px;
+    flex-direction: column;
+    gap: 4px;
     padding: 6px;
     border-top: 1px solid #343946;
     flex: 0 0 auto;
 }
 
-.chat-input-row textarea {
+.chat-input-controls {
+    display: flex;
+    gap: 4px;
+    align-items: flex-end;
+}
+
+.chat-input-controls textarea {
     flex: 1;
     background: #14171d;
     color: #e6edf3;
@@ -116,13 +265,60 @@
     max-height: 110px;
 }
 
-.chat-input-row button {
+.attach-image-button {
+    border: 1px solid #3b4252;
+    background: #1a1f28;
+    color: #b0b7c3;
+    border-radius: 8px;
+    padding: 7px 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.attach-image-button:hover {
+    background: #2c313c;
+    border-color: #4f89c7;
+}
+
+.chat-input-row button[type="submit"] {
     border: 1px solid #4f89c7;
     background: #2f6ead;
     color: #fff;
     border-radius: 8px;
     padding: 7px 11px;
     font-size: 12px;
+    flex-shrink: 0;
+}
+
+.chat-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 2px 0;
+}
+
+.chat-attachment-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #1a2733;
+    border: 1px solid #2b5278;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 10px;
+    color: #8ab4f8;
+}
+
+.chat-attachment-chip button {
+    background: none;
+    border: none;
+    color: #f0a0a0;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
 }
 
 .typing-indicator {

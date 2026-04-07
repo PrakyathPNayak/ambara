@@ -119,6 +119,30 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         },
         "required": ["graph_json"],
     },
+    {
+        "name": "set_input_image",
+        "description": (
+            "Set the input image path for the current pipeline. Use this when "
+            "the user provides or references an image file they want to process. "
+            "The path will be used as the load_image node's path parameter."
+        ),
+        "parameters": {
+            "path": {"type": "string", "description": "Absolute or relative path to the image file."},
+        },
+        "required": ["path"],
+    },
+    {
+        "name": "execute_pipeline",
+        "description": (
+            "Execute a generated graph pipeline through the Ambara processing engine. "
+            "Use this AFTER generate_graph + validate_graph to actually run the pipeline "
+            "and produce output images. Returns execution status and output paths."
+        ),
+        "parameters": {
+            "graph_json": {"type": "string", "description": "The graph JSON to execute."},
+        },
+        "required": ["graph_json"],
+    },
 ]
 
 
@@ -154,7 +178,10 @@ class ToolExecutor:
             "suggest_pipeline": self._suggest_pipeline,
             "explain_graph": self._explain_graph,
             "validate_graph": self._validate_graph,
+            "set_input_image": self._set_input_image,
+            "execute_pipeline": self._execute_pipeline,
         }
+        self._input_image_path: str | None = None
 
     def execute(self, tool_name: str, arguments: dict[str, Any]) -> str:
         """Execute a tool call and return the result as a string."""
@@ -200,8 +227,16 @@ class ToolExecutor:
         if not self.generator:
             return json.dumps({"error": "Graph generator not available."})
         result = self.generator.generate(query)
+        graph = result.graph
+        # Inject stored input image path into load_image nodes
+        if self._input_image_path and graph and "nodes" in graph:
+            for node in graph["nodes"]:
+                if node.get("filter_id") == "load_image":
+                    params = node.setdefault("parameters", {})
+                    if not params.get("path") or params["path"] in ("input.png", "image.png", ""):
+                        params["path"] = self._input_image_path
         return json.dumps({
-            "graph": result.graph,
+            "graph": graph,
             "valid": result.valid,
             "errors": result.errors,
             "explanation": result.explanation,
@@ -339,3 +374,81 @@ class ToolExecutor:
             return json.dumps({"valid": False, "errors": result.errors})
         except Exception as exc:
             return json.dumps({"valid": False, "errors": [f"Validation error: {exc}"]})
+
+    def _set_input_image(self, path: str) -> str:
+        """Store input image path for use in generated graphs."""
+        import os
+        # Validate path exists or is a plausible path
+        expanded = os.path.expanduser(path)
+        if os.path.isfile(expanded):
+            self._input_image_path = expanded
+            return json.dumps({
+                "success": True,
+                "path": expanded,
+                "message": f"Input image set to '{expanded}'. This will be used as the load_image path in generated graphs.",
+            })
+        # Accept the path anyway — it might be set before the image exists
+        self._input_image_path = expanded
+        return json.dumps({
+            "success": True,
+            "path": expanded,
+            "warning": f"Path '{expanded}' does not exist yet, but it will be used as the load_image path.",
+        })
+
+    def _execute_pipeline(self, graph_json: str) -> str:
+        """Execute a graph pipeline through Ambara's processing engine."""
+        import os
+        import subprocess
+        import tempfile
+        from pathlib import Path
+
+        root = Path(__file__).resolve().parents[2]
+
+        try:
+            graph = json.loads(graph_json)
+        except json.JSONDecodeError:
+            return json.dumps({"success": False, "errors": ["Invalid graph JSON."]})
+
+        # Write graph to temp file
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as fp:
+            path = Path(fp.name)
+            fp.write(json.dumps(graph))
+
+        try:
+            cmd = ["cargo", "run", "--release", "--", "load-graph", str(path), "--execute"]
+            proc = subprocess.run(
+                cmd, cwd=root, capture_output=True, text=True,
+                check=False, timeout=120,
+            )
+        except subprocess.TimeoutExpired:
+            return json.dumps({
+                "success": False,
+                "errors": ["Pipeline execution timed out after 120 seconds."],
+            })
+        finally:
+            path.unlink(missing_ok=True)
+
+        if proc.returncode != 0:
+            error_msg = proc.stderr.strip() or proc.stdout.strip() or "Execution failed"
+            return json.dumps({
+                "success": False,
+                "errors": [error_msg[:1000]],
+            })
+
+        # Parse output
+        try:
+            payload = json.loads(proc.stdout)
+            success = bool(payload.get("success", True))
+            errors = [str(e) for e in payload.get("errors", [])]
+            output_paths = payload.get("output_paths", [])
+        except json.JSONDecodeError:
+            success = True
+            errors = []
+            output_paths = []
+
+        return json.dumps({
+            "success": success,
+            "output_paths": output_paths,
+            "errors": errors,
+            "message": "Pipeline executed successfully." if success else "Pipeline execution had errors.",
+        })

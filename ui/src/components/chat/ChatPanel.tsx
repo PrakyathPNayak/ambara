@@ -1,7 +1,12 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 import { useChatApi } from '../../hooks/useChatApi';
 import { GraphPreviewCard } from './GraphPreviewCard';
 import './ChatPanel.css';
+
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp'];
 
 interface ChatPanelProps {
     onInsertGraph: (graph: Record<string, unknown>) => void;
@@ -10,6 +15,8 @@ interface ChatPanelProps {
 export function ChatPanel({ onInsertGraph }: ChatPanelProps) {
     const { sendMessage, messages, isTyping, connectionStatus, error, clearError } = useChatApi();
     const [draft, setDraft] = useState('');
+    const [attachedImages, setAttachedImages] = useState<string[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const statusLabel = useMemo(() => {
@@ -25,8 +32,34 @@ export function ChatPanel({ onInsertGraph }: ChatPanelProps) {
     const onSubmit = async (event: FormEvent) => {
         event.preventDefault();
         const message = draft;
+        const images = [...attachedImages];
         setDraft('');
-        await sendMessage(message);
+        setAttachedImages([]);
+        await sendMessage(message, images);
+    };
+
+    const onAttachImage = () => {
+        fileInputRef.current?.click();
+    };
+
+    const onFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (!files) return;
+        const paths: string[] = [];
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            // Use webkitRelativePath or name — in Tauri, file.name gives the full path
+            const path = (file as File & { path?: string }).path || file.name;
+            if (IMAGE_EXTENSIONS.some(ext => path.toLowerCase().endsWith(ext))) {
+                paths.push(path);
+            }
+        }
+        setAttachedImages(prev => [...prev, ...paths]);
+        event.target.value = '';
+    };
+
+    const removeAttachment = (index: number) => {
+        setAttachedImages(prev => prev.filter((_, i) => i !== index));
     };
 
     return (
@@ -50,7 +83,11 @@ export function ChatPanel({ onInsertGraph }: ChatPanelProps) {
                 )}
                 {messages.map((message) => (
                     <div key={message.id} className={`chat-bubble chat-${message.role}`}>
-                        <div className="chat-content">{message.content}</div>
+                        <div className="chat-content">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                                {message.content}
+                            </ReactMarkdown>
+                        </div>
                         <div className="chat-meta">{new Date(message.timestamp).toLocaleTimeString()}</div>
                         {message.graph && (
                             <div className="chat-graph-wrapper">
@@ -83,22 +120,45 @@ export function ChatPanel({ onInsertGraph }: ChatPanelProps) {
             )}
 
             <form className="chat-input-row" onSubmit={onSubmit}>
-                <textarea
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    placeholder="Describe the processing pipeline you want..."
-                    rows={2}
-                    aria-label="Message input"
-                    onKeyDown={(event) => {
-                        if (event.key === 'Enter' && !event.shiftKey) {
-                            event.preventDefault();
-                            void onSubmit(event);
-                        }
-                    }}
-                />
-                <button type="submit" disabled={!draft.trim()} aria-label="Send message">
-                    Send
-                </button>
+                {attachedImages.length > 0 && (
+                    <div className="chat-attachments">
+                        {attachedImages.map((path, i) => (
+                            <span key={i} className="chat-attachment-chip">
+                                📷 {path.split('/').pop()}
+                                <button type="button" onClick={() => removeAttachment(i)} aria-label="Remove image">×</button>
+                            </span>
+                        ))}
+                    </div>
+                )}
+                <div className="chat-input-controls">
+                    <textarea
+                        value={draft}
+                        onChange={(event) => setDraft(event.target.value)}
+                        placeholder="Describe the processing pipeline you want..."
+                        rows={2}
+                        aria-label="Message input"
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter' && !event.shiftKey) {
+                                event.preventDefault();
+                                void onSubmit(event);
+                            }
+                        }}
+                    />
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={onFileSelected}
+                        style={{ display: 'none' }}
+                    />
+                    <button type="button" className="attach-image-button" onClick={onAttachImage} aria-label="Attach image" title="Attach image">
+                        📎
+                    </button>
+                    <button type="submit" disabled={!draft.trim()} aria-label="Send message">
+                        Send
+                    </button>
+                </div>
             </form>
         </div>
     );

@@ -38,6 +38,10 @@
   border-radius: 4px !important;
 }
 
+.graph-minimap svg {
+  background: #252526 !important;
+}
+
 /* Make minimap nodes more visible */
 .react-flow__minimap-node {
   stroke: #666 !important;

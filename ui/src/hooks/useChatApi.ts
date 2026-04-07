@@ -19,7 +19,7 @@ interface ChatResponse {
 }
 
 interface UseChatApiResult {
-    sendMessage: (text: string) => Promise<void>;
+    sendMessage: (text: string, imagePaths?: string[]) => Promise<void>;
     messages: ChatMessage[];
     isTyping: boolean;
     error: string | null;
@@ -152,7 +152,7 @@ export function useChatApi(): UseChatApiResult {
         };
     }, [sessionId, wsUrl]);
 
-    const sendMessage = useCallback(async (text: string) => {
+    const sendMessage = useCallback(async (text: string, imagePaths?: string[]) => {
         if (!text.trim()) return;
 
         setError(null);
@@ -166,7 +166,11 @@ export function useChatApi(): UseChatApiResult {
         setIsTyping(true);
 
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            wsRef.current.send(text);
+            if (imagePaths && imagePaths.length > 0) {
+                wsRef.current.send(JSON.stringify({ message: text, image_paths: imagePaths }));
+            } else {
+                wsRef.current.send(text);
+            }
             return;
         }
 
@@ -174,7 +178,7 @@ export function useChatApi(): UseChatApiResult {
             const response = await fetch(`${apiUrl}/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text, session_id: sessionId, context: [] }),
+                body: JSON.stringify({ message: text, session_id: sessionId, context: [], image_paths: imagePaths || [] }),
             });
 
             if (!response.ok) {

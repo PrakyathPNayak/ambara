@@ -31,6 +31,9 @@ export default defineConfig(async () => ({
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
+      // Fall back to polling when inotify instances are exhausted (EMFILE).
+      // Set VITE_USE_POLLING=1 or run with elevated inotify limits.
+      usePolling: process.env.VITE_USE_POLLING === "1",
     },
   },
 }));

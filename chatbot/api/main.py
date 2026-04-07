@@ -159,6 +159,12 @@ def chat(req: ChatRequest) -> ChatResponse:
         retriever=code_retriever,
         generator=_generator(),
     )
+
+    # Pre-set input image path if provided via attachment
+    if req.image_paths:
+        for img_path in req.image_paths:
+            agent.tool_executor.execute("set_input_image", {"path": img_path})
+
     result = agent.run(req.message, session_history=history)
 
     sessions.append_message(req.session_id, {"role": "assistant", "content": result.reply})
@@ -342,10 +348,30 @@ async def websocket_chat(ws: WebSocket, session_id: str) -> None:
             if not msg.strip():
                 await ws.send_json({"type": "done", "graph": None, "graph_generated": False})
                 continue
+
+            # Parse message — may be plain text or JSON with image_paths
+            image_paths: list[str] = []
+            text_msg = msg
             try:
-                response = await asyncio.to_thread(
-                    chat, ChatRequest(message=msg, session_id=session_id, context=[])
+                parsed_msg = json.loads(msg)
+                if isinstance(parsed_msg, dict):
+                    text_msg = parsed_msg.get("message", msg)
+                    image_paths = parsed_msg.get("image_paths", [])
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+            try:
+                response = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        chat, ChatRequest(message=text_msg, session_id=session_id, context=[], image_paths=image_paths)
+                    ),
+                    timeout=120.0,
                 )
+            except asyncio.TimeoutError:
+                LOGGER.error("WebSocket chat timeout for session %s", session_id)
+                await ws.send_json({"type": "token", "content": "Sorry, the request timed out. Please try a simpler query. "})
+                await ws.send_json({"type": "done", "graph": None, "graph_generated": False})
+                continue
             except Exception as exc:
                 LOGGER.error("WebSocket chat error for session %s: %s", session_id, exc)
                 await ws.send_json({"type": "token", "content": f"Error: {exc} "})

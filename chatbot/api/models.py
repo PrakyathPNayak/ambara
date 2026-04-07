@@ -25,6 +25,7 @@ class ChatRequest(BaseModel):
     message: str = Field(..., max_length=10_000)
     session_id: str = Field(..., max_length=200)
     context: list[ChatMessage] = Field(default_factory=list, max_length=50)
+    image_paths: list[str] = Field(default_factory=list, max_length=10, description="Attached image file paths")
 
 
 class ChatResponse(BaseModel):

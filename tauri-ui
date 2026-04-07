@@ -42,6 +42,18 @@ if [[ "$USE_DEV_MODE" -eq 1 ]]; then
   if curl -sf http://127.0.0.1:1420 >/dev/null 2>&1; then
     echo "UI dev server already running on :1420"
   else
+    # Increase inotify limits to prevent EMFILE errors under VS Code / heavy
+    # inotify usage.  Requires passwordless sudo; silently skipped otherwise.
+    INOTIFY_INSTANCES=$(cat /proc/sys/fs/inotify/max_user_instances 2>/dev/null || echo 128)
+    if [[ "$INOTIFY_INSTANCES" -lt 512 ]]; then
+      if sudo -n sysctl -qw fs.inotify.max_user_instances=512 fs.inotify.max_user_watches=524288 >/dev/null 2>&1; then
+        echo "inotify limits raised (instances=512, watches=524288)"
+      else
+        echo "Note: could not raise inotify limits (needs sudo). Using Vite polling mode as fallback."
+        export VITE_USE_POLLING=1
+      fi
+    fi
+
     echo "Starting UI dev server on :1420..."
     mkdir -p logs
     (

@@ -110,6 +110,7 @@ export function GraphCanvas({ onValidate, onExecute, onSave, onLoad, onClear, on
         <MiniMap
           nodeColor={minimapNodeColor}
           maskColor="rgba(0, 0, 0, 0.8)"
+          bgColor="#252526"
           className="graph-minimap"
         />
 

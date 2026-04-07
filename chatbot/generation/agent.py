@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from typing import Any
 
 from chatbot.generation.llm_client import LLMClient
@@ -26,7 +27,8 @@ from chatbot.retrieval.code_retriever import CodeRetriever
 
 LOGGER = logging.getLogger(__name__)
 
-MAX_TOOL_ROUNDS = 4  # Maximum tool-use iterations before forcing a final answer
+MAX_TOOL_ROUNDS = 5  # Maximum tool-use iterations before forcing a final answer
+AGENT_TIMEOUT_SECONDS = 90  # Hard timeout for the entire agent run
 
 SYSTEM_PROMPT = """\
 === ROLE ===
@@ -54,13 +56,23 @@ Before choosing a tool or giving an answer, silently reason through these steps:
 1. Explicit BUILD/CREATE/MAKE intent → generate_graph.
    IMPORTANT: After generate_graph returns, call validate_graph on the result
    to verify correctness before presenting it to the user.
-2. Question about a SPECIFIC filter by name → explain_filter or get_filter_details.
-3. "What filters can do X?" → search_filters.
-4. "What categories exist?" → list_categories.
-5. "Suggest a pipeline for X" (no graph needed) → suggest_pipeline.
-6. "Explain this graph" + JSON → explain_graph.
-7. Ambiguous requests → search_filters first, then decide.
-8. General Ambara knowledge → answer directly from context.
+2. "Run/execute this pipeline" → execute_pipeline (after generate + validate).
+3. User provides an image path → set_input_image first, then proceed.
+4. Question about a SPECIFIC filter by name → explain_filter or get_filter_details.
+5. "What filters can do X?" → search_filters.
+6. "What categories exist?" → list_categories.
+7. "Suggest a pipeline for X" (no graph needed) → suggest_pipeline.
+8. "Explain this graph" + JSON → explain_graph.
+9. Ambiguous requests → search_filters first, then decide.
+10. General Ambara knowledge → answer directly from context.
+
+=== AUTOMATION WORKFLOW ===
+When a user asks you to BUILD AND RUN a pipeline:
+  1. set_input_image (if image path provided)
+  2. generate_graph
+  3. validate_graph
+  4. execute_pipeline (if user wants execution)
+  5. Report results in natural language
 
 === RESPONSE FORMAT ===
 You MUST respond with exactly ONE JSON object. Two valid forms:
@@ -70,6 +82,12 @@ You MUST respond with exactly ONE JSON object. Two valid forms:
 
 Never mix them. Never output markdown fences around the JSON. Never output
 explanatory text outside the JSON object.
+
+=== CRITICAL: CLEAN ANSWERS ===
+When giving a final answer, the "answer" field MUST contain ONLY human-readable
+text. NEVER include raw JSON, tool call objects, argument dumps, graph JSON, or
+internal data structures in your answer. Summarize tool results in natural
+language instead of pasting them verbatim.
 
 === WHAT NOT TO DO ===
 - Do NOT call generate_graph for questions like "what does gaussian_blur do?".
@@ -127,8 +145,18 @@ class Agent:
         tool_calls_made: list[dict[str, Any]] = []
         graph_result: dict[str, Any] | None = None
         seen_calls: set[str] = set()  # track (tool, args) to avoid duplicates
+        start_time = time.monotonic()
 
         for round_num in range(MAX_TOOL_ROUNDS):
+            # Check hard timeout
+            elapsed = time.monotonic() - start_time
+            if elapsed > AGENT_TIMEOUT_SECONDS:
+                LOGGER.warning("Agent timeout after %.1fs for: %.100s", elapsed, user_message)
+                return AgentResult(
+                    reply="I took too long processing that request. Could you try a simpler query?",
+                    graph=graph_result,
+                    tool_calls=tool_calls_made,
+                )
             try:
                 raw = self.llm.generate(
                     {"messages": messages},
@@ -145,8 +173,9 @@ class Agent:
             parsed = self._parse_response(raw)
 
             if parsed.get("answer"):
+                clean_reply = self._strip_leaked_json(parsed["answer"])
                 return AgentResult(
-                    reply=parsed["answer"],
+                    reply=clean_reply,
                     graph=graph_result,
                     tool_calls=tool_calls_made,
                 )
@@ -198,7 +227,7 @@ class Agent:
 
             # If we can't parse a tool call or answer, treat the raw response as the answer
             return AgentResult(
-                reply=self._clean_response(raw),
+                reply=self._strip_leaked_json(self._clean_response(raw)),
                 graph=graph_result,
                 tool_calls=tool_calls_made,
             )
@@ -313,6 +342,39 @@ class Agent:
         except (json.JSONDecodeError, KeyError):
             pass
         return text
+
+    @staticmethod
+    def _strip_leaked_json(text: str) -> str:
+        """Remove raw JSON tool-call blobs that leaked into the user-facing reply.
+
+        Detects patterns like {"tool": ...} or {"arguments": ...} that are
+        internal agent artifacts and should never reach the UI.
+        """
+        if not text:
+            return text
+
+        # Remove JSON blocks that look like tool calls or tool results
+        # Match { ... } blocks containing tool-call markers
+        def _is_tool_json(s: str) -> bool:
+            try:
+                obj = json.loads(s)
+                if isinstance(obj, dict):
+                    tool_keys = {"tool", "arguments", "graph_json", "nodes", "connections"}
+                    return bool(tool_keys & set(obj.keys()))
+            except (json.JSONDecodeError, ValueError):
+                pass
+            return False
+
+        # Find and remove leaked JSON blobs
+        result = text
+        for match in re.finditer(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', text):
+            blob = match.group(0)
+            if len(blob) > 100 and _is_tool_json(blob):
+                result = result.replace(blob, "")
+
+        # Clean up leftover whitespace
+        result = re.sub(r'\n{3,}', '\n\n', result).strip()
+        return result or "I've processed your request. Let me know if you need anything else."
 
     def _mock_response(self, user_message: str) -> AgentResult:
         """Generate a deterministic response in mock mode."""

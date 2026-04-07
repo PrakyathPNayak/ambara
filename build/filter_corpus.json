@@ -1,199 +1,1071 @@
 [
   {
-    "id": "load_image",
-    "name": "Load Image",
-    "description": "Load an image from a file path",
-    "category": "Input",
+    "id": "http_image_fetch",
+    "name": "HTTP Image Fetch",
+    "description": "Fetch an image from an HTTP or HTTPS URL",
+    "category": "Api",
     "input_ports": [],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "The fetched image"
       }
     ],
     "parameters": [
       {
-        "name": "path",
+        "name": "url",
         "type": "String",
-        "default": "String(\"\")",
-        "description": "Path to the image file"
+        "default": "",
+        "description": "URL of the image to fetch (http:// or https://)",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "?",
+        "type": "?",
+        "default": "",
+        "description": "",
+        "constraint": "",
+        "ui_hint": ""
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "api.rs",
+      "api"
+    ],
+    "source_file": "api.rs",
+    "struct_name": "HttpImageFetch"
   },
   {
-    "id": "load_folder",
-    "name": "Load Folder",
-    "description": "Load all images from a folder (batch processing)",
-    "category": "Input",
+    "id": "stable_diffusion_generate",
+    "name": "Stable Diffusion Generate",
+    "description": "Generate an image from text using a Stable Diffusion API (local or remote)",
+    "category": "Api",
     "input_ports": [],
     "output_ports": [
       {
-        "name": "images",
-        "type": "Array(Image)",
-        "required": true
-      },
-      {
-        "name": "count",
-        "type": "Integer",
-        "required": true
+        "name": "image",
+        "type": "Image",
+        "description": "The generated image"
       }
     ],
     "parameters": [
       {
-        "name": "directory",
+        "name": "api_url",
         "type": "String",
-        "default": "String(\"\")",
-        "description": "Directory containing images to load"
+        "default": "http://127.0.0.1:7860/sdapi/v1/txt2img",
+        "description": "Stable Diffusion API endpoint URL",
+        "constraint": "",
+        "ui_hint": ""
       },
       {
-        "name": "recursive",
-        "type": "Boolean",
-        "default": "Boolean(false)",
-        "description": "Search subfolders recursively"
+        "name": "prompt",
+        "type": "String",
+        "default": "a beautiful landscape, high quality, 4k",
+        "description": "Text prompt for image generation",
+        "constraint": "",
+        "ui_hint": ""
       },
       {
-        "name": "pattern",
+        "name": "negative_prompt",
         "type": "String",
-        "default": "String(\"*\")",
-        "description": "Filename pattern (e.g., *.png, image_*.jpg)"
+        "default": "low quality, blurry, distorted",
+        "description": "Negative prompt to avoid undesired features",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "width",
+        "type": "Integer",
+        "default": "512",
+        "description": "Output image width in pixels",
+        "constraint": "",
+        "ui_hint": "Slider"
+      },
+      {
+        "name": "height",
+        "type": "Integer",
+        "default": "512",
+        "description": "Output image height in pixels",
+        "constraint": "",
+        "ui_hint": "Slider"
+      },
+      {
+        "name": "steps",
+        "type": "Integer",
+        "default": "20",
+        "description": "Number of denoising steps",
+        "constraint": "",
+        "ui_hint": "Slider"
+      },
+      {
+        "name": "cfg_scale",
+        "type": "Float",
+        "default": "7.0",
+        "description": "Classifier-free guidance scale (how closely to follow the prompt)",
+        "constraint": "",
+        "ui_hint": "Slider"
+      },
+      {
+        "name": "seed",
+        "type": "Integer",
+        "default": "-1",
+        "description": "Random seed (-1 for random)",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "?",
+        "type": "?",
+        "default": "",
+        "description": "",
+        "constraint": "",
+        "ui_hint": ""
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "api.rs",
+      "api"
+    ],
+    "source_file": "api.rs",
+    "struct_name": "StableDiffusionGenerate"
   },
   {
-    "id": "save_image",
-    "name": "Save Image",
-    "description": "Save an image to a directory with customizable filename and format",
-    "category": "Output",
+    "id": "image_classify",
+    "name": "Image Classify",
+    "description": "Classify an image using an external classification API endpoint",
+    "category": "Api",
     "input_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Image to classify"
       }
     ],
     "output_ports": [
       {
-        "name": "path",
+        "name": "result",
         "type": "String",
-        "required": true
+        "description": "Classification result as JSON string"
+      },
+      {
+        "name": "top_label",
+        "type": "String",
+        "description": "Top predicted label"
+      },
+      {
+        "name": "confidence",
+        "type": "Float",
+        "description": "Confidence score of top prediction (0.0-1.0)"
       }
     ],
     "parameters": [
       {
-        "name": "directory",
+        "name": "api_url",
         "type": "String",
-        "default": "String(\"./output\")",
-        "description": "Output directory (defaults to ./output)"
+        "default": "http://127.0.0.1:5000/classify",
+        "description": "Classification API endpoint URL",
+        "constraint": "",
+        "ui_hint": ""
       },
       {
-        "name": "filename",
-        "type": "String",
-        "default": "String(\"output\")",
-        "description": "Output filename without extension (defaults to 'output')"
-      },
-      {
-        "name": "format",
-        "type": "String",
-        "default": "String(\"png\")",
-        "description": "Output format: png, jpg, webp, bmp, tiff"
-      },
-      {
-        "name": "quality",
-        "type": "Integer",
-        "default": "Integer(90)",
-        "description": "Quality for lossy formats like JPEG/WebP (1-100)"
-      },
-      {
-        "name": "create_dirs",
-        "type": "Boolean",
-        "default": "Boolean(true)",
-        "description": "Create output directory if it doesn't exist"
-      },
-      {
-        "name": "overwrite",
-        "type": "Boolean",
-        "default": "Boolean(true)",
-        "description": "Overwrite if file already exists"
+        "name": "?",
+        "type": "?",
+        "default": "",
+        "description": "",
+        "constraint": "",
+        "ui_hint": ""
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "api.rs",
+      "api"
+    ],
+    "source_file": "api.rs",
+    "struct_name": "ImageClassify"
   },
   {
-    "id": "batch_save_images",
-    "name": "Batch Save Images",
-    "description": "Save multiple images to a directory with auto-incrementing filenames",
-    "category": "Output",
+    "id": "model_inference",
+    "name": "Model Inference",
+    "description": "Send an image to a model inference API and receive a processed image back",
+    "category": "Api",
     "input_ports": [
       {
-        "name": "images",
-        "type": "Array(Image)",
-        "required": true
+        "name": "image",
+        "type": "Image",
+        "description": "Input image to process"
       }
     ],
     "output_ports": [
       {
-        "name": "paths",
-        "type": "Array(String)",
-        "required": true
+        "name": "image",
+        "type": "Image",
+        "description": "Processed output image"
+      },
+      {
+        "name": "raw_response",
+        "type": "String",
+        "description": "Raw API response as string (for debugging)"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "api_url",
+        "type": "String",
+        "default": "http://127.0.0.1:5000/predict",
+        "description": "Model inference API endpoint URL",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "model_name",
+        "type": "String",
+        "default": "",
+        "description": "Optional model name to include in the request",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "extra_params",
+        "type": "String",
+        "default": "",
+        "description": "Extra parameters as JSON string (merged into request body)",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "?",
+        "type": "?",
+        "default": "",
+        "description": "",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "api.rs",
+      "api"
+    ],
+    "source_file": "api.rs",
+    "struct_name": "ModelInference"
+  },
+  {
+    "id": "style_transfer",
+    "name": "Style Transfer",
+    "description": "Apply neural style transfer using an external API (content + style images)",
+    "category": "Api",
+    "input_ports": [
+      {
+        "name": "content",
+        "type": "Image",
+        "description": "Content image to stylize"
+      },
+      {
+        "name": "style",
+        "type": "Image",
+        "description": "Style reference image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Stylized output image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "api_url",
+        "type": "String",
+        "default": "http://127.0.0.1:5000/style-transfer",
+        "description": "Style transfer API endpoint URL",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "strength",
+        "type": "Float",
+        "default": "0.8",
+        "description": "Style strength (0.0 = no style, 1.0 = full style)",
+        "constraint": "range(0.0..1.0)",
+        "ui_hint": "Slider"
+      },
+      {
+        "name": "?",
+        "type": "?",
+        "default": "",
+        "description": "",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "api.rs",
+      "api"
+    ],
+    "source_file": "api.rs",
+    "struct_name": "StyleTransfer"
+  },
+  {
+    "id": "array_map",
+    "name": "Array Map",
+    "description": "Apply an operation to each image in an array (parallel processing)",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Image or array of images"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Processed image(s)"
       },
       {
         "name": "count",
         "type": "Integer",
-        "required": true
+        "description": "Number of images processed"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "array.rs",
+      "utility"
+    ],
+    "source_file": "array.rs",
+    "struct_name": "ArrayMap"
+  },
+  {
+    "id": "array_filter",
+    "name": "Array Filter",
+    "description": "Filter images in an array based on size/properties",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Array<Image>",
+        "description": "Array of images"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Array<Image>",
+        "description": "Filtered images"
+      },
+      {
+        "name": "count",
+        "type": "Integer",
+        "description": "Number of images after filtering"
       }
     ],
     "parameters": [
       {
-        "name": "directory",
-        "type": "String",
-        "default": "String(\"./output\")",
-        "description": "Output directory (defaults to ./output)"
-      },
-      {
-        "name": "prefix",
-        "type": "String",
-        "default": "String(\"image_\")",
-        "description": "Filename prefix (e.g., 'image_' -> image_001.png)"
-      },
-      {
-        "name": "format",
-        "type": "String",
-        "default": "String(\"png\")",
-        "description": "Output format: png, jpg, webp, bmp, tiff"
-      },
-      {
-        "name": "start_index",
+        "name": "min_width",
         "type": "Integer",
-        "default": "Integer(1)",
-        "description": "Starting index for numbering (e.g., 1 -> 001, 002, ...)"
+        "default": "0",
+        "description": "Minimum width (0 = no limit)",
+        "constraint": "",
+        "ui_hint": ""
       },
       {
-        "name": "digits",
+        "name": "min_height",
         "type": "Integer",
-        "default": "Integer(3)",
-        "description": "Number of digits for padding (e.g., 3 -> 001, 4 -> 0001)"
-      },
-      {
-        "name": "quality",
-        "type": "Integer",
-        "default": "Integer(90)",
-        "description": "Quality for lossy formats like JPEG/WebP (1-100)"
-      },
-      {
-        "name": "create_dirs",
-        "type": "Boolean",
-        "default": "Boolean(true)",
-        "description": "Create output directory if it doesn't exist"
+        "default": "0",
+        "description": "Minimum height (0 = no limit)",
+        "constraint": "",
+        "ui_hint": ""
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "array.rs",
+      "utility"
+    ],
+    "source_file": "array.rs",
+    "struct_name": "ArrayFilter"
+  },
+  {
+    "id": "array_concat",
+    "name": "Array Concat",
+    "description": "Concatenate multiple arrays or images into one array",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "images1",
+        "type": "Any",
+        "description": "First image(s)"
+      },
+      {
+        "name": "images2",
+        "type": "Any",
+        "description": "Second image(s)"
+      },
+      {
+        "name": "images3",
+        "type": "Any",
+        "description": "Third image(s)"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Array<Image>",
+        "description": "Combined array of images"
+      },
+      {
+        "name": "count",
+        "type": "Integer",
+        "description": "Total number of images"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "array.rs",
+      "utility"
+    ],
+    "source_file": "array.rs",
+    "struct_name": "ArrayConcat"
+  },
+  {
+    "id": "array_slice",
+    "name": "Array Slice",
+    "description": "Extract a range of images from an array",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Array<Image>",
+        "description": "Array of images"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Array<Image>",
+        "description": "Sliced array"
+      },
+      {
+        "name": "count",
+        "type": "Integer",
+        "description": "Number of images in slice"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "start",
+        "type": "Integer",
+        "default": "0",
+        "description": "Start index (inclusive)",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "end",
+        "type": "Integer",
+        "default": "-1",
+        "description": "End index (exclusive, -1 = end)",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "array.rs",
+      "utility"
+    ],
+    "source_file": "array.rs",
+    "struct_name": "ArraySlice"
+  },
+  {
+    "id": "image_stack",
+    "name": "Image Stack",
+    "description": "Stack multiple images to reduce noise and increase signal-to-noise ratio",
+    "category": "Custom",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Array<Image>",
+        "description": "List of images to stack"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Stacked result image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "method",
+        "type": "String",
+        "default": "mean",
+        "description": "Stacking method: mean, median, sigma_clip, max, min",
+        "constraint": "",
+        "ui_hint": "Dropdown"
+      },
+      {
+        "name": "sigma",
+        "type": "Float",
+        "default": "2.0",
+        "description": "Sigma value for sigma clipping (only used with sigma_clip method)",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "astro.rs",
+      "custom"
+    ],
+    "source_file": "astro.rs",
+    "struct_name": "ImageStack"
+  },
+  {
+    "id": "dark_frame_subtract",
+    "name": "Dark Frame Subtract",
+    "description": "Subtract dark frame to remove thermal noise from astrophotos",
+    "category": "Custom",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Light frame (your photo)"
+      },
+      {
+        "name": "dark",
+        "type": "Image",
+        "description": "Dark frame (taken with lens cap on, same exposure)"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Calibrated image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "scale",
+        "type": "Float",
+        "default": "1.0",
+        "description": "Scale factor for dark frame subtraction",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "astro.rs",
+      "custom"
+    ],
+    "source_file": "astro.rs",
+    "struct_name": "DarkFrameSubtract"
+  },
+  {
+    "id": "flat_field_correct",
+    "name": "Flat Field Correct",
+    "description": "Apply flat field correction to remove vignetting and dust artifacts",
+    "category": "Custom",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Calibrated light frame"
+      },
+      {
+        "name": "flat",
+        "type": "Image",
+        "description": "Flat field (even illumination photo)"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Corrected image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "normalize",
+        "type": "Boolean",
+        "default": "true",
+        "description": "Normalize flat field to mean value",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "astro.rs",
+      "custom"
+    ],
+    "source_file": "astro.rs",
+    "struct_name": "FlatFieldCorrect"
+  },
+  {
+    "id": "hot_pixel_removal",
+    "name": "Hot Pixel Removal",
+    "description": "Detect and remove hot/dead pixels using median filtering",
+    "category": "Custom",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Image to clean"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Cleaned image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "threshold",
+        "type": "Float",
+        "default": "50.0",
+        "description": "Deviation threshold to detect hot pixels",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "astro.rs",
+      "custom"
+    ],
+    "source_file": "astro.rs",
+    "struct_name": "HotPixelRemoval"
+  },
+  {
+    "id": "histogram_stretch",
+    "name": "Histogram Stretch",
+    "description": "Stretch histogram to enhance faint details in astrophotos",
+    "category": "Custom",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Image to stretch"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Stretched image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "black_point",
+        "type": "Float",
+        "default": "0.0",
+        "description": "Black point (0-1)",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "white_point",
+        "type": "Float",
+        "default": "1.0",
+        "description": "White point (0-1)",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "midtone",
+        "type": "Float",
+        "default": "0.5",
+        "description": "Midtone balance (0-1, 0.5 is neutral)",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "astro.rs",
+      "custom"
+    ],
+    "source_file": "astro.rs",
+    "struct_name": "HistogramStretch"
+  },
+  {
+    "id": "batch_brightness",
+    "name": "Batch Brightness",
+    "description": "Adjust brightness for single image or batch of images",
+    "category": "Adjust",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Image or array of images"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Adjusted image(s)"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "brightness",
+        "type": "Float",
+        "default": "0.0",
+        "description": "Brightness adjustment (-1.0 to 1.0)",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "batch.rs",
+      "adjust"
+    ],
+    "source_file": "batch.rs",
+    "struct_name": "BatchBrightness"
+  },
+  {
+    "id": "batch_resize",
+    "name": "Batch Resize",
+    "description": "Resize single image or batch of images",
+    "category": "Transform",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Image or array of images"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Resized image(s)"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "width",
+        "type": "Integer",
+        "default": "800",
+        "description": "Target width in pixels",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "height",
+        "type": "Integer",
+        "default": "600",
+        "description": "Target height in pixels",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "batch.rs",
+      "transform"
+    ],
+    "source_file": "batch.rs",
+    "struct_name": "BatchResize"
+  },
+  {
+    "id": "batch_contrast",
+    "name": "Batch Contrast",
+    "description": "Adjust contrast for single image or batch of images",
+    "category": "Adjust",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Image or array of images"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Adjusted image(s)"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "contrast",
+        "type": "Float",
+        "default": "1.0",
+        "description": "Contrast multiplier (0.0 to 2.0)",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "batch.rs",
+      "adjust"
+    ],
+    "source_file": "batch.rs",
+    "struct_name": "BatchContrast"
+  },
+  {
+    "id": "batch_gaussian_blur",
+    "name": "Batch Gaussian Blur",
+    "description": "Apply Gaussian blur to single image or batch of images",
+    "category": "Blur",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Image or array of images"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Blurred image(s)"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "sigma",
+        "type": "Float",
+        "default": "1.0",
+        "description": "Blur sigma (standard deviation)",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "batch.rs",
+      "blur"
+    ],
+    "source_file": "batch.rs",
+    "struct_name": "BatchGaussianBlur"
+  },
+  {
+    "id": "batch_saturation",
+    "name": "Batch Saturation",
+    "description": "Adjust saturation for single image or batch of images",
+    "category": "Adjust",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Image or array of images"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Adjusted image(s)"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "saturation",
+        "type": "Float",
+        "default": "1.0",
+        "description": "Saturation multiplier (0.0 to 2.0)",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "batch.rs",
+      "adjust"
+    ],
+    "source_file": "batch.rs",
+    "struct_name": "BatchSaturation"
+  },
+  {
+    "id": "batch_rotate",
+    "name": "Batch Rotate",
+    "description": "Rotate single image or batch of images",
+    "category": "Transform",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Image or array of images"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Rotated image(s)"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "angle",
+        "type": "Float",
+        "default": "90.0",
+        "description": "Rotation angle in degrees (90, 180, 270)",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "batch.rs",
+      "transform"
+    ],
+    "source_file": "batch.rs",
+    "struct_name": "BatchRotate"
+  },
+  {
+    "id": "batch_grayscale",
+    "name": "Batch Grayscale",
+    "description": "Convert single image or batch of images to grayscale",
+    "category": "Adjust",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Image or array of images"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Grayscale image(s)"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "batch.rs",
+      "adjust"
+    ],
+    "source_file": "batch.rs",
+    "struct_name": "BatchGrayscale"
+  },
+  {
+    "id": "batch_invert",
+    "name": "Batch Invert",
+    "description": "Invert colors of single image or batch of images",
+    "category": "Adjust",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Image or array of images"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Inverted image(s)"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "batch.rs",
+      "adjust"
+    ],
+    "source_file": "batch.rs",
+    "struct_name": "BatchInvert"
+  },
+  {
+    "id": "batch_crop",
+    "name": "Batch Crop",
+    "description": "Crop single image or batch of images",
+    "category": "Transform",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Image or array of images"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Cropped image(s)"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "x",
+        "type": "Integer",
+        "default": "0",
+        "description": "X coordinate of crop region",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "y",
+        "type": "Integer",
+        "default": "0",
+        "description": "Y coordinate of crop region",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "width",
+        "type": "Integer",
+        "default": "100",
+        "description": "Width of crop region",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "height",
+        "type": "Integer",
+        "default": "100",
+        "description": "Height of crop region",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "batch.rs",
+      "transform"
+    ],
+    "source_file": "batch.rs",
+    "struct_name": "BatchCrop"
+  },
+  {
+    "id": "batch_flip",
+    "name": "Batch Flip",
+    "description": "Flip single image or batch of images",
+    "category": "Transform",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Image or array of images"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Any",
+        "description": "Flipped image(s)"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "direction",
+        "type": "String",
+        "default": "horizontal",
+        "description": "Flip direction: 'horizontal' or 'vertical'",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "batch.rs",
+      "transform"
+    ],
+    "source_file": "batch.rs",
+    "struct_name": "BatchFlip"
   },
   {
     "id": "gaussian_blur",
@@ -204,32 +1076,40 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Blurred image"
       }
     ],
     "parameters": [
       {
         "name": "sigma",
         "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Blur intensity (standard deviation)"
+        "default": "1.0",
+        "description": "Blur intensity (standard deviation)",
+        "constraint": "range(0.1..100.0)",
+        "ui_hint": "Slider"
       },
       {
         "name": "use_gpu",
         "type": "Boolean",
-        "default": "Boolean(true)",
-        "description": "Use GPU acceleration if available"
+        "default": "true",
+        "description": "Use GPU acceleration if available",
+        "constraint": "",
+        "ui_hint": ""
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "blur.rs",
+      "blur"
+    ],
+    "source_file": "blur.rs",
+    "struct_name": "GaussianBlur"
   },
   {
     "id": "box_blur",
@@ -240,32 +1120,40 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Blurred image"
       }
     ],
     "parameters": [
       {
         "name": "radius_x",
         "type": "Integer",
-        "default": "Integer(3)",
-        "description": "Horizontal blur radius"
+        "default": "3",
+        "description": "Horizontal blur radius",
+        "constraint": "range(1.0..50.0)",
+        "ui_hint": "Slider"
       },
       {
         "name": "radius_y",
         "type": "Integer",
-        "default": "Integer(3)",
-        "description": "Vertical blur radius"
+        "default": "3",
+        "description": "Vertical blur radius",
+        "constraint": "range(1.0..50.0)",
+        "ui_hint": "Slider"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "blur.rs",
+      "blur"
+    ],
+    "source_file": "blur.rs",
+    "struct_name": "BoxBlur"
   },
   {
     "id": "median_blur",
@@ -276,26 +1164,32 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Filtered image"
       }
     ],
     "parameters": [
       {
         "name": "radius",
         "type": "Integer",
-        "default": "Integer(2)",
-        "description": "Filter radius (kernel size = 2*radius+1)"
+        "default": "2",
+        "description": "Filter radius (kernel size = 2*radius+1)",
+        "constraint": "range(1.0..20.0)",
+        "ui_hint": "Slider"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "blur.rs",
+      "blur"
+    ],
+    "source_file": "blur.rs",
+    "struct_name": "MedianBlur"
   },
   {
     "id": "motion_blur",
@@ -306,32 +1200,40 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Motion-blurred image"
       }
     ],
     "parameters": [
       {
         "name": "length",
         "type": "Integer",
-        "default": "Integer(10)",
-        "description": "Blur length in pixels"
+        "default": "10",
+        "description": "Blur length in pixels",
+        "constraint": "range(1.0..100.0)",
+        "ui_hint": "Slider"
       },
       {
         "name": "angle",
         "type": "Float",
-        "default": "Float(0.0)",
-        "description": "Blur direction in degrees (0=horizontal, 90=vertical)"
+        "default": "0.0",
+        "description": "Blur direction in degrees (0=horizontal, 90=vertical)",
+        "constraint": "range(0.0..360.0)",
+        "ui_hint": "Slider"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "blur.rs",
+      "blur"
+    ],
+    "source_file": "blur.rs",
+    "struct_name": "MotionBlur"
   },
   {
     "id": "brightness",
@@ -342,26 +1244,32 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Adjusted image"
       }
     ],
     "parameters": [
       {
         "name": "amount",
         "type": "Float",
-        "default": "Float(0.0)",
-        "description": "Brightness adjustment (-1.0 to 1.0)"
+        "default": "0.0",
+        "description": "Brightness adjustment (-1.0 to 1.0)",
+        "constraint": "range(-1.0..1.0)",
+        "ui_hint": "Slider"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "color.rs",
+      "color"
+    ],
+    "source_file": "color.rs",
+    "struct_name": "Brightness"
   },
   {
     "id": "contrast",
@@ -372,26 +1280,32 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Adjusted image"
       }
     ],
     "parameters": [
       {
         "name": "amount",
         "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Contrast multiplier (0.0 to 3.0)"
+        "default": "1.0",
+        "description": "Contrast multiplier (0.0 to 3.0)",
+        "constraint": "range(0.0..3.0)",
+        "ui_hint": "Slider"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "color.rs",
+      "color"
+    ],
+    "source_file": "color.rs",
+    "struct_name": "Contrast"
   },
   {
     "id": "saturation",
@@ -402,26 +1316,32 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Adjusted image"
       }
     ],
     "parameters": [
       {
         "name": "amount",
         "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Saturation multiplier (0.0 = grayscale, 1.0 = original)"
+        "default": "1.0",
+        "description": "Saturation multiplier (0.0 = grayscale, 1.0 = original)",
+        "constraint": "range(0.0..3.0)",
+        "ui_hint": "Slider"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "color.rs",
+      "color"
+    ],
+    "source_file": "color.rs",
+    "struct_name": "Saturation"
   },
   {
     "id": "grayscale",
@@ -432,26 +1352,32 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Grayscale image"
       }
     ],
     "parameters": [
       {
         "name": "use_gpu",
         "type": "Boolean",
-        "default": "Boolean(true)",
-        "description": "Use GPU acceleration if available"
+        "default": "true",
+        "description": "Use GPU acceleration if available",
+        "constraint": "",
+        "ui_hint": ""
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "color.rs",
+      "color"
+    ],
+    "source_file": "color.rs",
+    "struct_name": "Grayscale"
   },
   {
     "id": "invert",
@@ -462,32 +1388,40 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Inverted image"
       }
     ],
     "parameters": [
       {
         "name": "invert_alpha",
         "type": "Boolean",
-        "default": "Boolean(false)",
-        "description": "Also invert the alpha channel"
+        "default": "false",
+        "description": "Also invert the alpha channel",
+        "constraint": "",
+        "ui_hint": ""
       },
       {
         "name": "use_gpu",
         "type": "Boolean",
-        "default": "Boolean(true)",
-        "description": "Use GPU acceleration if available"
+        "default": "true",
+        "description": "Use GPU acceleration if available",
+        "constraint": "",
+        "ui_hint": ""
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "color.rs",
+      "color"
+    ],
+    "source_file": "color.rs",
+    "struct_name": "Invert"
   },
   {
     "id": "sepia",
@@ -498,26 +1432,32 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Sepia-toned image"
       }
     ],
     "parameters": [
       {
         "name": "intensity",
         "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Sepia intensity (0.0 = original, 1.0 = full sepia)"
+        "default": "1.0",
+        "description": "Sepia intensity (0.0 = original, 1.0 = full sepia)",
+        "constraint": "range(0.0..1.0)",
+        "ui_hint": "Slider"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "color.rs",
+      "color"
+    ],
+    "source_file": "color.rs",
+    "struct_name": "Sepia"
   },
   {
     "id": "hue_rotate",
@@ -528,26 +1468,32 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Hue-shifted image"
       }
     ],
     "parameters": [
       {
         "name": "angle",
         "type": "Float",
-        "default": "Float(0.0)",
-        "description": "Hue rotation angle in degrees"
+        "default": "0.0",
+        "description": "Hue rotation angle in degrees",
+        "constraint": "range(-360.0..360.0)",
+        "ui_hint": "Slider"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "color.rs",
+      "color"
+    ],
+    "source_file": "color.rs",
+    "struct_name": "HueRotate"
   },
   {
     "id": "threshold",
@@ -558,26 +1504,32 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Thresholded image"
       }
     ],
     "parameters": [
       {
         "name": "level",
         "type": "Integer",
-        "default": "Integer(128)",
-        "description": "Threshold level (0-255)"
+        "default": "128",
+        "description": "Threshold level (0-255)",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": "Slider"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "color.rs",
+      "color"
+    ],
+    "source_file": "color.rs",
+    "struct_name": "Threshold"
   },
   {
     "id": "posterize",
@@ -588,26 +1540,32 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Posterized image"
       }
     ],
     "parameters": [
       {
         "name": "levels",
         "type": "Integer",
-        "default": "Integer(4)",
-        "description": "Number of color levels per channel (2-256)"
+        "default": "4",
+        "description": "Number of color levels per channel (2-256)",
+        "constraint": "range(2.0..256.0)",
+        "ui_hint": "SpinBox"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "color.rs",
+      "color"
+    ],
+    "source_file": "color.rs",
+    "struct_name": "Posterize"
   },
   {
     "id": "gamma",
@@ -618,26 +1576,32 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Gamma-corrected image"
       }
     ],
     "parameters": [
       {
         "name": "gamma",
         "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Gamma value (< 1.0 brightens, > 1.0 darkens)"
+        "default": "1.0",
+        "description": "Gamma value (< 1.0 brightens, > 1.0 darkens)",
+        "constraint": "range(0.1..5.0)",
+        "ui_hint": "Slider"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "color.rs",
+      "adjust"
+    ],
+    "source_file": "color.rs",
+    "struct_name": "GammaCorrection"
   },
   {
     "id": "color_balance",
@@ -648,38 +1612,48 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Color-balanced image"
       }
     ],
     "parameters": [
       {
         "name": "red",
         "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Red channel multiplier"
+        "default": "1.0",
+        "description": "Red channel multiplier",
+        "constraint": "range(0.0..3.0)",
+        "ui_hint": "Slider"
       },
       {
         "name": "green",
         "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Green channel multiplier"
+        "default": "1.0",
+        "description": "Green channel multiplier",
+        "constraint": "range(0.0..3.0)",
+        "ui_hint": "Slider"
       },
       {
         "name": "blue",
         "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Blue channel multiplier"
+        "default": "1.0",
+        "description": "Blue channel multiplier",
+        "constraint": "range(0.0..3.0)",
+        "ui_hint": "Slider"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "color.rs",
+      "adjust"
+    ],
+    "source_file": "color.rs",
+    "struct_name": "ColorBalance"
   },
   {
     "id": "levels_adjust",
@@ -690,38 +1664,48 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Adjusted image"
       }
     ],
     "parameters": [
       {
         "name": "black_point",
         "type": "Float",
-        "default": "Float(0.0)",
-        "description": "Input black point (0-255)"
+        "default": "0.0",
+        "description": "Input black point (0-255)",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": "Slider"
       },
       {
         "name": "white_point",
         "type": "Float",
-        "default": "Float(255.0)",
-        "description": "Input white point (0-255)"
+        "default": "255.0",
+        "description": "Input white point (0-255)",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": "Slider"
       },
       {
         "name": "gamma",
         "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Mid-tone gamma (0.1-10.0)"
+        "default": "1.0",
+        "description": "Mid-tone gamma (0.1-10.0)",
+        "constraint": "range(0.1..10.0)",
+        "ui_hint": "Slider"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "color.rs",
+      "color"
+    ],
+    "source_file": "color.rs",
+    "struct_name": "LevelsAdjust"
   },
   {
     "id": "channel_mixer",
@@ -732,74 +1716,96 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Mixed image"
       }
     ],
     "parameters": [
       {
         "name": "rr",
         "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Red from Red weight"
+        "default": "1.0",
+        "description": "Red from Red weight",
+        "constraint": "range(-2.0..2.0)",
+        "ui_hint": ""
       },
       {
         "name": "rg",
         "type": "Float",
-        "default": "Float(0.0)",
-        "description": "Red from Green weight"
+        "default": "0.0",
+        "description": "Red from Green weight",
+        "constraint": "range(-2.0..2.0)",
+        "ui_hint": ""
       },
       {
         "name": "rb",
         "type": "Float",
-        "default": "Float(0.0)",
-        "description": "Red from Blue weight"
+        "default": "0.0",
+        "description": "Red from Blue weight",
+        "constraint": "range(-2.0..2.0)",
+        "ui_hint": ""
       },
       {
         "name": "gr",
         "type": "Float",
-        "default": "Float(0.0)",
-        "description": "Green from Red weight"
+        "default": "0.0",
+        "description": "Green from Red weight",
+        "constraint": "range(-2.0..2.0)",
+        "ui_hint": ""
       },
       {
         "name": "gg",
         "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Green from Green weight"
+        "default": "1.0",
+        "description": "Green from Green weight",
+        "constraint": "range(-2.0..2.0)",
+        "ui_hint": ""
       },
       {
         "name": "gb",
         "type": "Float",
-        "default": "Float(0.0)",
-        "description": "Green from Blue weight"
+        "default": "0.0",
+        "description": "Green from Blue weight",
+        "constraint": "range(-2.0..2.0)",
+        "ui_hint": ""
       },
       {
         "name": "br",
         "type": "Float",
-        "default": "Float(0.0)",
-        "description": "Blue from Red weight"
+        "default": "0.0",
+        "description": "Blue from Red weight",
+        "constraint": "range(-2.0..2.0)",
+        "ui_hint": ""
       },
       {
         "name": "bg",
         "type": "Float",
-        "default": "Float(0.0)",
-        "description": "Blue from Green weight"
+        "default": "0.0",
+        "description": "Blue from Green weight",
+        "constraint": "range(-2.0..2.0)",
+        "ui_hint": ""
       },
       {
         "name": "bb",
         "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Blue from Blue weight"
+        "default": "1.0",
+        "description": "Blue from Blue weight",
+        "constraint": "range(-2.0..2.0)",
+        "ui_hint": ""
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "color.rs",
+      "color"
+    ],
+    "source_file": "color.rs",
+    "struct_name": "ChannelMixer"
   },
   {
     "id": "vibrance",
@@ -810,188 +1816,834 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Vibrant image"
       }
     ],
     "parameters": [
       {
         "name": "amount",
         "type": "Float",
-        "default": "Float(0.5)",
-        "description": "Vibrance strength (-1.0 to 1.0)"
+        "default": "0.5",
+        "description": "Vibrance strength (-1.0 to 1.0)",
+        "constraint": "range(-1.0..1.0)",
+        "ui_hint": "Slider"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "color.rs",
+      "color"
+    ],
+    "source_file": "color.rs",
+    "struct_name": "Vibrance"
   },
   {
-    "id": "resize",
-    "name": "Resize",
-    "description": "Resize an image to specified dimensions",
-    "category": "Transform",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
+    "id": "comfy_checkpoint_loader",
+    "name": "ComfyUI Checkpoint Loader",
+    "description": "ComfyUI Checkpoint Loader filter",
+    "category": "Api",
+    "input_ports": [],
     "output_ports": [
       {
-        "name": "image",
-        "type": "Image",
-        "required": true
+        "name": "model_ref",
+        "type": "String",
+        "description": "Model reference name for downstream nodes"
+      },
+      {
+        "name": "clip_ref",
+        "type": "String",
+        "description": "CLIP model reference"
+      },
+      {
+        "name": "vae_ref",
+        "type": "String",
+        "description": "VAE model reference"
       }
     ],
     "parameters": [
       {
+        "name": "comfyui_url",
+        "type": "String",
+        "default": "http://127.0.0.1:8188",
+        "description": "ComfyUI server URL",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "checkpoint_name",
+        "type": "String",
+        "default": "v1-5-pruned-emaonly.safetensors",
+        "description": "",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "comfyui.rs",
+      "api"
+    ],
+    "source_file": "comfyui.rs",
+    "struct_name": "ComfyCheckpointLoader"
+  },
+  {
+    "id": "comfy_clip_text_encode",
+    "name": "ComfyUI CLIP Text Encode",
+    "description": "ComfyUI CLIP Text Encode filter",
+    "category": "Api",
+    "input_ports": [
+      {
+        "name": "clip_ref",
+        "type": "String",
+        "description": "CLIP model reference from Checkpoint Loader"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "conditioning",
+        "type": "String",
+        "description": "Encoded conditioning reference"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "text",
+        "type": "String",
+        "default": "a beautiful landscape, high quality",
+        "description": "Text prompt to encode",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "comfyui.rs",
+      "api"
+    ],
+    "source_file": "comfyui.rs",
+    "struct_name": "ComfyClipTextEncode"
+  },
+  {
+    "id": "comfy_ksampler",
+    "name": "ComfyUI KSampler",
+    "description": "ComfyUI KSampler filter",
+    "category": "Api",
+    "input_ports": [
+      {
+        "name": "model_ref",
+        "type": "String",
+        "description": "Model reference from Checkpoint Loader"
+      },
+      {
+        "name": "positive",
+        "type": "String",
+        "description": "Positive conditioning from CLIP Text Encode"
+      },
+      {
+        "name": "negative",
+        "type": "String",
+        "description": "Negative conditioning from CLIP Text Encode"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "latent_ref",
+        "type": "String",
+        "description": "Latent image reference for VAE Decode"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "comfyui_url",
+        "type": "String",
+        "default": "http://127.0.0.1:8188",
+        "description": "ComfyUI server URL",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "seed",
+        "type": "Integer",
+        "default": "0",
+        "description": "Random seed (0 = random)",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "steps",
+        "type": "Integer",
+        "default": "20",
+        "description": "Number of sampling steps",
+        "constraint": "",
+        "ui_hint": "Slider"
+      },
+      {
+        "name": "cfg_scale",
+        "type": "Float",
+        "default": "7.0",
+        "description": "Classifier-free guidance scale",
+        "constraint": "",
+        "ui_hint": "Slider"
+      },
+      {
+        "name": "sampler_name",
+        "type": "String",
+        "default": "euler",
+        "description": "Sampler algorithm (euler, euler_ancestral, dpmpp_2m, etc.)",
+        "constraint": "one_of(vec![\n                    Value::String(\"euler\".to_string()",
+        "ui_hint": "Dropdown"
+      },
+      {
+        "name": "scheduler",
+        "type": "String",
+        "default": "normal",
+        "description": "Noise scheduler",
+        "constraint": "one_of(vec![\n                    Value::String(\"normal\".to_string()",
+        "ui_hint": "Dropdown"
+      },
+      {
+        "name": "denoise",
+        "type": "Float",
+        "default": "1.0",
+        "description": "Denoise strength (1.0 = full denoise)",
+        "constraint": "",
+        "ui_hint": "Slider"
+      },
+      {
         "name": "width",
         "type": "Integer",
-        "default": "Integer(1920)",
-        "description": "Target width in pixels"
+        "default": "512",
+        "description": "Latent image width",
+        "constraint": "",
+        "ui_hint": "Slider"
       },
       {
         "name": "height",
         "type": "Integer",
-        "default": "Integer(1080)",
-        "description": "Target height in pixels"
+        "default": "512",
+        "description": "Latent image height",
+        "constraint": "",
+        "ui_hint": "Slider"
       },
       {
-        "name": "preserve_aspect",
-        "type": "Boolean",
-        "default": "Boolean(true)",
-        "description": "Preserve aspect ratio (uses width as primary)"
+        "name": "batch_size",
+        "type": "Integer",
+        "default": "1",
+        "description": "Number of images to generate per batch",
+        "constraint": "",
+        "ui_hint": ""
       },
       {
-        "name": "filter",
+        "name": "?",
+        "type": "?",
+        "default": "",
+        "description": "",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "comfyui.rs",
+      "api"
+    ],
+    "source_file": "comfyui.rs",
+    "struct_name": "ComfyKSampler"
+  },
+  {
+    "id": "comfy_vae_decode",
+    "name": "ComfyUI VAE Decode",
+    "description": "ComfyUI VAE Decode filter",
+    "category": "Api",
+    "input_ports": [
+      {
+        "name": "latent_ref",
         "type": "String",
-        "default": "String(\"lanczos3\")",
-        "description": "Resampling filter"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "rotate",
-    "name": "Rotate",
-    "description": "Rotate an image by a specified angle",
-    "category": "Transform",
-    "input_ports": [
+        "description": "Latent image reference from KSampler"
+      },
       {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "angle",
+        "name": "vae_ref",
         "type": "String",
-        "default": "String(\"90\")",
-        "description": "Rotation angle"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "flip",
-    "name": "Flip",
-    "description": "Flip an image horizontally or vertically",
-    "category": "Transform",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
+        "description": "VAE model reference from Checkpoint Loader"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Decoded pixel image"
       }
     ],
     "parameters": [
       {
-        "name": "horizontal",
-        "type": "Boolean",
-        "default": "Boolean(true)",
-        "description": "Flip horizontally"
+        "name": "comfyui_url",
+        "type": "String",
+        "default": "http://127.0.0.1:8188",
+        "description": "ComfyUI server URL",
+        "constraint": "",
+        "ui_hint": ""
       },
       {
-        "name": "vertical",
-        "type": "Boolean",
-        "default": "Boolean(false)",
-        "description": "Flip vertically"
+        "name": "?",
+        "type": "?",
+        "default": "",
+        "description": "",
+        "constraint": "",
+        "ui_hint": ""
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "comfyui.rs",
+      "api"
+    ],
+    "source_file": "comfyui.rs",
+    "struct_name": "ComfyVaeDecode"
   },
   {
-    "id": "crop",
-    "name": "Crop",
-    "description": "Crop a region from an image",
-    "category": "Transform",
+    "id": "comfy_lora_loader",
+    "name": "ComfyUI LoRA Loader",
+    "description": "ComfyUI LoRA Loader filter",
+    "category": "Api",
+    "input_ports": [
+      {
+        "name": "model_ref",
+        "type": "String",
+        "description": "Base model reference from Checkpoint Loader"
+      },
+      {
+        "name": "clip_ref",
+        "type": "String",
+        "description": "CLIP model reference from Checkpoint Loader"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "model_ref",
+        "type": "String",
+        "description": "Model reference with LoRA applied"
+      },
+      {
+        "name": "clip_ref",
+        "type": "String",
+        "description": "CLIP reference with LoRA applied"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "comfyui_url",
+        "type": "String",
+        "default": "http://127.0.0.1:8188",
+        "description": "ComfyUI server URL",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "lora_name",
+        "type": "String",
+        "default": "",
+        "description": "",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "?",
+        "type": "?",
+        "default": "",
+        "description": "",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "?",
+        "type": "?",
+        "default": "",
+        "description": "",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "comfyui.rs",
+      "api"
+    ],
+    "source_file": "comfyui.rs",
+    "struct_name": "ComfyLoraLoader"
+  },
+  {
+    "id": "comfy_image_upscale",
+    "name": "ComfyUI Image Upscale",
+    "description": "ComfyUI Image Upscale filter",
+    "category": "Api",
     "input_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Input image to upscale"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Upscaled output image"
       }
     ],
     "parameters": [
       {
-        "name": "x",
-        "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Left edge X coordinate"
+        "name": "comfyui_url",
+        "type": "String",
+        "default": "http://127.0.0.1:8188",
+        "description": "ComfyUI server URL",
+        "constraint": "",
+        "ui_hint": ""
       },
       {
-        "name": "y",
-        "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Top edge Y coordinate"
+        "name": "upscale_model",
+        "type": "String",
+        "default": "RealESRGAN_x4plus.pth",
+        "description": "Upscale model filename in ComfyUI's upscale_models folder",
+        "constraint": "",
+        "ui_hint": ""
       },
       {
-        "name": "width",
-        "type": "Integer",
-        "default": "Integer(100)",
-        "description": "Crop width"
-      },
-      {
-        "name": "height",
-        "type": "Integer",
-        "default": "Integer(100)",
-        "description": "Crop height"
+        "name": "?",
+        "type": "?",
+        "default": "",
+        "description": "",
+        "constraint": "",
+        "ui_hint": ""
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "comfyui.rs",
+      "api"
+    ],
+    "source_file": "comfyui.rs",
+    "struct_name": "ComfyImageUpscale"
+  },
+  {
+    "id": "comfy_controlnet_apply",
+    "name": "ComfyUI ControlNet Apply",
+    "description": "ComfyUI ControlNet Apply filter",
+    "category": "Api",
+    "input_ports": [
+      {
+        "name": "conditioning",
+        "type": "String",
+        "description": "Conditioning from CLIP Text Encode"
+      },
+      {
+        "name": "control_image",
+        "type": "Image",
+        "description": "Control image (edge map, depth map, pose, etc.)"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "conditioning",
+        "type": "String",
+        "description": "Conditioning with ControlNet applied"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "controlnet_name",
+        "type": "String",
+        "default": "",
+        "description": "",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "strength",
+        "type": "Float",
+        "default": "1.0",
+        "description": "ControlNet influence strength",
+        "constraint": "",
+        "ui_hint": "Slider"
+      }
+    ],
+    "tags": [
+      "comfyui.rs",
+      "api"
+    ],
+    "source_file": "comfyui.rs",
+    "struct_name": "ComfyControlNetApply"
+  },
+  {
+    "id": "comfy_workflow_runner",
+    "name": "ComfyUI Workflow Runner",
+    "description": "ComfyUI Workflow Runner filter",
+    "category": "Api",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Optional input image (uploaded to ComfyUI for the workflow)"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "First output image from the workflow"
+      },
+      {
+        "name": "raw_history",
+        "type": "String",
+        "description": "Full ComfyUI history JSON for debugging"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "comfyui_url",
+        "type": "String",
+        "default": "http://127.0.0.1:8188",
+        "description": "ComfyUI server URL",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "workflow_json",
+        "type": "String",
+        "default": "",
+        "description": "",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "?",
+        "type": "?",
+        "default": "",
+        "description": "",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "comfyui.rs",
+      "api"
+    ],
+    "source_file": "comfyui.rs",
+    "struct_name": "ComfyWorkflowRunner"
+  },
+  {
+    "id": "equal",
+    "name": "Equal",
+    "description": "Check if two numbers are equal (a == b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "description": "First value"
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "description": "Second value"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "description": "True if a == b"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "comparison.rs",
+      "math"
+    ],
+    "source_file": "comparison.rs",
+    "struct_name": "Equal"
+  },
+  {
+    "id": "not_equal",
+    "name": "Not Equal",
+    "description": "Check if two numbers are not equal (a != b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "description": "First value"
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "description": "Second value"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "description": "True if a != b"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "comparison.rs",
+      "math"
+    ],
+    "source_file": "comparison.rs",
+    "struct_name": "NotEqual"
+  },
+  {
+    "id": "less_than",
+    "name": "Less Than",
+    "description": "Check if a is less than b (a < b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "description": "First value"
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "description": "Second value"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "description": "True if a < b"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "comparison.rs",
+      "math"
+    ],
+    "source_file": "comparison.rs",
+    "struct_name": "LessThan"
+  },
+  {
+    "id": "less_than_or_equal",
+    "name": "Less Than or Equal",
+    "description": "Check if a is less than or equal to b (a <= b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "description": "First value"
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "description": "Second value"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "description": "True if a <= b"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "comparison.rs",
+      "math"
+    ],
+    "source_file": "comparison.rs",
+    "struct_name": "LessThanOrEqual"
+  },
+  {
+    "id": "greater_than",
+    "name": "Greater Than",
+    "description": "Check if a is greater than b (a > b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "description": "First value"
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "description": "Second value"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "description": "True if a > b"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "comparison.rs",
+      "math"
+    ],
+    "source_file": "comparison.rs",
+    "struct_name": "GreaterThan"
+  },
+  {
+    "id": "greater_than_or_equal",
+    "name": "Greater Than or Equal",
+    "description": "Check if a is greater than or equal to b (a >= b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "description": "First value"
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "description": "Second value"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "description": "True if a >= b"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "comparison.rs",
+      "math"
+    ],
+    "source_file": "comparison.rs",
+    "struct_name": "GreaterThanOrEqual"
+  },
+  {
+    "id": "and",
+    "name": "And",
+    "description": "Logical AND operation (a && b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Boolean",
+        "description": "First boolean"
+      },
+      {
+        "name": "b",
+        "type": "Boolean",
+        "description": "Second boolean"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "description": "True if both a and b are true"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "comparison.rs",
+      "math"
+    ],
+    "source_file": "comparison.rs",
+    "struct_name": "And"
+  },
+  {
+    "id": "or",
+    "name": "Or",
+    "description": "Logical OR operation (a || b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Boolean",
+        "description": "First boolean"
+      },
+      {
+        "name": "b",
+        "type": "Boolean",
+        "description": "Second boolean"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "description": "True if either a or b is true"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "comparison.rs",
+      "math"
+    ],
+    "source_file": "comparison.rs",
+    "struct_name": "Or"
+  },
+  {
+    "id": "not",
+    "name": "Not",
+    "description": "Logical NOT operation (!a)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "value",
+        "type": "Boolean",
+        "description": "Input boolean"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "description": "True if value is false"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "comparison.rs",
+      "math"
+    ],
+    "source_file": "comparison.rs",
+    "struct_name": "Not"
+  },
+  {
+    "id": "xor",
+    "name": "Xor",
+    "description": "Logical XOR operation (a ^ b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Boolean",
+        "description": "First boolean"
+      },
+      {
+        "name": "b",
+        "type": "Boolean",
+        "description": "Second boolean"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "description": "True if exactly one of a or b is true"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "comparison.rs",
+      "math"
+    ],
+    "source_file": "comparison.rs",
+    "struct_name": "Xor"
   },
   {
     "id": "blend",
@@ -1002,37 +2654,45 @@
       {
         "name": "base",
         "type": "Image",
-        "required": true
+        "description": "Base/background image"
       },
       {
         "name": "blend",
         "type": "Image",
-        "required": true
+        "description": "Image to blend on top"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Blended result"
       }
     ],
     "parameters": [
       {
         "name": "mode",
         "type": "String",
-        "default": "String(\"normal\")",
-        "description": "Blend mode"
+        "default": "normal",
+        "description": "Blend mode",
+        "constraint": "one_of(vec![\n                        Value::String(\"normal\".to_string()",
+        "ui_hint": "Dropdown"
       },
       {
         "name": "opacity",
         "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Blend layer opacity"
+        "default": "1.0",
+        "description": "Blend layer opacity",
+        "constraint": "range(0.0..1.0)",
+        "ui_hint": "Slider"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "composite.rs",
+      "composite"
+    ],
+    "source_file": "composite.rs",
+    "struct_name": "Blend"
   },
   {
     "id": "overlay",
@@ -1043,66 +2703,1746 @@
       {
         "name": "base",
         "type": "Image",
-        "required": true
+        "description": "Base/background image"
       },
       {
         "name": "overlay",
         "type": "Image",
-        "required": true
+        "description": "Image to place on top"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Composited result"
       }
     ],
     "parameters": [
       {
         "name": "x",
         "type": "Integer",
-        "default": "Integer(0)",
-        "description": "X position of overlay"
+        "default": "0",
+        "description": "X position of overlay",
+        "constraint": "",
+        "ui_hint": "SpinBox"
       },
       {
         "name": "y",
         "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Y position of overlay"
+        "default": "0",
+        "description": "Y position of overlay",
+        "constraint": "",
+        "ui_hint": "SpinBox"
       },
       {
         "name": "opacity",
         "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Overlay opacity"
+        "default": "1.0",
+        "description": "Overlay opacity",
+        "constraint": "range(0.0..1.0)",
+        "ui_hint": "Slider"
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "composite.rs",
+      "composite"
+    ],
+    "source_file": "composite.rs",
+    "struct_name": "Overlay"
   },
   {
-    "id": "passthrough",
-    "name": "Passthrough",
-    "description": "Passes the input through unchanged",
+    "id": "integer_constant",
+    "name": "Integer",
+    "description": "Provides a constant integer value",
+    "category": "Utility",
+    "input_ports": [],
+    "output_ports": [
+      {
+        "name": "value",
+        "type": "Integer",
+        "description": "The integer value"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "value",
+        "type": "Integer",
+        "default": "0",
+        "description": "Integer value",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "constants.rs",
+      "utility"
+    ],
+    "source_file": "constants.rs",
+    "struct_name": "IntegerConstant"
+  },
+  {
+    "id": "float_constant",
+    "name": "Float",
+    "description": "Provides a constant floating point value",
+    "category": "Utility",
+    "input_ports": [],
+    "output_ports": [
+      {
+        "name": "value",
+        "type": "Float",
+        "description": "The float value"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "value",
+        "type": "Float",
+        "default": "0.0",
+        "description": "Float value",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "constants.rs",
+      "utility"
+    ],
+    "source_file": "constants.rs",
+    "struct_name": "FloatConstant"
+  },
+  {
+    "id": "string_constant",
+    "name": "String",
+    "description": "Provides a constant string value",
+    "category": "Utility",
+    "input_ports": [],
+    "output_ports": [
+      {
+        "name": "value",
+        "type": "String",
+        "description": "The string value"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "value",
+        "type": "String",
+        "default": "",
+        "description": "String value",
+        "constraint": "",
+        "ui_hint": "TextInput"
+      }
+    ],
+    "tags": [
+      "constants.rs",
+      "utility"
+    ],
+    "source_file": "constants.rs",
+    "struct_name": "StringConstant"
+  },
+  {
+    "id": "boolean_constant",
+    "name": "Boolean",
+    "description": "Provides a constant boolean value",
+    "category": "Utility",
+    "input_ports": [],
+    "output_ports": [
+      {
+        "name": "value",
+        "type": "Boolean",
+        "description": "The boolean value"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "value",
+        "type": "Boolean",
+        "default": "false",
+        "description": "Boolean value",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "constants.rs",
+      "utility"
+    ],
+    "source_file": "constants.rs",
+    "struct_name": "BooleanConstant"
+  },
+  {
+    "id": "color_constant",
+    "name": "Color",
+    "description": "Provides a constant color value",
+    "category": "Utility",
+    "input_ports": [],
+    "output_ports": [
+      {
+        "name": "value",
+        "type": "Color",
+        "description": "The color value"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "value",
+        "type": "Color",
+        "default": "Color { r: 255, g: 255, b: 255, a: 255 }",
+        "description": "Color value (RGBA, 0.0-1.0)",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "constants.rs",
+      "utility"
+    ],
+    "source_file": "constants.rs",
+    "struct_name": "ColorConstant"
+  },
+  {
+    "id": "to_integer",
+    "name": "To Integer",
+    "description": "Convert a value to an integer",
     "category": "Utility",
     "input_ports": [
       {
-        "name": "input",
+        "name": "value",
         "type": "Any",
-        "required": true
+        "description": "Value to convert"
       }
     ],
     "output_ports": [
       {
-        "name": "output",
-        "type": "Any",
-        "required": true
+        "name": "result",
+        "type": "Integer",
+        "description": "Integer value"
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "conversion.rs",
+      "utility"
+    ],
+    "source_file": "conversion.rs",
+    "struct_name": "ToInteger"
+  },
+  {
+    "id": "to_float",
+    "name": "To Float",
+    "description": "Convert a value to a floating-point number",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "value",
+        "type": "Any",
+        "description": "Value to convert"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "description": "Float value"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "conversion.rs",
+      "utility"
+    ],
+    "source_file": "conversion.rs",
+    "struct_name": "ToFloat"
+  },
+  {
+    "id": "to_string",
+    "name": "To String",
+    "description": "Convert a value to a string",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "value",
+        "type": "Any",
+        "description": "Value to convert"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "String",
+        "description": "String value"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "conversion.rs",
+      "utility"
+    ],
+    "source_file": "conversion.rs",
+    "struct_name": "ToString"
+  },
+  {
+    "id": "to_boolean",
+    "name": "To Boolean",
+    "description": "Convert a value to a boolean",
+    "category": "Utility",
+    "input_ports": [
+      {
+        "name": "value",
+        "type": "Any",
+        "description": "Value to convert"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Boolean",
+        "description": "Boolean value"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "conversion.rs",
+      "utility"
+    ],
+    "source_file": "conversion.rs",
+    "struct_name": "ToBoolean"
+  },
+  {
+    "id": "draw_rectangle",
+    "name": "Draw Rectangle",
+    "description": "Draw a filled or outlined rectangle on an image",
+    "category": "Draw",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Input image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Image with rectangle drawn"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "x",
+        "type": "Integer",
+        "default": "10",
+        "description": "Top-left X coordinate",
+        "constraint": "",
+        "ui_hint": "SpinBox"
+      },
+      {
+        "name": "y",
+        "type": "Integer",
+        "default": "10",
+        "description": "Top-left Y coordinate",
+        "constraint": "",
+        "ui_hint": "SpinBox"
+      },
+      {
+        "name": "width",
+        "type": "Integer",
+        "default": "100",
+        "description": "Rectangle width",
+        "constraint": "",
+        "ui_hint": "SpinBox"
+      },
+      {
+        "name": "height",
+        "type": "Integer",
+        "default": "100",
+        "description": "Rectangle height",
+        "constraint": "",
+        "ui_hint": "SpinBox"
+      },
+      {
+        "name": "color_r",
+        "type": "Integer",
+        "default": "255",
+        "description": "Red component (0-255)",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": ""
+      },
+      {
+        "name": "color_g",
+        "type": "Integer",
+        "default": "0",
+        "description": "Green component (0-255)",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": ""
+      },
+      {
+        "name": "color_b",
+        "type": "Integer",
+        "default": "0",
+        "description": "Blue component (0-255)",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": ""
+      },
+      {
+        "name": "filled",
+        "type": "Boolean",
+        "default": "true",
+        "description": "Fill the rectangle (false = outline only)",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "thickness",
+        "type": "Integer",
+        "default": "2",
+        "description": "Line thickness for outline mode",
+        "constraint": "range(1.0..50.0)",
+        "ui_hint": "SpinBox"
+      }
+    ],
+    "tags": [
+      "draw.rs",
+      "draw"
+    ],
+    "source_file": "draw.rs",
+    "struct_name": "DrawRectangle"
+  },
+  {
+    "id": "draw_circle",
+    "name": "Draw Circle",
+    "description": "Draw a filled or outlined circle on an image",
+    "category": "Draw",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Input image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Image with circle drawn"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "center_x",
+        "type": "Integer",
+        "default": "100",
+        "description": "Center X coordinate",
+        "constraint": "",
+        "ui_hint": "SpinBox"
+      },
+      {
+        "name": "center_y",
+        "type": "Integer",
+        "default": "100",
+        "description": "Center Y coordinate",
+        "constraint": "",
+        "ui_hint": "SpinBox"
+      },
+      {
+        "name": "radius",
+        "type": "Integer",
+        "default": "50",
+        "description": "Circle radius",
+        "constraint": "",
+        "ui_hint": "SpinBox"
+      },
+      {
+        "name": "color_r",
+        "type": "Integer",
+        "default": "0",
+        "description": "Red component (0-255)",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": ""
+      },
+      {
+        "name": "color_g",
+        "type": "Integer",
+        "default": "255",
+        "description": "Green component (0-255)",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": ""
+      },
+      {
+        "name": "color_b",
+        "type": "Integer",
+        "default": "0",
+        "description": "Blue component (0-255)",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": ""
+      },
+      {
+        "name": "filled",
+        "type": "Boolean",
+        "default": "true",
+        "description": "Fill the circle",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "draw.rs",
+      "draw"
+    ],
+    "source_file": "draw.rs",
+    "struct_name": "DrawCircle"
+  },
+  {
+    "id": "draw_line",
+    "name": "Draw Line",
+    "description": "Draw a straight line between two points on an image",
+    "category": "Draw",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Input image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Image with line drawn"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "x1",
+        "type": "Integer",
+        "default": "0",
+        "description": "Start X coordinate",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "y1",
+        "type": "Integer",
+        "default": "0",
+        "description": "Start Y coordinate",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "x2",
+        "type": "Integer",
+        "default": "100",
+        "description": "End X coordinate",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "y2",
+        "type": "Integer",
+        "default": "100",
+        "description": "End Y coordinate",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "color_r",
+        "type": "Integer",
+        "default": "255",
+        "description": "Red component (0-255)",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": ""
+      },
+      {
+        "name": "color_g",
+        "type": "Integer",
+        "default": "255",
+        "description": "Green component (0-255)",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": ""
+      },
+      {
+        "name": "color_b",
+        "type": "Integer",
+        "default": "255",
+        "description": "Blue component (0-255)",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": ""
+      },
+      {
+        "name": "thickness",
+        "type": "Integer",
+        "default": "2",
+        "description": "Line thickness in pixels",
+        "constraint": "range(1.0..50.0)",
+        "ui_hint": "SpinBox"
+      }
+    ],
+    "tags": [
+      "draw.rs",
+      "draw"
+    ],
+    "source_file": "draw.rs",
+    "struct_name": "DrawLine"
+  },
+  {
+    "id": "edge_detect",
+    "name": "Edge Detect",
+    "description": "Detect edges using the Sobel operator",
+    "category": "Edge",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Input image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Edge-detected image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "method",
+        "type": "String",
+        "default": "sobel",
+        "description": "Edge detection method",
+        "constraint": "",
+        "ui_hint": "Dropdown"
+      },
+      {
+        "name": "invert",
+        "type": "Boolean",
+        "default": "false",
+        "description": "Invert edges (white background, dark edges)",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "edge.rs",
+      "edge"
+    ],
+    "source_file": "edge.rs",
+    "struct_name": "EdgeDetect"
+  },
+  {
+    "id": "emboss",
+    "name": "Emboss",
+    "description": "Apply an emboss/relief effect to an image",
+    "category": "Edge",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Input image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Embossed image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "direction",
+        "type": "String",
+        "default": "top_left",
+        "description": "Light direction for emboss",
+        "constraint": "",
+        "ui_hint": "Dropdown"
+      }
+    ],
+    "tags": [
+      "edge.rs",
+      "edge"
+    ],
+    "source_file": "edge.rs",
+    "struct_name": "Emboss"
+  },
+  {
+    "id": "canny_edge",
+    "name": "Canny Edge Detection",
+    "description": "Detect edges using the Canny algorithm with adjustable thresholds",
+    "category": "Edge",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Input image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Edge map (white edges on black)"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "low_threshold",
+        "type": "Float",
+        "default": "50.0",
+        "description": "Lower hysteresis threshold",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": "Slider"
+      },
+      {
+        "name": "high_threshold",
+        "type": "Float",
+        "default": "150.0",
+        "description": "Upper hysteresis threshold",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": "Slider"
+      }
+    ],
+    "tags": [
+      "edge.rs",
+      "edge"
+    ],
+    "source_file": "edge.rs",
+    "struct_name": "CannyEdge"
+  },
+  {
+    "id": "laplacian",
+    "name": "Laplacian Edge Detection",
+    "description": "Detect edges using the Laplacian second-derivative operator",
+    "category": "Edge",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Input image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Edge-detected image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "normalize",
+        "type": "Boolean",
+        "default": "true",
+        "description": "Normalize output to full 0-255 range",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "edge.rs",
+      "edge"
+    ],
+    "source_file": "edge.rs",
+    "struct_name": "Laplacian"
+  },
+  {
+    "id": "load_image",
+    "name": "Load Image",
+    "description": "Load an image from a file path",
+    "category": "Input",
+    "input_ports": [],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "The loaded image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "path",
+        "type": "String",
+        "default": "",
+        "description": "Path to the image file",
+        "constraint": "",
+        "ui_hint": "FileChooser"
+      }
+    ],
+    "tags": [
+      "io.rs",
+      "input"
+    ],
+    "source_file": "io.rs",
+    "struct_name": "LoadImage"
+  },
+  {
+    "id": "load_folder",
+    "name": "Load Folder",
+    "description": "Load all images from a folder (batch processing)",
+    "category": "Input",
+    "input_ports": [],
+    "output_ports": [
+      {
+        "name": "images",
+        "type": "Array<Image>",
+        "description": "Array of loaded images"
+      },
+      {
+        "name": "count",
+        "type": "Integer",
+        "description": "Number of images loaded"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "directory",
+        "type": "String",
+        "default": "",
+        "description": "Directory containing images to load",
+        "constraint": "",
+        "ui_hint": "FileChooser"
+      },
+      {
+        "name": "recursive",
+        "type": "Boolean",
+        "default": "false",
+        "description": "Search subfolders recursively",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "pattern",
+        "type": "String",
+        "default": "*",
+        "description": "Filename pattern (e.g., *.png, image_*.jpg)",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "io.rs",
+      "input"
+    ],
+    "source_file": "io.rs",
+    "struct_name": "LoadFolder"
+  },
+  {
+    "id": "save_image",
+    "name": "Save Image",
+    "description": "Save an image to a directory with customizable filename and format",
+    "category": "Output",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "The image to save"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "path",
+        "type": "String",
+        "description": "The full path where the image was saved"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "directory",
+        "type": "String",
+        "default": "./output",
+        "description": "Output directory (defaults to ./output)",
+        "constraint": "",
+        "ui_hint": "FileChooser"
+      },
+      {
+        "name": "filename",
+        "type": "String",
+        "default": "output",
+        "description": "Output filename without extension (defaults to 'output')",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "format",
+        "type": "String",
+        "default": "png",
+        "description": "Output format: png, jpg, webp, bmp, tiff",
+        "constraint": "",
+        "ui_hint": "Dropdown"
+      },
+      {
+        "name": "quality",
+        "type": "Integer",
+        "default": "90",
+        "description": "Quality for lossy formats like JPEG/WebP (1-100)",
+        "constraint": "range(1.0..100.0)",
+        "ui_hint": "Slider"
+      },
+      {
+        "name": "create_dirs",
+        "type": "Boolean",
+        "default": "true",
+        "description": "Create output directory if it doesn't exist",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "overwrite",
+        "type": "Boolean",
+        "default": "true",
+        "description": "Overwrite if file already exists",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "io.rs",
+      "output"
+    ],
+    "source_file": "io.rs",
+    "struct_name": "SaveImage"
+  },
+  {
+    "id": "batch_save_images",
+    "name": "Batch Save Images",
+    "description": "Save multiple images to a directory with auto-incrementing filenames",
+    "category": "Output",
+    "input_ports": [
+      {
+        "name": "images",
+        "type": "Array<Image>",
+        "description": "Array of images to save"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "paths",
+        "type": "Array<String>",
+        "description": "Array of saved file paths"
+      },
+      {
+        "name": "count",
+        "type": "Integer",
+        "description": "Number of images saved"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "directory",
+        "type": "String",
+        "default": "./output",
+        "description": "Output directory (defaults to ./output)",
+        "constraint": "",
+        "ui_hint": "FileChooser"
+      },
+      {
+        "name": "prefix",
+        "type": "String",
+        "default": "image_",
+        "description": "Filename prefix (e.g., 'image_' -> image_001.png)",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "format",
+        "type": "String",
+        "default": "png",
+        "description": "Output format: png, jpg, webp, bmp, tiff",
+        "constraint": "",
+        "ui_hint": "Dropdown"
+      },
+      {
+        "name": "start_index",
+        "type": "Integer",
+        "default": "1",
+        "description": "Starting index for numbering (e.g., 1 -> 001, 002, ...)",
+        "constraint": "range(0.0..9999.0)",
+        "ui_hint": ""
+      },
+      {
+        "name": "digits",
+        "type": "Integer",
+        "default": "3",
+        "description": "Number of digits for padding (e.g., 3 -> 001, 4 -> 0001)",
+        "constraint": "range(1.0..6.0)",
+        "ui_hint": ""
+      },
+      {
+        "name": "quality",
+        "type": "Integer",
+        "default": "90",
+        "description": "Quality for lossy formats like JPEG/WebP (1-100)",
+        "constraint": "range(1.0..100.0)",
+        "ui_hint": "Slider"
+      },
+      {
+        "name": "create_dirs",
+        "type": "Boolean",
+        "default": "true",
+        "description": "Create output directory if it doesn't exist",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "io.rs",
+      "output"
+    ],
+    "source_file": "io.rs",
+    "struct_name": "BatchSaveImages"
+  },
+  {
+    "id": "add",
+    "name": "Add",
+    "description": "Add two numbers (a + b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "description": "First number"
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "description": "Second number"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "description": "Sum (a + b)"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "math.rs",
+      "math"
+    ],
+    "source_file": "math.rs",
+    "struct_name": "Add"
+  },
+  {
+    "id": "subtract",
+    "name": "Subtract",
+    "description": "Subtract two numbers (a - b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "description": "First number"
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "description": "Second number"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "description": "Difference (a - b)"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "math.rs",
+      "math"
+    ],
+    "source_file": "math.rs",
+    "struct_name": "Subtract"
+  },
+  {
+    "id": "multiply",
+    "name": "Multiply",
+    "description": "Multiply two numbers (a \u00d7 b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "description": "First number"
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "description": "Second number"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "description": "Product (a \u00d7 b)"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "math.rs",
+      "math"
+    ],
+    "source_file": "math.rs",
+    "struct_name": "Multiply"
+  },
+  {
+    "id": "divide",
+    "name": "Divide",
+    "description": "Divide two numbers (a \u00f7 b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "description": "Dividend"
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "description": "Divisor"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "description": "Quotient (a \u00f7 b)"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "math.rs",
+      "math"
+    ],
+    "source_file": "math.rs",
+    "struct_name": "Divide"
+  },
+  {
+    "id": "modulo",
+    "name": "Modulo",
+    "description": "Modulo operation (a % b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "description": "Dividend"
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "description": "Divisor"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "description": "Remainder (a % b)"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "math.rs",
+      "math"
+    ],
+    "source_file": "math.rs",
+    "struct_name": "Modulo"
+  },
+  {
+    "id": "power",
+    "name": "Power",
+    "description": "Raise a to the power of b (a^b)",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "description": "Base"
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "description": "Exponent"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "description": "Result (a^b)"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "math.rs",
+      "math"
+    ],
+    "source_file": "math.rs",
+    "struct_name": "Power"
+  },
+  {
+    "id": "min",
+    "name": "Min",
+    "description": "Return the minimum of two numbers",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "description": "First number"
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "description": "Second number"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "description": "Minimum value"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "math.rs",
+      "math"
+    ],
+    "source_file": "math.rs",
+    "struct_name": "Min"
+  },
+  {
+    "id": "max",
+    "name": "Max",
+    "description": "Return the maximum of two numbers",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "a",
+        "type": "Float",
+        "description": "First number"
+      },
+      {
+        "name": "b",
+        "type": "Float",
+        "description": "Second number"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "description": "Maximum value"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "math.rs",
+      "math"
+    ],
+    "source_file": "math.rs",
+    "struct_name": "Max"
+  },
+  {
+    "id": "clamp",
+    "name": "Clamp",
+    "description": "Clamp a value between min and max",
+    "category": "Math",
+    "input_ports": [
+      {
+        "name": "value",
+        "type": "Float",
+        "description": "Value to clamp"
+      },
+      {
+        "name": "min",
+        "type": "Float",
+        "description": "Minimum value"
+      },
+      {
+        "name": "max",
+        "type": "Float",
+        "description": "Maximum value"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "result",
+        "type": "Float",
+        "description": "Clamped value"
+      }
+    ],
+    "parameters": [],
+    "tags": [
+      "math.rs",
+      "math"
+    ],
+    "source_file": "math.rs",
+    "struct_name": "Clamp"
+  },
+  {
+    "id": "add_noise",
+    "name": "Add Noise",
+    "description": "Add random noise to an image (Gaussian or salt-and-pepper)",
+    "category": "Noise",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Input image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Noisy image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "noise_type",
+        "type": "String",
+        "default": "gaussian",
+        "description": "Type of noise to add",
+        "constraint": "",
+        "ui_hint": "Dropdown"
+      },
+      {
+        "name": "amount",
+        "type": "Float",
+        "default": "0.1",
+        "description": "Noise intensity (0.0 to 1.0)",
+        "constraint": "range(0.0..1.0)",
+        "ui_hint": "Slider"
+      },
+      {
+        "name": "seed",
+        "type": "Integer",
+        "default": "42",
+        "description": "Random seed for reproducibility",
+        "constraint": "",
+        "ui_hint": "SpinBox"
+      }
+    ],
+    "tags": [
+      "noise.rs",
+      "noise"
+    ],
+    "source_file": "noise.rs",
+    "struct_name": "AddNoise"
+  },
+  {
+    "id": "denoise",
+    "name": "Denoise",
+    "description": "Reduce noise using a median filter",
+    "category": "Noise",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Noisy input image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Denoised image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "radius",
+        "type": "Integer",
+        "default": "1",
+        "description": "Filter radius (1 = 3\u00d73 kernel, 2 = 5\u00d75, etc.)",
+        "constraint": "range(1.0..5.0)",
+        "ui_hint": "SpinBox"
+      }
+    ],
+    "tags": [
+      "noise.rs",
+      "noise"
+    ],
+    "source_file": "noise.rs",
+    "struct_name": "Denoise"
+  },
+  {
+    "id": "unsharp_mask",
+    "name": "Unsharp Mask",
+    "description": "Sharpen an image using unsharp masking (blur + subtract)",
+    "category": "Sharpen",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Input image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Sharpened image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "sigma",
+        "type": "Float",
+        "default": "1.0",
+        "description": "Blur radius for the mask (higher = stronger effect)",
+        "constraint": "range(0.1..20.0)",
+        "ui_hint": "Slider"
+      },
+      {
+        "name": "amount",
+        "type": "Float",
+        "default": "1.0",
+        "description": "Sharpening strength (0.0 to 5.0)",
+        "constraint": "range(0.0..5.0)",
+        "ui_hint": "Slider"
+      },
+      {
+        "name": "threshold",
+        "type": "Integer",
+        "default": "0",
+        "description": "Minimum difference to sharpen (reduces noise sharpening)",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": "SpinBox"
+      }
+    ],
+    "tags": [
+      "sharpen.rs",
+      "sharpen"
+    ],
+    "source_file": "sharpen.rs",
+    "struct_name": "UnsharpMask"
+  },
+  {
+    "id": "sharpen",
+    "name": "Sharpen",
+    "description": "Apply a sharpening convolution kernel to an image",
+    "category": "Sharpen",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Input image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Sharpened image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "strength",
+        "type": "Float",
+        "default": "1.0",
+        "description": "Sharpening strength (0.0 = none, 1.0 = standard)",
+        "constraint": "range(0.0..5.0)",
+        "ui_hint": "Slider"
+      }
+    ],
+    "tags": [
+      "sharpen.rs",
+      "sharpen"
+    ],
+    "source_file": "sharpen.rs",
+    "struct_name": "Sharpen"
+  },
+  {
+    "id": "text_overlay",
+    "name": "Text Overlay",
+    "description": "Add text to an image at a specified position",
+    "category": "Text",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Input image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Image with text overlay"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "text",
+        "type": "String",
+        "default": "Hello Ambara",
+        "description": "Text to draw",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "x",
+        "type": "Integer",
+        "default": "10",
+        "description": "X position of text",
+        "constraint": "",
+        "ui_hint": "SpinBox"
+      },
+      {
+        "name": "y",
+        "type": "Integer",
+        "default": "10",
+        "description": "Y position of text",
+        "constraint": "",
+        "ui_hint": "SpinBox"
+      },
+      {
+        "name": "scale",
+        "type": "Integer",
+        "default": "2",
+        "description": "Text scale multiplier (1 = 8px, 2 = 16px, etc.)",
+        "constraint": "range(1.0..10.0)",
+        "ui_hint": "SpinBox"
+      },
+      {
+        "name": "color_r",
+        "type": "Integer",
+        "default": "255",
+        "description": "Text color red (0-255)",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": ""
+      },
+      {
+        "name": "color_g",
+        "type": "Integer",
+        "default": "255",
+        "description": "Text color green (0-255)",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": ""
+      },
+      {
+        "name": "color_b",
+        "type": "Integer",
+        "default": "255",
+        "description": "Text color blue (0-255)",
+        "constraint": "range(0.0..255.0)",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "text.rs",
+      "text"
+    ],
+    "source_file": "text.rs",
+    "struct_name": "TextOverlay"
+  },
+  {
+    "id": "resize",
+    "name": "Resize",
+    "description": "Resize an image to specified dimensions",
+    "category": "Transform",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Input image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Resized image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "width",
+        "type": "Integer",
+        "default": "1920",
+        "description": "Target width in pixels",
+        "constraint": "range(1.0..16384.0)",
+        "ui_hint": "SpinBox"
+      },
+      {
+        "name": "height",
+        "type": "Integer",
+        "default": "1080",
+        "description": "Target height in pixels",
+        "constraint": "range(1.0..16384.0)",
+        "ui_hint": "SpinBox"
+      },
+      {
+        "name": "preserve_aspect",
+        "type": "Boolean",
+        "default": "true",
+        "description": "Preserve aspect ratio (uses width as primary)",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "filter",
+        "type": "String",
+        "default": "lanczos3",
+        "description": "Resampling filter",
+        "constraint": "one_of(vec![\n                        Value::String(\"nearest\".to_string()",
+        "ui_hint": "Dropdown"
+      }
+    ],
+    "tags": [
+      "transform.rs",
+      "transform"
+    ],
+    "source_file": "transform.rs",
+    "struct_name": "Resize"
+  },
+  {
+    "id": "rotate",
+    "name": "Rotate",
+    "description": "Rotate an image by a specified angle",
+    "category": "Transform",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Input image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Rotated image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "angle",
+        "type": "String",
+        "default": "90",
+        "description": "Rotation angle",
+        "constraint": "one_of(vec![\n                        Value::String(\"90\".to_string()",
+        "ui_hint": "Dropdown"
+      }
+    ],
+    "tags": [
+      "transform.rs",
+      "transform"
+    ],
+    "source_file": "transform.rs",
+    "struct_name": "Rotate"
+  },
+  {
+    "id": "flip",
+    "name": "Flip",
+    "description": "Flip an image horizontally or vertically",
+    "category": "Transform",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Input image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Flipped image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "horizontal",
+        "type": "Boolean",
+        "default": "true",
+        "description": "Flip horizontally",
+        "constraint": "",
+        "ui_hint": ""
+      },
+      {
+        "name": "vertical",
+        "type": "Boolean",
+        "default": "false",
+        "description": "Flip vertically",
+        "constraint": "",
+        "ui_hint": ""
+      }
+    ],
+    "tags": [
+      "transform.rs",
+      "transform"
+    ],
+    "source_file": "transform.rs",
+    "struct_name": "Flip"
+  },
+  {
+    "id": "crop",
+    "name": "Crop",
+    "description": "Crop a region from an image",
+    "category": "Transform",
+    "input_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Input image"
+      }
+    ],
+    "output_ports": [
+      {
+        "name": "image",
+        "type": "Image",
+        "description": "Cropped image"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "x",
+        "type": "Integer",
+        "default": "0",
+        "description": "Left edge X coordinate",
+        "constraint": "",
+        "ui_hint": "SpinBox"
+      },
+      {
+        "name": "y",
+        "type": "Integer",
+        "default": "0",
+        "description": "Top edge Y coordinate",
+        "constraint": "",
+        "ui_hint": "SpinBox"
+      },
+      {
+        "name": "width",
+        "type": "Integer",
+        "default": "100",
+        "description": "Crop width",
+        "constraint": "",
+        "ui_hint": "SpinBox"
+      },
+      {
+        "name": "height",
+        "type": "Integer",
+        "default": "100",
+        "description": "Crop height",
+        "constraint": "",
+        "ui_hint": "SpinBox"
+      }
+    ],
+    "tags": [
+      "transform.rs",
+      "transform"
+    ],
+    "source_file": "transform.rs",
+    "struct_name": "Crop"
   },
   {
     "id": "preview",
@@ -1113,39 +4453,43 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Image to preview"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Passthrough of input image"
       },
       {
         "name": "width",
         "type": "Integer",
-        "required": true
+        "description": "Image width in pixels"
       },
       {
         "name": "height",
         "type": "Integer",
-        "required": true
+        "description": "Image height in pixels"
       },
       {
         "name": "has_alpha",
         "type": "Boolean",
-        "required": true
+        "description": "Whether image has alpha channel"
       },
       {
         "name": "info",
         "type": "String",
-        "required": true
+        "description": "Human-readable image information"
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "utility.rs",
+      "utility"
+    ],
+    "source_file": "utility.rs",
+    "struct_name": "Preview"
   },
   {
     "id": "split_channels",
@@ -1156,34 +4500,38 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Image to split"
       }
     ],
     "output_ports": [
       {
         "name": "red",
         "type": "Image",
-        "required": true
+        "description": "Red channel as grayscale image"
       },
       {
         "name": "green",
         "type": "Image",
-        "required": true
+        "description": "Green channel as grayscale image"
       },
       {
         "name": "blue",
         "type": "Image",
-        "required": true
+        "description": "Blue channel as grayscale image"
       },
       {
         "name": "alpha",
         "type": "Image",
-        "required": true
+        "description": "Alpha channel as grayscale image"
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "utility.rs",
+      "utility"
+    ],
+    "source_file": "utility.rs",
+    "struct_name": "SplitChannels"
   },
   {
     "id": "merge_channels",
@@ -1194,34 +4542,38 @@
       {
         "name": "red",
         "type": "Image",
-        "required": true
+        "description": "Red channel"
       },
       {
         "name": "green",
         "type": "Image",
-        "required": true
+        "description": "Green channel"
       },
       {
         "name": "blue",
         "type": "Image",
-        "required": true
+        "description": "Blue channel"
       },
       {
         "name": "alpha",
         "type": "Image",
-        "required": false
+        "description": "Alpha channel (optional, defaults to opaque)"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Combined RGBA image"
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "utility.rs",
+      "utility"
+    ],
+    "source_file": "utility.rs",
+    "struct_name": "MergeChannels"
   },
   {
     "id": "note",
@@ -1234,12 +4586,18 @@
       {
         "name": "text",
         "type": "String",
-        "default": "String(\"Add your notes here...\")",
-        "description": "Note content"
+        "default": "Add your notes here...",
+        "description": "Note content",
+        "constraint": "",
+        "ui_hint": ""
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "utility.rs",
+      "utility"
+    ],
+    "source_file": "utility.rs",
+    "struct_name": "Note"
   },
   {
     "id": "image_info",
@@ -1250,44 +4608,48 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Image to analyze"
       }
     ],
     "output_ports": [
       {
         "name": "width",
         "type": "Integer",
-        "required": true
+        "description": "Image width in pixels"
       },
       {
         "name": "height",
         "type": "Integer",
-        "required": true
+        "description": "Image height in pixels"
       },
       {
         "name": "channels",
         "type": "Integer",
-        "required": true
+        "description": "Number of color channels"
       },
       {
         "name": "has_alpha",
         "type": "Boolean",
-        "required": true
+        "description": "Whether image has alpha channel"
       },
       {
         "name": "pixel_count",
         "type": "Integer",
-        "required": true
+        "description": "Total number of pixels"
       },
       {
         "name": "aspect_ratio",
         "type": "Float",
-        "required": true
+        "description": "Width/Height aspect ratio"
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "utility.rs",
+      "analyze"
+    ],
+    "source_file": "utility.rs",
+    "struct_name": "ImageInfo"
   },
   {
     "id": "image_preview",
@@ -1298,41 +4660,47 @@
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Image to preview"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Passthrough of input image"
       },
       {
         "name": "thumbnail",
         "type": "String",
-        "required": true
+        "description": "Base64-encoded PNG thumbnail (data URL)"
       },
       {
         "name": "width",
         "type": "Integer",
-        "required": true
+        "description": "Original image width"
       },
       {
         "name": "height",
         "type": "Integer",
-        "required": true
+        "description": "Original image height"
       }
     ],
     "parameters": [
       {
         "name": "max_size",
         "type": "Integer",
-        "default": "Integer(200)",
-        "description": "Maximum thumbnail dimension (width or height)"
+        "default": "200",
+        "description": "Maximum thumbnail dimension (width or height)",
+        "constraint": "",
+        "ui_hint": ""
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "utility.rs",
+      "utility"
+    ],
+    "source_file": "utility.rs",
+    "struct_name": "ImagePreview"
   },
   {
     "id": "collect_images",
@@ -1343,39 +4711,43 @@
       {
         "name": "image1",
         "type": "Image",
-        "required": true
+        "description": "First image"
       },
       {
         "name": "image2",
         "type": "Image",
-        "required": false
+        "description": "Second image (optional)"
       },
       {
         "name": "image3",
         "type": "Image",
-        "required": false
+        "description": "Third image (optional)"
       },
       {
         "name": "image4",
         "type": "Image",
-        "required": false
+        "description": "Fourth image (optional)"
       }
     ],
     "output_ports": [
       {
         "name": "images",
-        "type": "Array(Image)",
-        "required": true
+        "type": "Array<Image>",
+        "description": "Array of collected images"
       },
       {
         "name": "count",
         "type": "Integer",
-        "required": true
+        "description": "Number of images collected"
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "utility.rs",
+      "utility"
+    ],
+    "source_file": "utility.rs",
+    "struct_name": "CollectImages"
   },
   {
     "id": "get_image_from_array",
@@ -1385,27 +4757,33 @@
     "input_ports": [
       {
         "name": "images",
-        "type": "Array(Image)",
-        "required": true
+        "type": "Array<Image>",
+        "description": "Array of images"
       }
     ],
     "output_ports": [
       {
         "name": "image",
         "type": "Image",
-        "required": true
+        "description": "Extracted image"
       }
     ],
     "parameters": [
       {
         "name": "index",
         "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Index of image to extract (0-based)"
+        "default": "0",
+        "description": "Index of image to extract (0-based)",
+        "constraint": "",
+        "ui_hint": ""
       }
     ],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "utility.rs",
+      "utility"
+    ],
+    "source_file": "utility.rs",
+    "struct_name": "GetImageFromArray"
   },
   {
     "id": "array_length",
@@ -1416,19 +4794,23 @@
       {
         "name": "array",
         "type": "Any",
-        "required": true
+        "description": "Array to measure"
       }
     ],
     "output_ports": [
       {
         "name": "length",
         "type": "Integer",
-        "required": true
+        "description": "Number of items in array"
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
+    "tags": [
+      "utility.rs",
+      "utility"
+    ],
+    "source_file": "utility.rs",
+    "struct_name": "ArrayLength"
   },
   {
     "id": "value_display",
@@ -1439,2645 +4821,59 @@
       {
         "name": "value",
         "type": "Any",
-        "required": true
+        "description": "Value to display"
       }
     ],
     "output_ports": [
       {
         "name": "value",
         "type": "Any",
-        "required": true
+        "description": "Passthrough of input value"
       },
       {
         "name": "display",
         "type": "String",
-        "required": true
+        "description": "Human-readable display string"
       },
       {
         "name": "type",
         "type": "String",
-        "required": true
+        "description": "Type name of the value"
       }
     ],
     "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "integer_constant",
-    "name": "Integer",
-    "description": "Provides a constant integer value",
-    "category": "Utility",
-    "input_ports": [],
-    "output_ports": [
-      {
-        "name": "value",
-        "type": "Integer",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "value",
-        "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Integer value"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "float_constant",
-    "name": "Float",
-    "description": "Provides a constant floating point value",
-    "category": "Utility",
-    "input_ports": [],
-    "output_ports": [
-      {
-        "name": "value",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "value",
-        "type": "Float",
-        "default": "Float(0.0)",
-        "description": "Float value"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "string_constant",
-    "name": "String",
-    "description": "Provides a constant string value",
-    "category": "Utility",
-    "input_ports": [],
-    "output_ports": [
-      {
-        "name": "value",
-        "type": "String",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "value",
-        "type": "String",
-        "default": "String(\"\")",
-        "description": "String value"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "boolean_constant",
-    "name": "Boolean",
-    "description": "Provides a constant boolean value",
-    "category": "Utility",
-    "input_ports": [],
-    "output_ports": [
-      {
-        "name": "value",
-        "type": "Boolean",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "value",
-        "type": "Boolean",
-        "default": "Boolean(false)",
-        "description": "Boolean value"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "color_constant",
-    "name": "Color",
-    "description": "Provides a constant color value",
-    "category": "Utility",
-    "input_ports": [],
-    "output_ports": [
-      {
-        "name": "value",
-        "type": "Color",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "value",
-        "type": "Color",
-        "default": "Color(Color { r: 255, g: 255, b: 255, a: 255 })",
-        "description": "Color value (RGBA, 0.0-1.0)"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "add",
-    "name": "Add",
-    "description": "Add two numbers (a + b)",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Float",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "subtract",
-    "name": "Subtract",
-    "description": "Subtract two numbers (a - b)",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Float",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "multiply",
-    "name": "Multiply",
-    "description": "Multiply two numbers (a \u00d7 b)",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Float",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "divide",
-    "name": "Divide",
-    "description": "Divide two numbers (a \u00f7 b)",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Float",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "modulo",
-    "name": "Modulo",
-    "description": "Modulo operation (a % b)",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Float",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "power",
-    "name": "Power",
-    "description": "Raise a to the power of b (a^b)",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Float",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "min",
-    "name": "Min",
-    "description": "Return the minimum of two numbers",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Float",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "max",
-    "name": "Max",
-    "description": "Return the maximum of two numbers",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Float",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "clamp",
-    "name": "Clamp",
-    "description": "Clamp a value between min and max",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "value",
-        "type": "Float",
-        "required": true
-      },
-      {
-        "name": "min",
-        "type": "Float",
-        "required": true
-      },
-      {
-        "name": "max",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "equal",
-    "name": "Equal",
-    "description": "Check if two numbers are equal (a == b)",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Float",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Boolean",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "not_equal",
-    "name": "Not Equal",
-    "description": "Check if two numbers are not equal (a != b)",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Float",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Boolean",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "less_than",
-    "name": "Less Than",
-    "description": "Check if a is less than b (a < b)",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Float",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Boolean",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "less_than_or_equal",
-    "name": "Less Than or Equal",
-    "description": "Check if a is less than or equal to b (a <= b)",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Float",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Boolean",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "greater_than",
-    "name": "Greater Than",
-    "description": "Check if a is greater than b (a > b)",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Float",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Boolean",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "greater_than_or_equal",
-    "name": "Greater Than or Equal",
-    "description": "Check if a is greater than or equal to b (a >= b)",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Float",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Boolean",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "and",
-    "name": "And",
-    "description": "Logical AND operation (a && b)",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Boolean",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Boolean",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Boolean",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "or",
-    "name": "Or",
-    "description": "Logical OR operation (a || b)",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Boolean",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Boolean",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Boolean",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "not",
-    "name": "Not",
-    "description": "Logical NOT operation (!a)",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "value",
-        "type": "Boolean",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Boolean",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "xor",
-    "name": "Xor",
-    "description": "Logical XOR operation (a ^ b)",
-    "category": "Math",
-    "input_ports": [
-      {
-        "name": "a",
-        "type": "Boolean",
-        "required": true
-      },
-      {
-        "name": "b",
-        "type": "Boolean",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Boolean",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "to_integer",
-    "name": "To Integer",
-    "description": "Convert a value to an integer",
-    "category": "Utility",
-    "input_ports": [
-      {
-        "name": "value",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Integer",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "to_float",
-    "name": "To Float",
-    "description": "Convert a value to a floating-point number",
-    "category": "Utility",
-    "input_ports": [
-      {
-        "name": "value",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "to_string",
-    "name": "To String",
-    "description": "Convert a value to a string",
-    "category": "Utility",
-    "input_ports": [
-      {
-        "name": "value",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "String",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "to_boolean",
-    "name": "To Boolean",
-    "description": "Convert a value to a boolean",
-    "category": "Utility",
-    "input_ports": [
-      {
-        "name": "value",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "Boolean",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "image_stack",
-    "name": "Image Stack",
-    "description": "Stack multiple images to reduce noise and increase signal-to-noise ratio",
-    "category": "Custom",
-    "input_ports": [
-      {
-        "name": "images",
-        "type": "Array(Image)",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "method",
-        "type": "String",
-        "default": "String(\"mean\")",
-        "description": "Stacking method: mean, median, sigma_clip, max, min"
-      },
-      {
-        "name": "sigma",
-        "type": "Float",
-        "default": "Float(2.0)",
-        "description": "Sigma value for sigma clipping (only used with sigma_clip method)"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "dark_frame_subtract",
-    "name": "Dark Frame Subtract",
-    "description": "Subtract dark frame to remove thermal noise from astrophotos",
-    "category": "Custom",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      },
-      {
-        "name": "dark",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "scale",
-        "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Scale factor for dark frame subtraction"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "flat_field_correct",
-    "name": "Flat Field Correct",
-    "description": "Apply flat field correction to remove vignetting and dust artifacts",
-    "category": "Custom",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      },
-      {
-        "name": "flat",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "normalize",
-        "type": "Boolean",
-        "default": "Boolean(true)",
-        "description": "Normalize flat field to mean value"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "hot_pixel_removal",
-    "name": "Hot Pixel Removal",
-    "description": "Detect and remove hot/dead pixels using median filtering",
-    "category": "Custom",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "threshold",
-        "type": "Float",
-        "default": "Float(50.0)",
-        "description": "Deviation threshold to detect hot pixels"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "histogram_stretch",
-    "name": "Histogram Stretch",
-    "description": "Stretch histogram to enhance faint details in astrophotos",
-    "category": "Custom",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "black_point",
-        "type": "Float",
-        "default": "Float(0.0)",
-        "description": "Black point (0-1)"
-      },
-      {
-        "name": "white_point",
-        "type": "Float",
-        "default": "Float(1.0)",
-        "description": "White point (0-1)"
-      },
-      {
-        "name": "midtone",
-        "type": "Float",
-        "default": "Float(0.5)",
-        "description": "Midtone balance (0-1, 0.5 is neutral)"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "batch_brightness",
-    "name": "Batch Brightness",
-    "description": "Adjust brightness for single image or batch of images",
-    "category": "Adjust",
-    "input_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "brightness",
-        "type": "Float",
-        "default": "Float(0.0)",
-        "description": "Brightness adjustment (-1.0 to 1.0)"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "batch_resize",
-    "name": "Batch Resize",
-    "description": "Resize single image or batch of images",
-    "category": "Transform",
-    "input_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "width",
-        "type": "Integer",
-        "default": "Integer(800)",
-        "description": "Target width in pixels"
-      },
-      {
-        "name": "height",
-        "type": "Integer",
-        "default": "Integer(600)",
-        "description": "Target height in pixels"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "batch_contrast",
-    "name": "Batch Contrast",
-    "description": "Adjust contrast for single image or batch of images",
-    "category": "Adjust",
-    "input_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "contrast",
-        "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Contrast multiplier (0.0 to 2.0)"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "batch_gaussian_blur",
-    "name": "Batch Gaussian Blur",
-    "description": "Apply Gaussian blur to single image or batch of images",
-    "category": "Blur",
-    "input_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "sigma",
-        "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Blur sigma (standard deviation)"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "batch_saturation",
-    "name": "Batch Saturation",
-    "description": "Adjust saturation for single image or batch of images",
-    "category": "Adjust",
-    "input_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "saturation",
-        "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Saturation multiplier (0.0 to 2.0)"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "batch_rotate",
-    "name": "Batch Rotate",
-    "description": "Rotate single image or batch of images",
-    "category": "Transform",
-    "input_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "angle",
-        "type": "Float",
-        "default": "Float(90.0)",
-        "description": "Rotation angle in degrees (90, 180, 270)"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "batch_grayscale",
-    "name": "Batch Grayscale",
-    "description": "Convert single image or batch of images to grayscale",
-    "category": "Adjust",
-    "input_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "batch_invert",
-    "name": "Batch Invert",
-    "description": "Invert colors of single image or batch of images",
-    "category": "Adjust",
-    "input_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "batch_crop",
-    "name": "Batch Crop",
-    "description": "Crop single image or batch of images",
-    "category": "Transform",
-    "input_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "x",
-        "type": "Integer",
-        "default": "Integer(0)",
-        "description": "X coordinate of crop region"
-      },
-      {
-        "name": "y",
-        "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Y coordinate of crop region"
-      },
-      {
-        "name": "width",
-        "type": "Integer",
-        "default": "Integer(100)",
-        "description": "Width of crop region"
-      },
-      {
-        "name": "height",
-        "type": "Integer",
-        "default": "Integer(100)",
-        "description": "Height of crop region"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "batch_flip",
-    "name": "Batch Flip",
-    "description": "Flip single image or batch of images",
-    "category": "Transform",
-    "input_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "direction",
-        "type": "String",
-        "default": "String(\"horizontal\")",
-        "description": "Flip direction: 'horizontal' or 'vertical'"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "array_map",
-    "name": "Array Map",
-    "description": "Apply an operation to each image in an array (parallel processing)",
-    "category": "Utility",
-    "input_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "images",
-        "type": "Any",
-        "required": true
-      },
-      {
-        "name": "count",
-        "type": "Integer",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "array_filter",
-    "name": "Array Filter",
-    "description": "Filter images in an array based on size/properties",
-    "category": "Utility",
-    "input_ports": [
-      {
-        "name": "images",
-        "type": "Array(Image)",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "images",
-        "type": "Array(Image)",
-        "required": true
-      },
-      {
-        "name": "count",
-        "type": "Integer",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "min_width",
-        "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Minimum width (0 = no limit)"
-      },
-      {
-        "name": "min_height",
-        "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Minimum height (0 = no limit)"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "array_concat",
-    "name": "Array Concat",
-    "description": "Concatenate multiple arrays or images into one array",
-    "category": "Utility",
-    "input_ports": [
-      {
-        "name": "images1",
-        "type": "Any",
-        "required": true
-      },
-      {
-        "name": "images2",
-        "type": "Any",
-        "required": false
-      },
-      {
-        "name": "images3",
-        "type": "Any",
-        "required": false
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "images",
-        "type": "Array(Image)",
-        "required": true
-      },
-      {
-        "name": "count",
-        "type": "Integer",
-        "required": true
-      }
-    ],
-    "parameters": [],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "array_slice",
-    "name": "Array Slice",
-    "description": "Extract a range of images from an array",
-    "category": "Utility",
-    "input_ports": [
-      {
-        "name": "images",
-        "type": "Array(Image)",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "images",
-        "type": "Array(Image)",
-        "required": true
-      },
-      {
-        "name": "count",
-        "type": "Integer",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "start",
-        "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Start index (inclusive)"
-      },
-      {
-        "name": "end",
-        "type": "Integer",
-        "default": "Integer(-1)",
-        "description": "End index (exclusive, -1 = end)"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "unsharp_mask",
-    "name": "Unsharp Mask",
-    "description": "Sharpen an image using unsharp masking (blur + subtract)",
-    "category": "Sharpen",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "sigma",
-        "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Blur radius for the mask (higher = stronger effect)"
-      },
-      {
-        "name": "amount",
-        "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Sharpening strength (0.0 to 5.0)"
-      },
-      {
-        "name": "threshold",
-        "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Minimum difference to sharpen (reduces noise sharpening)"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "sharpen",
-    "name": "Sharpen",
-    "description": "Apply a sharpening convolution kernel to an image",
-    "category": "Sharpen",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "strength",
-        "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Sharpening strength (0.0 = none, 1.0 = standard)"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "edge_detect",
-    "name": "Edge Detect",
-    "description": "Detect edges using the Sobel operator",
-    "category": "Edge",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "method",
-        "type": "String",
-        "default": "String(\"sobel\")",
-        "description": "Edge detection method"
-      },
-      {
-        "name": "invert",
-        "type": "Boolean",
-        "default": "Boolean(false)",
-        "description": "Invert edges (white background, dark edges)"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "emboss",
-    "name": "Emboss",
-    "description": "Apply an emboss/relief effect to an image",
-    "category": "Edge",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "direction",
-        "type": "String",
-        "default": "String(\"top_left\")",
-        "description": "Light direction for emboss"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "canny_edge",
-    "name": "Canny Edge Detection",
-    "description": "Detect edges using the Canny algorithm with adjustable thresholds",
-    "category": "Edge",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "low_threshold",
-        "type": "Float",
-        "default": "Float(50.0)",
-        "description": "Lower hysteresis threshold"
-      },
-      {
-        "name": "high_threshold",
-        "type": "Float",
-        "default": "Float(150.0)",
-        "description": "Upper hysteresis threshold"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "laplacian",
-    "name": "Laplacian Edge Detection",
-    "description": "Detect edges using the Laplacian second-derivative operator",
-    "category": "Edge",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "normalize",
-        "type": "Boolean",
-        "default": "Boolean(true)",
-        "description": "Normalize output to full 0-255 range"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "add_noise",
-    "name": "Add Noise",
-    "description": "Add random noise to an image (Gaussian or salt-and-pepper)",
-    "category": "Noise",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "noise_type",
-        "type": "String",
-        "default": "String(\"gaussian\")",
-        "description": "Type of noise to add"
-      },
-      {
-        "name": "amount",
-        "type": "Float",
-        "default": "Float(0.1)",
-        "description": "Noise intensity (0.0 to 1.0)"
-      },
-      {
-        "name": "seed",
-        "type": "Integer",
-        "default": "Integer(42)",
-        "description": "Random seed for reproducibility"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "denoise",
-    "name": "Denoise",
-    "description": "Reduce noise using a median filter",
-    "category": "Noise",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "radius",
-        "type": "Integer",
-        "default": "Integer(1)",
-        "description": "Filter radius (1 = 3\u00d73 kernel, 2 = 5\u00d75, etc.)"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "draw_rectangle",
-    "name": "Draw Rectangle",
-    "description": "Draw a filled or outlined rectangle on an image",
-    "category": "Draw",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "x",
-        "type": "Integer",
-        "default": "Integer(10)",
-        "description": "Top-left X coordinate"
-      },
-      {
-        "name": "y",
-        "type": "Integer",
-        "default": "Integer(10)",
-        "description": "Top-left Y coordinate"
-      },
-      {
-        "name": "width",
-        "type": "Integer",
-        "default": "Integer(100)",
-        "description": "Rectangle width"
-      },
-      {
-        "name": "height",
-        "type": "Integer",
-        "default": "Integer(100)",
-        "description": "Rectangle height"
-      },
-      {
-        "name": "color_r",
-        "type": "Integer",
-        "default": "Integer(255)",
-        "description": "Red component (0-255)"
-      },
-      {
-        "name": "color_g",
-        "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Green component (0-255)"
-      },
-      {
-        "name": "color_b",
-        "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Blue component (0-255)"
-      },
-      {
-        "name": "filled",
-        "type": "Boolean",
-        "default": "Boolean(true)",
-        "description": "Fill the rectangle (false = outline only)"
-      },
-      {
-        "name": "thickness",
-        "type": "Integer",
-        "default": "Integer(2)",
-        "description": "Line thickness for outline mode"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "draw_circle",
-    "name": "Draw Circle",
-    "description": "Draw a filled or outlined circle on an image",
-    "category": "Draw",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "center_x",
-        "type": "Integer",
-        "default": "Integer(100)",
-        "description": "Center X coordinate"
-      },
-      {
-        "name": "center_y",
-        "type": "Integer",
-        "default": "Integer(100)",
-        "description": "Center Y coordinate"
-      },
-      {
-        "name": "radius",
-        "type": "Integer",
-        "default": "Integer(50)",
-        "description": "Circle radius"
-      },
-      {
-        "name": "color_r",
-        "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Red component (0-255)"
-      },
-      {
-        "name": "color_g",
-        "type": "Integer",
-        "default": "Integer(255)",
-        "description": "Green component (0-255)"
-      },
-      {
-        "name": "color_b",
-        "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Blue component (0-255)"
-      },
-      {
-        "name": "filled",
-        "type": "Boolean",
-        "default": "Boolean(true)",
-        "description": "Fill the circle"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "draw_line",
-    "name": "Draw Line",
-    "description": "Draw a straight line between two points on an image",
-    "category": "Draw",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "x1",
-        "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Start X coordinate"
-      },
-      {
-        "name": "y1",
-        "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Start Y coordinate"
-      },
-      {
-        "name": "x2",
-        "type": "Integer",
-        "default": "Integer(100)",
-        "description": "End X coordinate"
-      },
-      {
-        "name": "y2",
-        "type": "Integer",
-        "default": "Integer(100)",
-        "description": "End Y coordinate"
-      },
-      {
-        "name": "color_r",
-        "type": "Integer",
-        "default": "Integer(255)",
-        "description": "Red component (0-255)"
-      },
-      {
-        "name": "color_g",
-        "type": "Integer",
-        "default": "Integer(255)",
-        "description": "Green component (0-255)"
-      },
-      {
-        "name": "color_b",
-        "type": "Integer",
-        "default": "Integer(255)",
-        "description": "Blue component (0-255)"
-      },
-      {
-        "name": "thickness",
-        "type": "Integer",
-        "default": "Integer(2)",
-        "description": "Line thickness in pixels"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "text_overlay",
-    "name": "Text Overlay",
-    "description": "Add text to an image at a specified position",
-    "category": "Text",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "text",
-        "type": "String",
-        "default": "String(\"Hello Ambara\")",
-        "description": "Text to draw"
-      },
-      {
-        "name": "x",
-        "type": "Integer",
-        "default": "Integer(10)",
-        "description": "X position of text"
-      },
-      {
-        "name": "y",
-        "type": "Integer",
-        "default": "Integer(10)",
-        "description": "Y position of text"
-      },
-      {
-        "name": "scale",
-        "type": "Integer",
-        "default": "Integer(2)",
-        "description": "Text scale multiplier (1 = 8px, 2 = 16px, etc.)"
-      },
-      {
-        "name": "color_r",
-        "type": "Integer",
-        "default": "Integer(255)",
-        "description": "Text color red (0-255)"
-      },
-      {
-        "name": "color_g",
-        "type": "Integer",
-        "default": "Integer(255)",
-        "description": "Text color green (0-255)"
-      },
-      {
-        "name": "color_b",
-        "type": "Integer",
-        "default": "Integer(255)",
-        "description": "Text color blue (0-255)"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "http_image_fetch",
-    "name": "HTTP Image Fetch",
-    "description": "Fetch an image from an HTTP or HTTPS URL",
-    "category": "Api",
-    "input_ports": [],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "url",
-        "type": "String",
-        "default": "String(\"\")",
-        "description": "URL of the image to fetch (http:// or https://)"
-      },
-      {
-        "name": "timeout_secs",
-        "type": "Integer",
-        "default": "Integer(30)",
-        "description": "Request timeout in seconds"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "stable_diffusion_generate",
-    "name": "Stable Diffusion Generate",
-    "description": "Generate an image from text using a Stable Diffusion API (local or remote)",
-    "category": "Api",
-    "input_ports": [],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "api_url",
-        "type": "String",
-        "default": "String(\"http://127.0.0.1:7860/sdapi/v1/txt2img\")",
-        "description": "Stable Diffusion API endpoint URL"
-      },
-      {
-        "name": "prompt",
-        "type": "String",
-        "default": "String(\"a beautiful landscape, high quality, 4k\")",
-        "description": "Text prompt for image generation"
-      },
-      {
-        "name": "negative_prompt",
-        "type": "String",
-        "default": "String(\"low quality, blurry, distorted\")",
-        "description": "Negative prompt to avoid undesired features"
-      },
-      {
-        "name": "width",
-        "type": "Integer",
-        "default": "Integer(512)",
-        "description": "Output image width in pixels"
-      },
-      {
-        "name": "height",
-        "type": "Integer",
-        "default": "Integer(512)",
-        "description": "Output image height in pixels"
-      },
-      {
-        "name": "steps",
-        "type": "Integer",
-        "default": "Integer(20)",
-        "description": "Number of denoising steps"
-      },
-      {
-        "name": "cfg_scale",
-        "type": "Float",
-        "default": "Float(7.0)",
-        "description": "Classifier-free guidance scale (how closely to follow the prompt)"
-      },
-      {
-        "name": "seed",
-        "type": "Integer",
-        "default": "Integer(-1)",
-        "description": "Random seed (-1 for random)"
-      },
-      {
-        "name": "timeout_secs",
-        "type": "Integer",
-        "default": "Integer(120)",
-        "description": "API request timeout in seconds"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "image_classify",
-    "name": "Image Classify",
-    "description": "Classify an image using an external classification API endpoint",
-    "category": "Api",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "result",
-        "type": "String",
-        "required": true
-      },
-      {
-        "name": "top_label",
-        "type": "String",
-        "required": true
-      },
-      {
-        "name": "confidence",
-        "type": "Float",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "api_url",
-        "type": "String",
-        "default": "String(\"http://127.0.0.1:5000/classify\")",
-        "description": "Classification API endpoint URL"
-      },
-      {
-        "name": "timeout_secs",
-        "type": "Integer",
-        "default": "Integer(30)",
-        "description": "API request timeout in seconds"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "model_inference",
-    "name": "Model Inference",
-    "description": "Send an image to a model inference API and receive a processed image back",
-    "category": "Api",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      },
-      {
-        "name": "raw_response",
-        "type": "String",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "api_url",
-        "type": "String",
-        "default": "String(\"http://127.0.0.1:5000/predict\")",
-        "description": "Model inference API endpoint URL"
-      },
-      {
-        "name": "model_name",
-        "type": "String",
-        "default": "String(\"\")",
-        "description": "Optional model name to include in the request"
-      },
-      {
-        "name": "extra_params",
-        "type": "String",
-        "default": "String(\"\")",
-        "description": "Extra parameters as JSON string (merged into request body)"
-      },
-      {
-        "name": "timeout_secs",
-        "type": "Integer",
-        "default": "Integer(60)",
-        "description": "API request timeout in seconds"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "style_transfer",
-    "name": "Style Transfer",
-    "description": "Apply neural style transfer using an external API (content + style images)",
-    "category": "Api",
-    "input_ports": [
-      {
-        "name": "content",
-        "type": "Image",
-        "required": true
-      },
-      {
-        "name": "style",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "api_url",
-        "type": "String",
-        "default": "String(\"http://127.0.0.1:5000/style-transfer\")",
-        "description": "Style transfer API endpoint URL"
-      },
-      {
-        "name": "strength",
-        "type": "Float",
-        "default": "Float(0.8)",
-        "description": "Style strength (0.0 = no style, 1.0 = full style)"
-      },
-      {
-        "name": "timeout_secs",
-        "type": "Integer",
-        "default": "Integer(120)",
-        "description": "API request timeout in seconds"
-      }
-    ],
-    "tags": [],
-    "examples": []
-  },
-  {
-    "id": "comfy_checkpoint_loader",
-    "name": "ComfyUI Checkpoint Loader",
-    "description": "Load a Stable Diffusion checkpoint through ComfyUI. Outputs model/CLIP/VAE references for downstream ComfyUI nodes.",
-    "category": "Api",
-    "input_ports": [],
-    "output_ports": [
-      {
-        "name": "model_ref",
-        "type": "String",
-        "required": true
-      },
-      {
-        "name": "clip_ref",
-        "type": "String",
-        "required": true
-      },
-      {
-        "name": "vae_ref",
-        "type": "String",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "comfyui_url",
-        "type": "String",
-        "default": "String(\"http://127.0.0.1:8188\")",
-        "description": "ComfyUI server URL"
-      },
-      {
-        "name": "checkpoint_name",
-        "type": "String",
-        "default": "String(\"v1-5-pruned-emaonly.safetensors\")",
-        "description": "Checkpoint filename as it appears in ComfyUI's models/checkpoints folder"
-      }
-    ],
     "tags": [
-      "comfyui",
-      "model",
-      "checkpoint"
+      "utility.rs",
+      "utility"
     ],
-    "examples": []
+    "source_file": "utility.rs",
+    "struct_name": "ValueDisplay"
   },
   {
-    "id": "comfy_clip_text_encode",
-    "name": "ComfyUI CLIP Text Encode",
-    "description": "Encode a text prompt into CLIP conditioning using ComfyUI. Connect the clip_ref from a Checkpoint Loader.",
-    "category": "Api",
+    "id": "passthrough",
+    "name": "Passthrough",
+    "description": "Passes the input through unchanged",
+    "category": "Utility",
     "input_ports": [
       {
-        "name": "clip_ref",
-        "type": "String",
-        "required": true
+        "name": "input",
+        "type": "Any",
+        "description": ""
       }
     ],
     "output_ports": [
       {
-        "name": "conditioning",
-        "type": "String",
-        "required": true
+        "name": "output",
+        "type": "Any",
+        "description": ""
       }
     ],
-    "parameters": [
-      {
-        "name": "text",
-        "type": "String",
-        "default": "String(\"a beautiful landscape, high quality\")",
-        "description": "Text prompt to encode"
-      }
-    ],
+    "parameters": [],
     "tags": [
-      "comfyui",
-      "clip",
-      "prompt"
+      "node.rs",
+      "utility"
     ],
-    "examples": []
-  },
-  {
-    "id": "comfy_ksampler",
-    "name": "ComfyUI KSampler",
-    "description": "Run the KSampler (denoising) step through ComfyUI with full control over sampler, scheduler, steps, CFG scale, and seed.",
-    "category": "Api",
-    "input_ports": [
-      {
-        "name": "model_ref",
-        "type": "String",
-        "required": true
-      },
-      {
-        "name": "positive",
-        "type": "String",
-        "required": true
-      },
-      {
-        "name": "negative",
-        "type": "String",
-        "required": false
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "latent_ref",
-        "type": "String",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "comfyui_url",
-        "type": "String",
-        "default": "String(\"http://127.0.0.1:8188\")",
-        "description": "ComfyUI server URL"
-      },
-      {
-        "name": "seed",
-        "type": "Integer",
-        "default": "Integer(0)",
-        "description": "Random seed (0 = random)"
-      },
-      {
-        "name": "steps",
-        "type": "Integer",
-        "default": "Integer(20)",
-        "description": "Number of sampling steps"
-      },
-      {
-        "name": "cfg_scale",
-        "type": "Float",
-        "default": "Float(7.0)",
-        "description": "Classifier-free guidance scale"
-      },
-      {
-        "name": "sampler_name",
-        "type": "String",
-        "default": "String(\"euler\")",
-        "description": "Sampler algorithm (euler, euler_ancestral, dpmpp_2m, etc.)"
-      },
-      {
-        "name": "scheduler",
-        "type": "String",
-        "default": "String(\"normal\")",
-        "description": "Noise scheduler"
-      },
-      {
-        "name": "denoise",
-        "type": "Float",
-        "default": "Float(1.0)",
-        "description": "Denoise strength (1.0 = full denoise)"
-      },
-      {
-        "name": "width",
-        "type": "Integer",
-        "default": "Integer(512)",
-        "description": "Latent image width"
-      },
-      {
-        "name": "height",
-        "type": "Integer",
-        "default": "Integer(512)",
-        "description": "Latent image height"
-      },
-      {
-        "name": "batch_size",
-        "type": "Integer",
-        "default": "Integer(1)",
-        "description": "Number of images to generate per batch"
-      },
-      {
-        "name": "timeout_secs",
-        "type": "Integer",
-        "default": "Integer(300)",
-        "description": "Maximum time to wait for ComfyUI to finish"
-      }
-    ],
-    "tags": [
-      "comfyui",
-      "sampler",
-      "generation"
-    ],
-    "examples": []
-  },
-  {
-    "id": "comfy_vae_decode",
-    "name": "ComfyUI VAE Decode",
-    "description": "Decode a latent image produced by KSampler into a pixel image through ComfyUI. Retrieves the generated image from the server.",
-    "category": "Api",
-    "input_ports": [
-      {
-        "name": "latent_ref",
-        "type": "String",
-        "required": true
-      },
-      {
-        "name": "vae_ref",
-        "type": "String",
-        "required": false
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "comfyui_url",
-        "type": "String",
-        "default": "String(\"http://127.0.0.1:8188\")",
-        "description": "ComfyUI server URL"
-      },
-      {
-        "name": "timeout_secs",
-        "type": "Integer",
-        "default": "Integer(300)",
-        "description": "Maximum time to wait for result"
-      }
-    ],
-    "tags": [
-      "comfyui",
-      "vae",
-      "decode"
-    ],
-    "examples": []
-  },
-  {
-    "id": "comfy_lora_loader",
-    "name": "ComfyUI LoRA Loader",
-    "description": "Load a LoRA (Low-Rank Adaptation) model to modify a base checkpoint. Adjusts both the model and CLIP weights.",
-    "category": "Api",
-    "input_ports": [
-      {
-        "name": "model_ref",
-        "type": "String",
-        "required": true
-      },
-      {
-        "name": "clip_ref",
-        "type": "String",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "model_ref",
-        "type": "String",
-        "required": true
-      },
-      {
-        "name": "clip_ref",
-        "type": "String",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "comfyui_url",
-        "type": "String",
-        "default": "String(\"http://127.0.0.1:8188\")",
-        "description": "ComfyUI server URL"
-      },
-      {
-        "name": "lora_name",
-        "type": "String",
-        "default": "String(\"\")",
-        "description": "LoRA filename in ComfyUI's models/loras folder (e.g. detail_tweaker.safetensors)"
-      },
-      {
-        "name": "model_strength",
-        "type": "Float",
-        "default": "Float(1.0)",
-        "description": "LoRA strength for the model (UNet) weights"
-      },
-      {
-        "name": "clip_strength",
-        "type": "Float",
-        "default": "Float(1.0)",
-        "description": "LoRA strength for the CLIP weights"
-      }
-    ],
-    "tags": [
-      "comfyui",
-      "lora",
-      "model"
-    ],
-    "examples": []
-  },
-  {
-    "id": "comfy_image_upscale",
-    "name": "ComfyUI Image Upscale",
-    "description": "Upscale an image using a model-based upscaler (RealESRGAN, etc.) through ComfyUI.",
-    "category": "Api",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "comfyui_url",
-        "type": "String",
-        "default": "String(\"http://127.0.0.1:8188\")",
-        "description": "ComfyUI server URL"
-      },
-      {
-        "name": "upscale_model",
-        "type": "String",
-        "default": "String(\"RealESRGAN_x4plus.pth\")",
-        "description": "Upscale model filename in ComfyUI's upscale_models folder"
-      },
-      {
-        "name": "timeout_secs",
-        "type": "Integer",
-        "default": "Integer(300)",
-        "description": "Maximum time to wait for result"
-      }
-    ],
-    "tags": [
-      "comfyui",
-      "upscale",
-      "super-resolution"
-    ],
-    "examples": []
-  },
-  {
-    "id": "comfy_controlnet_apply",
-    "name": "ComfyUI ControlNet Apply",
-    "description": "Apply a ControlNet to guide image generation using a control image (edges, depth, pose, etc.) through ComfyUI.",
-    "category": "Api",
-    "input_ports": [
-      {
-        "name": "conditioning",
-        "type": "String",
-        "required": true
-      },
-      {
-        "name": "control_image",
-        "type": "Image",
-        "required": true
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "conditioning",
-        "type": "String",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "controlnet_name",
-        "type": "String",
-        "default": "String(\"\")",
-        "description": "ControlNet model filename (e.g. control_v11p_sd15_canny.pth)"
-      },
-      {
-        "name": "strength",
-        "type": "Float",
-        "default": "Float(1.0)",
-        "description": "ControlNet influence strength"
-      }
-    ],
-    "tags": [
-      "comfyui",
-      "controlnet",
-      "guided-generation"
-    ],
-    "examples": []
-  },
-  {
-    "id": "comfy_workflow_runner",
-    "name": "ComfyUI Workflow Runner",
-    "description": "Run an arbitrary ComfyUI workflow (API-format JSON) and retrieve the first output image. Paste the exported workflow JSON.",
-    "category": "Api",
-    "input_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": false
-      }
-    ],
-    "output_ports": [
-      {
-        "name": "image",
-        "type": "Image",
-        "required": true
-      },
-      {
-        "name": "raw_history",
-        "type": "String",
-        "required": true
-      }
-    ],
-    "parameters": [
-      {
-        "name": "comfyui_url",
-        "type": "String",
-        "default": "String(\"http://127.0.0.1:8188\")",
-        "description": "ComfyUI server URL"
-      },
-      {
-        "name": "workflow_json",
-        "type": "String",
-        "default": "String(\"\")",
-        "description": "ComfyUI workflow in API format JSON (use 'Save (API format)' in ComfyUI)"
-      },
-      {
-        "name": "timeout_secs",
-        "type": "Integer",
-        "default": "Integer(600)",
-        "description": "Maximum time to wait for workflow completion"
-      }
-    ],
-    "tags": [
-      "comfyui",
-      "workflow",
-      "advanced"
-    ],
-    "examples": []
+    "source_file": "node.rs",
+    "struct_name": "PassthroughNode"
   }
 ]
