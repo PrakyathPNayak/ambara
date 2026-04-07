@@ -5,12 +5,17 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from typing import Any
 
 import requests
 from dotenv import load_dotenv
 
 LOGGER = logging.getLogger(__name__)
+
+_RETRYABLE_STATUS = {429, 502, 503, 504}
+_MAX_RETRIES = 1
+_RETRY_DELAY_S = 2.0
 
 
 def _mock_graph_json() -> str:
@@ -106,12 +111,45 @@ class LLMClient:
 
         try:
             return self._generate_ollama(prompt, temperature)
-        except RuntimeError:
-            LOGGER.warning("Ollama unavailable; real LLM backend is not reachable")
+        except RuntimeError as err:
+            LOGGER.warning("Ollama unavailable; real LLM backend is not reachable: %s", err)
             raise RuntimeError(
                 "Ollama backend is unavailable. Configure OPENAI_API_KEY or ANTHROPIC_API_KEY, "
                 "or run a local Ollama server with a chat model."
-            )
+            ) from err
+
+    @staticmethod
+    def _post_with_retry(
+        url: str,
+        headers: dict[str, str] | None,
+        body: dict[str, Any],
+        timeout: int,
+        provider: str,
+    ) -> requests.Response:
+        """POST with a single retry on transient failures."""
+        last_err: Exception | None = None
+        for attempt in range(_MAX_RETRIES + 1):
+            try:
+                response = requests.post(url, headers=headers, json=body, timeout=timeout)
+                if response.status_code in _RETRYABLE_STATUS and attempt < _MAX_RETRIES:
+                    LOGGER.warning(
+                        "%s returned %d, retrying in %.0fs…",
+                        provider, response.status_code, _RETRY_DELAY_S,
+                    )
+                    time.sleep(_RETRY_DELAY_S)
+                    continue
+                return response
+            except requests.RequestException as err:
+                last_err = err
+                if attempt < _MAX_RETRIES:
+                    LOGGER.warning(
+                        "%s request failed (%s), retrying in %.0fs…",
+                        provider, err, _RETRY_DELAY_S,
+                    )
+                    time.sleep(_RETRY_DELAY_S)
+                    continue
+                raise RuntimeError(f"{provider} request failed: {err}") from err
+        raise RuntimeError(f"{provider} request failed after retries: {last_err}") from last_err
 
     def _generate_anthropic(self, prompt: dict[str, Any], temperature: float) -> str:
         """Call Anthropic messages API.
@@ -139,17 +177,17 @@ class LLMClient:
         system = "\n".join(m.get("content", "") for m in prompt.get("messages", []) if m.get("role") == "system")
         body = {
             "model": self.model_name,
-            "max_tokens": 1200,
+            "max_tokens": 4096,
             "temperature": temperature,
             "system": system,
             "messages": messages,
         }
         try:
-            response = requests.post(url, headers=headers, json=body, timeout=60)
-        except requests.RequestException as err:
-            raise RuntimeError(f"Anthropic request failed: {err}") from err
+            response = self._post_with_retry(url, headers, body, 60, "Anthropic")
+        except RuntimeError:
+            raise
         if response.status_code >= 400:
-            raise RuntimeError(f"Anthropic request failed: {response.status_code} {response.text}")
+            raise RuntimeError(f"Anthropic request failed: {response.status_code} {response.text[:200]}")
         data = response.json()
         content = data.get("content", [])
         if content and isinstance(content, list):
@@ -183,11 +221,11 @@ class LLMClient:
             "messages": prompt.get("messages", []),
         }
         try:
-            response = requests.post(url, headers=headers, json=body, timeout=60)
-        except requests.RequestException as err:
-            raise RuntimeError(f"OpenAI request failed: {err}") from err
+            response = self._post_with_retry(url, headers, body, 60, "OpenAI")
+        except RuntimeError:
+            raise
         if response.status_code >= 400:
-            raise RuntimeError(f"OpenAI request failed: {response.status_code} {response.text}")
+            raise RuntimeError(f"OpenAI request failed: {response.status_code} {response.text[:200]}")
         data = response.json()
         return data["choices"][0]["message"]["content"]
 
@@ -212,14 +250,17 @@ class LLMClient:
             "messages": prompt.get("messages", []),
         }
         try:
-            response = requests.post(url, json=body, timeout=60)
-        except requests.RequestException as err:
-            raise RuntimeError(f"Ollama request failed: {err}") from err
+            response = self._post_with_retry(url, None, body, 60, "Ollama")
+        except RuntimeError:
+            raise
         if response.status_code >= 400:
-            raise RuntimeError(f"Ollama request failed: {response.status_code} {response.text}")
+            raise RuntimeError(f"Ollama request failed: {response.status_code} {response.text[:200]}")
         data = response.json()
         message = data.get("message", {})
-        return message.get("content", _mock_graph_json())
+        content = message.get("content", "")
+        if not content:
+            LOGGER.warning("Ollama returned empty content for model %s", self.model_name)
+        return content
 
     def _generate_groq(self, prompt: dict[str, Any], temperature: float) -> str:
         """Call Groq chat completions API (OpenAI-compatible).
@@ -248,10 +289,10 @@ class LLMClient:
             "messages": prompt.get("messages", []),
         }
         try:
-            response = requests.post(url, headers=headers, json=body, timeout=60)
-        except requests.RequestException as err:
-            raise RuntimeError(f"Groq request failed: {err}") from err
+            response = self._post_with_retry(url, headers, body, 60, "Groq")
+        except RuntimeError:
+            raise
         if response.status_code >= 400:
-            raise RuntimeError(f"Groq request failed: {response.status_code} {response.text}")
+            raise RuntimeError(f"Groq request failed: {response.status_code} {response.text[:200]}")
         data = response.json()
         return data["choices"][0]["message"]["content"]

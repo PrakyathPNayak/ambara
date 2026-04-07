@@ -11,7 +11,7 @@ use crate::core::types::Color;
 use serde::{Deserialize, Serialize};
 
 /// Category for organizing filters in the UI.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum Category {
     /// Input nodes (load images, folders, etc.)
@@ -47,6 +47,7 @@ pub enum Category {
     /// API and external service integrations
     Api,
     /// Custom/user-defined
+    #[default]
     Custom,
 }
 
@@ -95,12 +96,6 @@ impl Category {
             Category::Api,
             Category::Custom,
         ]
-    }
-}
-
-impl Default for Category {
-    fn default() -> Self {
-        Category::Custom
     }
 }
 

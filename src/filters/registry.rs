@@ -11,8 +11,10 @@ pub type FilterFactory = Arc<dyn Fn() -> Box<dyn FilterNode> + Send + Sync>;
 /// Describes where a registered filter originated.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
+#[derive(Default)]
 pub enum FilterSource {
     /// A built-in filter compiled into the Ambara core library.
+    #[default]
     Builtin,
     /// A filter contributed by an external plugin.
     Plugin {
@@ -21,12 +23,6 @@ pub enum FilterSource {
         /// The plugin's semver version string.
         plugin_version: String,
     },
-}
-
-impl Default for FilterSource {
-    fn default() -> Self {
-        FilterSource::Builtin
-    }
 }
 
 /// Registry entry containing metadata and factory.
@@ -84,14 +80,14 @@ impl FilterRegistry {
         let instance = factory();
         let metadata = instance.metadata();
         let id = metadata.id.clone();
-        let category = metadata.category.clone();
+        let category = metadata.category;
 
         let entry = RegistryEntry {
             factory: Arc::new(factory),
             metadata,
             enabled: true,
             tags: Vec::new(),
-                source: FilterSource::Builtin,
+            source: FilterSource::Builtin,
         };
 
         self.filters.insert(id.clone(), entry);
@@ -99,7 +95,7 @@ impl FilterRegistry {
         // Add to category index
         self.categories
             .entry(category)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(id);
     }
 
@@ -111,21 +107,21 @@ impl FilterRegistry {
         let instance = factory();
         let metadata = instance.metadata();
         let id = metadata.id.clone();
-        let category = metadata.category.clone();
+        let category = metadata.category;
 
         let entry = RegistryEntry {
             factory: Arc::new(factory),
             metadata,
             enabled: true,
             tags,
-                source: FilterSource::Builtin,
+            source: FilterSource::Builtin,
         };
 
         self.filters.insert(id.clone(), entry);
 
         self.categories
             .entry(category)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(id);
     }
 
@@ -164,7 +160,7 @@ impl FilterRegistry {
             F: Fn() -> Box<dyn FilterNode> + Send + Sync + 'static,
         {
             let id = metadata.id.clone();
-            let category = metadata.category.clone();
+            let category = metadata.category;
 
             let entry = RegistryEntry {
                 factory: Arc::new(factory),
@@ -177,7 +173,7 @@ impl FilterRegistry {
             self.filters.insert(id.clone(), entry);
             self.categories
                 .entry(category)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(id);
         }
 
@@ -312,8 +308,8 @@ impl FilterRegistry {
         for entry in self.filters.values() {
             if entry.enabled {
                 grouped
-                    .entry(entry.metadata.category.clone())
-                    .or_insert_with(Vec::new)
+                    .entry(entry.metadata.category)
+                    .or_default()
                     .push(&entry.metadata);
             }
         }

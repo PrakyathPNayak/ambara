@@ -107,6 +107,18 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         },
         "required": ["graph_json"],
     },
+    {
+        "name": "validate_graph",
+        "description": (
+            "Validate a generated graph JSON for correctness: checks schema, "
+            "filter IDs, port connections, type compatibility, and topology (cycles/orphans). "
+            "Use this AFTER generate_graph to verify the result."
+        ),
+        "parameters": {
+            "graph_json": {"type": "string", "description": "The graph JSON to validate."},
+        },
+        "required": ["graph_json"],
+    },
 ]
 
 
@@ -141,6 +153,7 @@ class ToolExecutor:
             "explain_filter": self._explain_filter,
             "suggest_pipeline": self._suggest_pipeline,
             "explain_graph": self._explain_graph,
+            "validate_graph": self._validate_graph,
         }
 
     def execute(self, tool_name: str, arguments: dict[str, Any]) -> str:
@@ -239,25 +252,30 @@ class ToolExecutor:
             return "I couldn't find relevant filters for that goal."
 
         # Group by likely pipeline order (input → processing → output)
-        inputs = [f for f in results if f.category in ("Input", "Utility")]
         processing = [f for f in results if f.category not in ("Input", "Output", "Utility")]
-        outputs = [f for f in results if f.category in ("Output",)]
 
         lines = [f"**Suggested pipeline for: {goal}**\n"]
         step = 1
-        for f in inputs[:1]:
+
+        # Always start with an input step
+        input_filters = [f for f in results if f.category in ("Input", "Utility")]
+        if input_filters:
+            f = input_filters[0]
             lines.append(f"{step}. **{f.name}** (`{f.id}`): {f.description}")
-            step += 1
+        else:
+            lines.append(f"{step}. **Load Image** (`load_image`): Load the input image")
+        step += 1
+
         for f in processing[:5]:
             lines.append(f"{step}. **{f.name}** (`{f.id}`): {f.description}")
             step += 1
-        for f in outputs[:1]:
-            lines.append(f"{step}. **{f.name}** (`{f.id}`): {f.description}")
-            step += 1
 
-        if not inputs:
-            lines.insert(1, f"1. **Load Image** (`load_image`): Load the input image")
-        if not outputs:
+        # Always end with an output step
+        output_filters = [f for f in results if f.category in ("Output",)]
+        if output_filters:
+            f = output_filters[0]
+            lines.append(f"{step}. **{f.name}** (`{f.id}`): {f.description}")
+        else:
             lines.append(f"{step}. **Save Image** (`save_image`): Save the result")
 
         return "\n".join(lines)
@@ -293,3 +311,31 @@ class ToolExecutor:
             lines.append(f"  {i}. `{nid}` ({fid}): {desc} [{param_str}]{conn_str}")
 
         return "\n".join(lines)
+
+    def _validate_graph(self, graph_json: str) -> str:
+        """Validate graph JSON using the full GraphValidator pipeline."""
+        from chatbot.generation.graph_validator import GraphValidator
+        import os
+
+        build_dir = os.path.join(os.path.dirname(__file__), "..", "..", "build")
+        schema_path = os.path.join(build_dir, "filter_corpus.json")  # reuse for schema
+        filter_ids_path = os.path.join(build_dir, "filter_id_set.json")
+        corpus_path = os.path.join(build_dir, "filter_corpus.json")
+
+        # Find the actual JSON schema file
+        graph_schema = os.path.join(build_dir, "filter_registry_snapshot.json")
+        if not os.path.exists(graph_schema):
+            graph_schema = schema_path
+
+        try:
+            validator = GraphValidator(
+                schema_path=graph_schema,
+                filter_id_set_path=filter_ids_path,
+                corpus_path=corpus_path,
+            )
+            result = validator.validate_all(graph_json)
+            if result.valid:
+                return json.dumps({"valid": True, "message": "Graph is valid — all checks passed."})
+            return json.dumps({"valid": False, "errors": result.errors})
+        except Exception as exc:
+            return json.dumps({"valid": False, "errors": [f"Validation error: {exc}"]})

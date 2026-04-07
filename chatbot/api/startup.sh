@@ -11,14 +11,8 @@ if [[ -f ".venv/bin/activate" ]]; then
   source .venv/bin/activate || true
 fi
 
-if [[ ! -f build/filter_corpus.json ]]; then
-  /usr/bin/python3 chatbot/corpus/extractor.py
-  /usr/bin/python3 chatbot/corpus/schema_validator.py
-fi
-
-if [[ ! -d build/chroma_db ]]; then
-  /usr/bin/python3 chatbot/corpus/embedder.py
-fi
+# Corpus is now built by CodeRetriever at app startup (lifespan hook).
+# No separate extraction or embedding step is needed.
 
 /usr/bin/python3 -m uvicorn chatbot.api.main:app --host 0.0.0.0 --port 8765 > logs/chatbot_api.log 2>&1 &
 PID=$!

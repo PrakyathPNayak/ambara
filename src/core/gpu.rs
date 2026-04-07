@@ -377,8 +377,8 @@ impl GpuDevice {
             compute_pass.set_bind_group(0, &bind_group, &[]);
 
             // Dispatch workgroups (8x8 workgroup size)
-            let workgroups_x = (output.width + 7) / 8;
-            let workgroups_y = (output.height + 7) / 8;
+            let workgroups_x = output.width.div_ceil(8);
+            let workgroups_y = output.height.div_ceil(8);
             compute_pass.dispatch_workgroups(workgroups_x, workgroups_y, 1);
         }
 

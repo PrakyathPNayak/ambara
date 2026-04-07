@@ -13,7 +13,19 @@ client = TestClient(app)
 def test_health() -> None:
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json()["status"] == "ok"
+    data = response.json()
+    assert data["status"] in ("ok", "degraded", "starting")
+    assert "filters_loaded" in data
+    assert "llm_backend" in data
+    assert "llm_model" in data
+
+
+def test_health_reports_loaded_filter_count() -> None:
+    response = client.get("/health")
+    assert response.status_code == 200
+    data = response.json()
+    if data["status"] == "ok":
+        assert data["filters_loaded"] > 0
 
 
 def test_filters() -> None:

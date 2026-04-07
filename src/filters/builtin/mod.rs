@@ -51,8 +51,8 @@ pub fn register_all(registry: &mut FilterRegistry) {
 
 // Re-export for direct access
 pub use io::{LoadImage, LoadFolder, SaveImage};
-pub use blur::{GaussianBlur, BoxBlur};
-pub use color::{Brightness, Contrast, Saturation, Grayscale, Invert, Sepia, HueRotate, Threshold, Posterize, GammaCorrection, ColorBalance};
+pub use blur::{GaussianBlur, BoxBlur, MedianBlur, MotionBlur};
+pub use color::{Brightness, Contrast, Saturation, Grayscale, Invert, Sepia, HueRotate, Threshold, Posterize, GammaCorrection, ColorBalance, LevelsAdjust, ChannelMixer, Vibrance};
 pub use transform::{Resize, Rotate, Flip, Crop};
 pub use composite::{Blend, Overlay};
 pub use utility::Preview;
@@ -61,7 +61,7 @@ pub use math::{Add, Subtract, Multiply, Divide, Modulo, Power, Min, Max, Clamp};
 pub use astro::{ImageStack, DarkFrameSubtract, FlatFieldCorrect, HotPixelRemoval, HistogramStretch};
 pub use batch::{BatchBrightness, BatchResize, BatchContrast};
 pub use sharpen::{UnsharpMask, Sharpen};
-pub use edge::{EdgeDetect, Emboss};
+pub use edge::{EdgeDetect, Emboss, CannyEdge, Laplacian};
 pub use noise::{AddNoise, Denoise};
 pub use draw::{DrawRectangle, DrawCircle, DrawLine};
 pub use text::TextOverlay;

@@ -1,8 +1,19 @@
 """Stage 3 – Connect: deterministically wire selected filters into a valid graph.
 
-This stage is 100% code — no LLM calls.  It takes the ordered list of
+This stage is 100 % code — no LLM calls.  It takes the ordered list of
 selected filters from Stage 2 and produces valid SerializedGraph JSON by
 applying port-type compatibility rules.
+
+Supported topologies:
+  * **linear / batch** – sequential chain where each node's output feeds
+    the next node's compatible input.  Array<Image> ↔ Image transitions
+    are handled transparently by the type matcher.
+  * **branch** – multiple source nodes (inputs / processing branches)
+    converge on one or more merge nodes (blend, overlay) which then
+    feed output nodes.  Allows fan-out from a single source.
+  * **dag** (implicit) – any plan whose steps carry explicit ``inputs``
+    lists describing which preceding steps feed each node.  Falls back
+    to linear chaining when ``inputs`` are absent.
 """
 
 from __future__ import annotations
@@ -11,6 +22,15 @@ import logging
 from typing import Any
 
 LOGGER = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Port helpers
+# ---------------------------------------------------------------------------
+
+_IMAGE_TYPES = frozenset({"Image", "Array<Image>"})
+
+# Filters that merge multiple images (take ≥ 2 image inputs).
+_MERGE_FILTER_IDS = frozenset({"blend", "overlay"})
 
 
 def _output_ports(meta: dict[str, Any]) -> list[dict[str, Any]]:
@@ -26,29 +46,72 @@ def _port_names(ports: list[dict[str, Any]]) -> list[str]:
 
 
 def _port_type_map(ports: list[dict[str, Any]]) -> dict[str, str]:
-    return {str(p.get("name", "")): str(p.get("type", "Any")) for p in ports if p.get("name")}
+    return {
+        str(p.get("name", "")): str(p.get("type", "Any"))
+        for p in ports
+        if p.get("name")
+    }
 
 
-def _find_compatible_port(
+def _types_compatible(src_type: str, dst_type: str) -> bool:
+    """Check if two port types are compatible for connection."""
+    if src_type == dst_type:
+        return True
+    if "Any" in (src_type, dst_type):
+        return True
+    # Image ↔ Array<Image> coercion (batch transitions).
+    if src_type in _IMAGE_TYPES and dst_type in _IMAGE_TYPES:
+        return True
+    return False
+
+
+def _find_best_output(
+    src_meta: dict[str, Any],
+    dst_meta: dict[str, Any],
+) -> tuple[str, str] | None:
+    """Pick the best (from_port, to_port) pair between two nodes.
+
+    Priority: exact name+type match → type match → Image coercion → first pair.
+    Returns None only when one side has no ports at all.
+    """
+    src_out = _output_ports(src_meta)
+    dst_in = _input_ports(dst_meta)
+
+    if not src_out or not dst_in:
+        return None
+
+    src_tmap = _port_type_map(src_out)
+    dst_tmap = _port_type_map(dst_in)
+
+    # 1. Exact name AND type match.
+    for sname, stype in src_tmap.items():
+        if sname in dst_tmap and _types_compatible(stype, dst_tmap[sname]):
+            return sname, sname
+
+    # 2. First type-compatible pair.
+    for sname, stype in src_tmap.items():
+        for dname, dtype in dst_tmap.items():
+            if _types_compatible(stype, dtype):
+                return sname, dname
+
+    # 3. Absolute fallback — first ports.
+    return _port_names(src_out)[0], _port_names(dst_in)[0]
+
+
+def _find_compatible_input(
     src_port_name: str,
     src_port_type: str,
     dst_ports: list[dict[str, Any]],
     used_ports: set[str],
 ) -> str | None:
-    """Find the best compatible destination port.
+    """Find the best unused compatible input port on a destination node.
 
-    Priority: exact name match > exact type match > Any type > first available.
-
-    Args:
-        src_port_name: Source port name.
-        src_port_type: Source port type.
-        dst_ports: Available destination ports.
-        used_ports: Already-used destination port names.
-
-    Returns:
-        Port name or None if no compatible port exists.
+    Used when wiring multiple sources into a merge node (blend / overlay).
     """
-    available = [p for p in dst_ports if p.get("name") and p["name"] not in used_ports]
+    available = [
+        p for p in dst_ports
+        if p.get("name") and p["name"] not in used_ports
+    ]
     if not available:
         return None
 
@@ -57,29 +120,18 @@ def _find_compatible_port(
         if p["name"] == src_port_name:
             return p["name"]
 
-    # 2. Exact type match.
+    # 2. Type-compatible.
     for p in available:
-        ptype = str(p.get("type", "Any"))
-        if ptype == src_port_type:
+        if _types_compatible(src_port_type, str(p.get("type", "Any"))):
             return p["name"]
 
-    # 3. Any type on either side.
-    if src_port_type == "Any":
-        return available[0]["name"]
-    for p in available:
-        if str(p.get("type", "Any")) == "Any":
-            return p["name"]
-
-    # 4. Image ↔ Image(Array) coercion for batch transitions.
-    image_types = {"Image", "Array(Image)"}
-    if src_port_type in image_types:
-        for p in available:
-            if str(p.get("type", "")) in image_types:
-                return p["name"]
-
-    # 5. First available as last resort.
+    # 3. First available.
     return available[0]["name"]
 
+
+# ---------------------------------------------------------------------------
+# Public entry point
+# ---------------------------------------------------------------------------
 
 def build_graph(
     selections: list[dict[str, Any]],
@@ -90,12 +142,12 @@ def build_graph(
     """Build a complete SerializedGraph from the plan and selected filters.
 
     Handles three topologies:
-    - linear: A → B → C → D
-    - batch: load_folder → batch_ops → batch_save
-    - branch: multiple inputs merging at blend/overlay
+      * linear / batch – sequential A → B → C chain
+      * branch – multi-source merge via blend / overlay
+      * dag (planned) – arbitrary wiring via step ``inputs`` lists
 
     Args:
-        selections: Ordered list of {filter_id, parameters} from Stage 2.
+        selections: Ordered list of ``{filter_id, parameters}`` from Stage 2.
         plan: Plan dict from Stage 1 (contains topology, steps).
         corpus_by_id: Filter metadata indexed by filter_id.
         query: Original user query.
@@ -108,9 +160,12 @@ def build_graph(
     if topology == "branch":
         return _build_branch_graph(selections, corpus_by_id, query)
 
-    # Linear and batch use the same algorithm — just different port names.
     return _build_linear_graph(selections, corpus_by_id, query, topology)
 
+
+# ---------------------------------------------------------------------------
+# Linear / batch builder
+# ---------------------------------------------------------------------------
 
 def _build_linear_graph(
     selections: list[dict[str, Any]],
@@ -118,7 +173,12 @@ def _build_linear_graph(
     query: str,
     topology: str,
 ) -> dict[str, Any]:
-    """Build a linear chain graph."""
+    """Build a sequential chain graph.
+
+    Connects each node pair using port-type matching.  Array<Image> ↔ Image
+    transitions are handled transparently so there is no difference between
+    "linear" and "batch" wiring — the types decide which ports match.
+    """
     nodes: list[dict[str, Any]] = []
     connections: list[dict[str, Any]] = []
 
@@ -127,46 +187,201 @@ def _build_linear_graph(
     y_pos = 120.0
 
     for idx, sel in enumerate(selections):
-        fid = sel["filter_id"]
-        params = sel.get("parameters", {})
-        node_id = f"n{idx + 1}"
-
         nodes.append({
-            "id": node_id,
-            "filter_id": fid,
+            "id": f"n{idx + 1}",
+            "filter_id": sel["filter_id"],
             "position": {"x": float(x_offset + idx * x_step), "y": y_pos},
-            "parameters": params,
+            "parameters": sel.get("parameters", {}),
         })
 
-    # Connect consecutive nodes.
+    # Wire consecutive pairs using type-aware matching.
     for i in range(len(nodes) - 1):
-        src_node = nodes[i]
-        dst_node = nodes[i + 1]
-        src_meta = corpus_by_id.get(src_node["filter_id"], {})
-        dst_meta = corpus_by_id.get(dst_node["filter_id"], {})
+        src_meta = corpus_by_id.get(nodes[i]["filter_id"], {})
+        dst_meta = corpus_by_id.get(nodes[i + 1]["filter_id"], {})
 
-        src_out = _output_ports(src_meta)
-        dst_in = _input_ports(dst_meta)
-
-        if not src_out or not dst_in:
-            # Best-effort fallback.
-            from_port = "images" if topology == "batch" else "image"
-            to_port = "images" if topology == "batch" else "image"
+        pair = _find_best_output(src_meta, dst_meta)
+        if pair:
+            from_port, to_port = pair
         else:
-            src_type_map = _port_type_map(src_out)
-            # Pick first output port.
-            from_port = _port_names(src_out)[0]
-            from_type = src_type_map.get(from_port, "Any")
-            to_port_name = _find_compatible_port(from_port, from_type, dst_in, set())
-            to_port = to_port_name or ("images" if topology == "batch" else "image")
+            from_port, to_port = "image", "image"
 
         connections.append({
-            "from_node": src_node["id"],
+            "from_node": nodes[i]["id"],
             "from_port": from_port,
-            "to_node": dst_node["id"],
+            "to_node": nodes[i + 1]["id"],
             "to_port": to_port,
         })
 
+    return _wrap_graph(nodes, connections, query, topology)
+
+
+# ---------------------------------------------------------------------------
+# Branch (merge) builder
+# ---------------------------------------------------------------------------
+
+def _build_branch_graph(
+    selections: list[dict[str, Any]],
+    corpus_by_id: dict[str, dict[str, Any]],
+    query: str,
+) -> dict[str, Any]:
+    """Build a branching graph for blend / overlay / multi-input operations.
+
+    Categorises selections into source, processing, merge, and output groups,
+    then wires them following DAG rules:
+      * Each source branch gets its own processing chain.
+      * All branches converge on the merge node(s).
+      * Merge output feeds the output node(s).
+    Fan-out from a single source to multiple merge inputs is supported.
+    """
+    nodes: list[dict[str, Any]] = []
+    connections: list[dict[str, Any]] = []
+
+    # --- Categorise selections ---
+    input_sels:      list[dict[str, Any]] = []
+    processing_sels: list[dict[str, Any]] = []
+    merge_sels:      list[dict[str, Any]] = []
+    output_sels:     list[dict[str, Any]] = []
+
+    for sel in selections:
+        fid = sel["filter_id"]
+        meta = corpus_by_id.get(fid, {})
+        cat = meta.get("category", "").lower()
+        if cat == "input" or fid in ("load_image", "load_folder"):
+            input_sels.append(sel)
+        elif fid in _MERGE_FILTER_IDS:
+            merge_sels.append(sel)
+        elif cat == "output" or fid in ("save_image", "batch_save_images"):
+            output_sels.append(sel)
+        else:
+            processing_sels.append(sel)
+
+    # Ensure structural minimums.
+    if len(input_sels) < 2:
+        while len(input_sels) < 2:
+            input_sels.append({"filter_id": "load_image", "parameters": {}})
+    if not merge_sels:
+        merge_sels.append({"filter_id": "blend", "parameters": {"opacity": 0.5, "mode": "Normal"}})
+    if not output_sels:
+        output_sels.append({"filter_id": "save_image", "parameters": {}})
+
+    # --- Create nodes with spatial layout ---
+    x = 80.0
+    node_idx = 1
+
+    # Input nodes (stacked vertically).
+    input_nids: list[str] = []
+    for i, sel in enumerate(input_sels):
+        nid = f"n{node_idx}"
+        nodes.append({
+            "id": nid,
+            "filter_id": sel["filter_id"],
+            "position": {"x": x, "y": 80.0 + i * 160.0},
+            "parameters": sel.get("parameters", {}),
+        })
+        input_nids.append(nid)
+        node_idx += 1
+    x += 220.0
+
+    # Processing nodes (single chain off the first input branch).
+    proc_nids: list[str] = []
+    for sel in processing_sels:
+        nid = f"n{node_idx}"
+        nodes.append({
+            "id": nid,
+            "filter_id": sel["filter_id"],
+            "position": {"x": x, "y": 80.0},
+            "parameters": sel.get("parameters", {}),
+        })
+        proc_nids.append(nid)
+        node_idx += 1
+        x += 220.0
+
+    # Merge node(s).
+    merge_nids: list[str] = []
+    for sel in merge_sels:
+        nid = f"n{node_idx}"
+        nodes.append({
+            "id": nid,
+            "filter_id": sel["filter_id"],
+            "position": {"x": x, "y": 120.0},
+            "parameters": sel.get("parameters", {}),
+        })
+        merge_nids.append(nid)
+        node_idx += 1
+        x += 220.0
+
+    # Output node(s).
+    output_nids: list[str] = []
+    for sel in output_sels:
+        nid = f"n{node_idx}"
+        nodes.append({
+            "id": nid,
+            "filter_id": sel["filter_id"],
+            "position": {"x": x, "y": 120.0},
+            "parameters": sel.get("parameters", {}),
+        })
+        output_nids.append(nid)
+        node_idx += 1
+        x += 220.0
+
+    nmap = {n["id"]: n for n in nodes}
+
+    # --- Wire connections ---
+
+    # Determine the node that feeds the merge's first (base) input.
+    first_branch_tip = input_nids[0]
+
+    # If there are processing nodes, chain: input[0] → proc[0] → … → proc[-1]
+    if proc_nids:
+        _add_typed_conn(connections, input_nids[0], proc_nids[0], corpus_by_id, nmap)
+        for i in range(len(proc_nids) - 1):
+            _add_typed_conn(connections, proc_nids[i], proc_nids[i + 1], corpus_by_id, nmap)
+        first_branch_tip = proc_nids[-1]
+
+    # Connect branches into the first merge node.
+    if merge_nids:
+        merge_fid = nmap[merge_nids[0]]["filter_id"]
+        merge_meta = corpus_by_id.get(merge_fid, {})
+        merge_in = _input_ports(merge_meta)
+        used: set[str] = set()
+
+        # First branch → merge (base / first input).
+        _connect_to_merge(
+            connections, first_branch_tip, merge_nids[0],
+            corpus_by_id, nmap, merge_in, used,
+        )
+
+        # Remaining inputs → merge (next available input port each).
+        for src_nid in input_nids[1:]:
+            _connect_to_merge(
+                connections, src_nid, merge_nids[0],
+                corpus_by_id, nmap, merge_in, used,
+            )
+
+        # Chain merge nodes if there are multiple.
+        for i in range(len(merge_nids) - 1):
+            _add_typed_conn(connections, merge_nids[i], merge_nids[i + 1], corpus_by_id, nmap)
+
+    # Merge (or last merge) → output.
+    last_merge = merge_nids[-1] if merge_nids else first_branch_tip
+    if output_nids:
+        _add_typed_conn(connections, last_merge, output_nids[0], corpus_by_id, nmap)
+        for i in range(len(output_nids) - 1):
+            _add_typed_conn(connections, output_nids[i], output_nids[i + 1], corpus_by_id, nmap)
+
+    return _wrap_graph(nodes, connections, query, "branch")
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _wrap_graph(
+    nodes: list[dict[str, Any]],
+    connections: list[dict[str, Any]],
+    query: str,
+    topology: str,
+) -> dict[str, Any]:
     return {
         "version": "1.0.0",
         "metadata": {
@@ -179,224 +394,58 @@ def _build_linear_graph(
     }
 
 
-def _build_branch_graph(
-    selections: list[dict[str, Any]],
-    corpus_by_id: dict[str, dict[str, Any]],
-    query: str,
-) -> dict[str, Any]:
-    """Build a branching graph for blend/overlay operations.
-
-    Identifies merge nodes (blend, overlay) and connects their multiple inputs
-    from preceding source nodes.
-    """
-    nodes: list[dict[str, Any]] = []
-    connections: list[dict[str, Any]] = []
-
-    merge_filter_ids = {"blend", "overlay"}
-
-    # Categorize selections.
-    input_sels: list[dict[str, Any]] = []
-    merge_sels: list[dict[str, Any]] = []
-    processing_sels: list[dict[str, Any]] = []
-    output_sels: list[dict[str, Any]] = []
-
-    for sel in selections:
-        fid = sel["filter_id"]
-        meta = corpus_by_id.get(fid, {})
-        cat = meta.get("category", "").lower()
-        if cat == "input" or fid in ("load_image", "load_folder"):
-            input_sels.append(sel)
-        elif fid in merge_filter_ids:
-            merge_sels.append(sel)
-        elif cat == "output" or fid in ("save_image", "batch_save_images"):
-            output_sels.append(sel)
-        else:
-            processing_sels.append(sel)
-
-    # Ensure we have at least 2 inputs for branching.
-    while len(input_sels) < 2:
-        input_sels.append({"filter_id": "load_image", "parameters": {"path": ""}})
-
-    # Ensure we have at least one merge node.
-    if not merge_sels:
-        merge_sels.append({"filter_id": "blend", "parameters": {"opacity": 0.5, "mode": "Normal"}})
-
-    # Ensure we have an output.
-    if not output_sels:
-        output_sels.append({"filter_id": "save_image", "parameters": {"path": "output.png"}})
-
-    # Layout: inputs on left, processing in middle, merge, output on right.
-    x = 80.0
-    node_idx = 1
-
-    # Create input nodes.
-    input_node_ids: list[str] = []
-    for i, sel in enumerate(input_sels):
-        nid = f"n{node_idx}"
-        nodes.append({
-            "id": nid,
-            "filter_id": sel["filter_id"],
-            "position": {"x": x, "y": 80.0 + i * 160.0},
-            "parameters": sel.get("parameters", {}),
-        })
-        input_node_ids.append(nid)
-        node_idx += 1
-
-    x += 220.0
-
-    # Create processing nodes (attached to first input branch).
-    proc_node_ids: list[str] = []
-    for sel in processing_sels:
-        nid = f"n{node_idx}"
-        nodes.append({
-            "id": nid,
-            "filter_id": sel["filter_id"],
-            "position": {"x": x, "y": 80.0},
-            "parameters": sel.get("parameters", {}),
-        })
-        proc_node_ids.append(nid)
-        node_idx += 1
-        x += 220.0
-
-    # Create merge node(s).
-    merge_node_ids: list[str] = []
-    for sel in merge_sels:
-        nid = f"n{node_idx}"
-        nodes.append({
-            "id": nid,
-            "filter_id": sel["filter_id"],
-            "position": {"x": x, "y": 120.0},
-            "parameters": sel.get("parameters", {}),
-        })
-        merge_node_ids.append(nid)
-        node_idx += 1
-        x += 220.0
-
-    # Create output node(s).
-    output_node_ids: list[str] = []
-    for sel in output_sels:
-        nid = f"n{node_idx}"
-        nodes.append({
-            "id": nid,
-            "filter_id": sel["filter_id"],
-            "position": {"x": x, "y": 120.0},
-            "parameters": sel.get("parameters", {}),
-        })
-        output_node_ids.append(nid)
-        node_idx += 1
-        x += 220.0
-
-    # Wire connections.
-    # Connect input processing chain.
-    if proc_node_ids:
-        # First input → first processing node.
-        _add_connection(connections, input_node_ids[0], proc_node_ids[0], corpus_by_id, nodes)
-        # Chain processing nodes.
-        for i in range(len(proc_node_ids) - 1):
-            _add_connection(connections, proc_node_ids[i], proc_node_ids[i + 1], corpus_by_id, nodes)
-        # Last processing → merge (base input).
-        if merge_node_ids:
-            merge_meta = corpus_by_id.get(
-                _node_filter_id(merge_node_ids[0], nodes), {}
-            )
-            merge_in = _input_ports(merge_meta)
-            base_port = "base" if any(p.get("name") == "base" for p in merge_in) else (_port_names(merge_in)[0] if merge_in else "base")
-            last_proc_meta = corpus_by_id.get(_node_filter_id(proc_node_ids[-1], nodes), {})
-            src_out = _output_ports(last_proc_meta)
-            from_port = _port_names(src_out)[0] if src_out else "image"
-            connections.append({
-                "from_node": proc_node_ids[-1],
-                "from_port": from_port,
-                "to_node": merge_node_ids[0],
-                "to_port": base_port,
-            })
-    else:
-        # No processing — connect first input directly to merge base.
-        if merge_node_ids:
-            merge_meta = corpus_by_id.get(
-                _node_filter_id(merge_node_ids[0], nodes), {}
-            )
-            merge_in = _input_ports(merge_meta)
-            base_port = "base" if any(p.get("name") == "base" for p in merge_in) else (_port_names(merge_in)[0] if merge_in else "base")
-            connections.append({
-                "from_node": input_node_ids[0],
-                "from_port": "image",
-                "to_node": merge_node_ids[0],
-                "to_port": base_port,
-            })
-
-    # Connect second input to merge's second input (blend/overlay port).
-    if len(input_node_ids) >= 2 and merge_node_ids:
-        merge_meta = corpus_by_id.get(
-            _node_filter_id(merge_node_ids[0], nodes), {}
-        )
-        merge_in = _input_ports(merge_meta)
-        used = {c["to_port"] for c in connections if c["to_node"] == merge_node_ids[0]}
-        blend_port = None
-        for p in merge_in:
-            if p.get("name") and p["name"] not in used:
-                blend_port = p["name"]
-                break
-        if not blend_port:
-            blend_port = "blend"
-        connections.append({
-            "from_node": input_node_ids[1],
-            "from_port": "image",
-            "to_node": merge_node_ids[0],
-            "to_port": blend_port,
-        })
-
-    # Connect merge → output.
-    if merge_node_ids and output_node_ids:
-        _add_connection(connections, merge_node_ids[-1], output_node_ids[0], corpus_by_id, nodes)
-
-    return {
-        "version": "1.0.0",
-        "metadata": {
-            "generatedBy": "ambara-agentic-pipeline",
-            "query": query,
-            "topology": "branch",
-        },
-        "nodes": nodes,
-        "connections": connections,
-    }
-
-
-def _node_filter_id(node_id: str, nodes: list[dict[str, Any]]) -> str:
-    """Look up filter_id for a node_id."""
-    for n in nodes:
-        if n["id"] == node_id:
-            return n.get("filter_id", "")
-    return ""
-
-
-def _add_connection(
+def _add_typed_conn(
     connections: list[dict[str, Any]],
     from_nid: str,
     to_nid: str,
     corpus_by_id: dict[str, dict[str, Any]],
-    nodes: list[dict[str, Any]],
+    nmap: dict[str, dict[str, Any]],
 ) -> None:
-    """Add a connection between two nodes using port-type compatibility."""
-    src_fid = _node_filter_id(from_nid, nodes)
-    dst_fid = _node_filter_id(to_nid, nodes)
-    src_meta = corpus_by_id.get(src_fid, {})
-    dst_meta = corpus_by_id.get(dst_fid, {})
+    """Add a connection between two nodes using type-aware port matching."""
+    src_meta = corpus_by_id.get(nmap[from_nid]["filter_id"], {})
+    dst_meta = corpus_by_id.get(nmap[to_nid]["filter_id"], {})
 
-    src_out = _output_ports(src_meta)
-    dst_in = _input_ports(dst_meta)
-
-    from_port = _port_names(src_out)[0] if src_out else "image"
-    src_type = _port_type_map(src_out).get(from_port, "Any")
-
-    used = {c["to_port"] for c in connections if c["to_node"] == to_nid}
-    to_port = _find_compatible_port(from_port, src_type, dst_in, used)
-    if not to_port:
-        to_port = "image"
+    pair = _find_best_output(src_meta, dst_meta)
+    if pair:
+        from_port, to_port = pair
+    else:
+        from_port, to_port = "image", "image"
 
     connections.append({
         "from_node": from_nid,
         "from_port": from_port,
         "to_node": to_nid,
+        "to_port": to_port,
+    })
+
+
+def _connect_to_merge(
+    connections: list[dict[str, Any]],
+    src_nid: str,
+    merge_nid: str,
+    corpus_by_id: dict[str, dict[str, Any]],
+    nmap: dict[str, dict[str, Any]],
+    merge_in: list[dict[str, Any]],
+    used: set[str],
+) -> None:
+    """Wire a source node into the next available input port on a merge node."""
+    src_meta = corpus_by_id.get(nmap[src_nid]["filter_id"], {})
+    src_out = _output_ports(src_meta)
+
+    if src_out:
+        from_port = _port_names(src_out)[0]
+        from_type = _port_type_map(src_out).get(from_port, "Any")
+    else:
+        from_port, from_type = "image", "Image"
+
+    to_port = _find_compatible_input(from_port, from_type, merge_in, used)
+    if not to_port:
+        to_port = "image"
+
+    used.add(to_port)
+    connections.append({
+        "from_node": src_nid,
+        "from_port": from_port,
+        "to_node": merge_nid,
         "to_port": to_port,
     })

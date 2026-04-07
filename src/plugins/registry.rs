@@ -264,7 +264,7 @@ impl PluginRegistry {
     {
         let arc = self.plugins.get(plugin_id)?;
         let guard = arc.lock();
-        Some(f(&*guard))
+        Some(f(&guard))
     }
 
     /// Return the number of currently loaded plugins.

@@ -79,13 +79,29 @@ export function FilterPalette({ filters, onAddFilter }: FilterPaletteProps) {
     <div className="filter-palette">
       <div className="filter-palette-header">
         <h3>Filters</h3>
-        <input
-          type="text"
-          className="filter-search"
-          placeholder="Search filters..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+        <div className="filter-search-wrapper">
+          <input
+            type="text"
+            className="filter-search"
+            placeholder="Search filters..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search filters"
+          />
+          {searchQuery && (
+            <button
+              className="filter-search-clear"
+              onClick={() => setSearchQuery('')}
+              aria-label="Clear search"
+              type="button"
+            >×</button>
+          )}
+        </div>
+        {searchQuery.trim() && (
+          <span className="filter-match-count">
+            {filteredFilters.length} match{filteredFilters.length !== 1 ? 'es' : ''}
+          </span>
+        )}
       </div>
 
       <div className="filter-categories">
@@ -93,13 +109,14 @@ export function FilterPalette({ filters, onAddFilter }: FilterPaletteProps) {
           const categoryFilters = groupedFilters[category] || [];
           if (categoryFilters.length === 0) return null;
 
-          const isExpanded = expandedCategories.has(category);
+          const isExpanded = searchQuery.trim() ? true : expandedCategories.has(category);
 
           return (
             <div key={category} className="filter-category">
               <button
                 className="category-header"
                 onClick={() => toggleCategory(category)}
+                aria-expanded={isExpanded}
               >
                 <span className="category-toggle">{isExpanded ? '▼' : '▶'}</span>
                 <span className="category-name">{category}</span>
@@ -126,6 +143,11 @@ export function FilterPalette({ filters, onAddFilter }: FilterPaletteProps) {
             </div>
           );
         })}
+        {searchQuery.trim() && filteredFilters.length === 0 && (
+          <div className="filter-no-results">
+            <p>No filters match &quot;{searchQuery}&quot;</p>
+          </div>
+        )}
       </div>
     </div>
   );

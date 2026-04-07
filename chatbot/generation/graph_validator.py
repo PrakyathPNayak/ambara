@@ -3,12 +3,24 @@
 from __future__ import annotations
 
 import json
+from collections import defaultdict, deque
 from pathlib import Path
 from typing import Any
 
 import jsonschema
 
 from chatbot.models import ValidationResultModel
+
+# Types that can be implicitly converted between each other.
+_COMPATIBLE_TYPES: dict[str, set[str]] = {
+    "Image": {"Image"},
+    "Float": {"Float", "Integer"},
+    "Integer": {"Integer", "Float"},
+    "String": {"String"},
+    "Boolean": {"Boolean"},
+    "ImageArray": {"ImageArray"},
+    "Any": {"Image", "Float", "Integer", "String", "Boolean", "ImageArray", "Any"},
+}
 
 
 class GraphValidator:
@@ -118,6 +130,18 @@ class GraphValidator:
             if dst_names and conn.get("to_port") not in dst_names:
                 errors.append(f"Invalid to_port {conn.get('to_port')} for node {conn.get('to_node')}")
 
+            # Type compatibility check
+            src_type_map = {p.get("name"): p.get("type", "Any") for p in src_ports if isinstance(p, dict)}
+            dst_type_map = {p.get("name"): p.get("type", "Any") for p in dst_ports if isinstance(p, dict)}
+            from_type = src_type_map.get(conn.get("from_port"), "Any")
+            to_type = dst_type_map.get(conn.get("to_port"), "Any")
+            compatible = _COMPATIBLE_TYPES.get(from_type, {from_type, "Any"})
+            if to_type not in compatible and "Any" not in compatible:
+                errors.append(
+                    f"Type mismatch: {conn.get('from_node')}.{conn.get('from_port')} "
+                    f"({from_type}) -> {conn.get('to_node')}.{conn.get('to_port')} ({to_type})"
+                )
+
             # Disallow fan-in collisions to the exact same destination input port.
             port_key = (str(conn.get("to_node")), str(conn.get("to_port")))
             if port_key in used_input_ports:
@@ -126,6 +150,57 @@ class GraphValidator:
                 )
             else:
                 used_input_ports.add(port_key)
+
+        return ValidationResultModel(valid=len(errors) == 0, errors=errors)
+
+    def validate_topology(self, graph_json: str) -> ValidationResultModel:
+        """Detect cycles and orphan nodes via topological sort (Kahn's algorithm).
+
+        Args:
+            graph_json: JSON string of graph.
+
+        Returns:
+            Validation result with cycle/orphan errors.
+        """
+        errors: list[str] = []
+        try:
+            data = json.loads(graph_json)
+        except json.JSONDecodeError as err:
+            return ValidationResultModel(valid=False, errors=[f"Invalid JSON: {err}"])
+
+        node_ids = {n.get("id") for n in data.get("nodes", [])}
+        in_degree: dict[str, int] = {nid: 0 for nid in node_ids}
+        adjacency: dict[str, list[str]] = defaultdict(list)
+        connected: set[str] = set()
+
+        for conn in data.get("connections", []):
+            src, dst = conn.get("from_node"), conn.get("to_node")
+            if src in node_ids and dst in node_ids:
+                adjacency[src].append(dst)
+                in_degree[dst] = in_degree.get(dst, 0) + 1
+                connected.update([src, dst])
+
+        # Kahn's algorithm for cycle detection
+        queue: deque[str] = deque(nid for nid, deg in in_degree.items() if deg == 0)
+        visited = 0
+        while queue:
+            node = queue.popleft()
+            visited += 1
+            for neighbor in adjacency.get(node, []):
+                in_degree[neighbor] -= 1
+                if in_degree[neighbor] == 0:
+                    queue.append(neighbor)
+
+        if visited < len(node_ids):
+            errors.append(
+                f"Graph contains a cycle ({len(node_ids) - visited} node(s) in cycle)"
+            )
+
+        # Orphan detection: nodes with no connections (except single-node graphs)
+        if len(node_ids) > 1:
+            orphans = node_ids - connected
+            for orphan in sorted(orphans):
+                errors.append(f"Orphan node with no connections: {orphan}")
 
         return ValidationResultModel(valid=len(errors) == 0, errors=errors)
 
@@ -145,6 +220,7 @@ class GraphValidator:
             self.validate_schema(graph_json),
             self.validate_filter_ids(graph_json),
             self.validate_connections(graph_json),
+            self.validate_topology(graph_json),
         ]
         errors: list[str] = []
         for result in checks:

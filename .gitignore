@@ -65,3 +65,7 @@ __pycache__/
 .venv/
 chatbot/.venv/
 .DS_Store
+
+# Excluded from push per author request
+docs/prompting-techniques-research.*
+docs/FEATURES_MANUAL.md

@@ -281,8 +281,8 @@ impl TileIterator {
 
     /// Get the total number of tiles.
     pub fn tile_count(&self) -> usize {
-        let tiles_x = (self.image_width + self.tile_width - 1) / self.tile_width;
-        let tiles_y = (self.image_height + self.tile_height - 1) / self.tile_height;
+        let tiles_x = self.image_width.div_ceil(self.tile_width);
+        let tiles_y = self.image_height.div_ceil(self.tile_height);
         (tiles_x * tiles_y) as usize
     }
 }

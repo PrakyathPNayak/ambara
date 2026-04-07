@@ -204,3 +204,118 @@ def test_batch_crop_resize_intent_enforces_batch_pipeline() -> None:
     for conn in result.graph.get("connections", []):
         assert conn.get("from_port") == "images"
         assert conn.get("to_port") == "images"
+
+
+# ---------------------------------------------------------------------------
+# Validator: topology (cycle detection, orphan detection)
+# ---------------------------------------------------------------------------
+
+def test_validator_detects_cycle() -> None:
+    """Graph with a cycle should fail topology validation."""
+    validator = GraphValidator(
+        "chatbot/corpus/graph_schema.json",
+        "build/filter_id_set.json",
+        "build/filter_corpus.json",
+    )
+    graph = {
+        "version": "1.0.0",
+        "metadata": {},
+        "nodes": [
+            {"id": "a", "filter_id": "brightness", "position": {"x": 0, "y": 0}, "parameters": {}},
+            {"id": "b", "filter_id": "contrast", "position": {"x": 1, "y": 0}, "parameters": {}},
+            {"id": "c", "filter_id": "grayscale", "position": {"x": 2, "y": 0}, "parameters": {}},
+        ],
+        "connections": [
+            {"from_node": "a", "from_port": "image", "to_node": "b", "to_port": "image"},
+            {"from_node": "b", "from_port": "image", "to_node": "c", "to_port": "image"},
+            {"from_node": "c", "from_port": "image", "to_node": "a", "to_port": "image"},
+        ],
+    }
+    result = validator.validate_topology(json.dumps(graph))
+    assert not result.valid
+    assert any("cycle" in e.lower() for e in result.errors)
+
+
+def test_validator_detects_orphan_node() -> None:
+    """Node with no connections in a multi-node graph should be flagged."""
+    validator = GraphValidator(
+        "chatbot/corpus/graph_schema.json",
+        "build/filter_id_set.json",
+        "build/filter_corpus.json",
+    )
+    graph = {
+        "version": "1.0.0",
+        "metadata": {},
+        "nodes": [
+            {"id": "n1", "filter_id": "load_image", "position": {"x": 0, "y": 0}, "parameters": {}},
+            {"id": "n2", "filter_id": "brightness", "position": {"x": 1, "y": 0}, "parameters": {}},
+            {"id": "orphan", "filter_id": "grayscale", "position": {"x": 2, "y": 0}, "parameters": {}},
+        ],
+        "connections": [
+            {"from_node": "n1", "from_port": "image", "to_node": "n2", "to_port": "image"},
+        ],
+    }
+    result = validator.validate_topology(json.dumps(graph))
+    assert not result.valid
+    assert any("orphan" in e.lower() for e in result.errors)
+
+
+def test_validator_valid_topology() -> None:
+    """A simple linear graph should pass topology validation."""
+    validator = GraphValidator(
+        "chatbot/corpus/graph_schema.json",
+        "build/filter_id_set.json",
+        "build/filter_corpus.json",
+    )
+    graph = {
+        "version": "1.0.0",
+        "metadata": {},
+        "nodes": [
+            {"id": "n1", "filter_id": "load_image", "position": {"x": 0, "y": 0}, "parameters": {}},
+            {"id": "n2", "filter_id": "brightness", "position": {"x": 1, "y": 0}, "parameters": {}},
+        ],
+        "connections": [
+            {"from_node": "n1", "from_port": "image", "to_node": "n2", "to_port": "image"},
+        ],
+    }
+    result = validator.validate_topology(json.dumps(graph))
+    assert result.valid
+
+
+# ---------------------------------------------------------------------------
+# Repair prompt builder: metadata enrichment
+# ---------------------------------------------------------------------------
+
+def test_repair_prompt_includes_filter_metadata() -> None:
+    """Repair prompt should include filter metadata cards when corpus_by_id is given."""
+    builder = RepairPromptBuilder()
+    corpus = {
+        "gaussian_blur": {
+            "id": "gaussian_blur",
+            "name": "Gaussian Blur",
+            "inputs": [{"name": "image", "type": "Image"}],
+            "outputs": [{"name": "image", "type": "Image"}],
+        },
+    }
+    prompt = builder.build(
+        query="blur image",
+        failed_graph='{"nodes":[{"id":"n1","filter_id":"gaussian_blur","position":{"x":0,"y":0},"parameters":{}}],"connections":[],"metadata":{}}',
+        errors=["Invalid from_port out for node n1"],
+        corpus_by_id=corpus,
+    )
+    content = str(prompt)
+    assert "VALID FILTER METADATA" in content
+    assert "gaussian_blur" in content
+    assert "Image" in content
+
+
+def test_repair_prompt_without_corpus_still_works() -> None:
+    """Backward compatibility: repair prompt works without corpus_by_id."""
+    builder = RepairPromptBuilder()
+    prompt = builder.build(
+        query="blur",
+        failed_graph='{"nodes":[],"connections":[],"metadata":{}}',
+        errors=["some error"],
+    )
+    assert "some error" in str(prompt)
+    assert "VALID FILTER METADATA" not in str(prompt)

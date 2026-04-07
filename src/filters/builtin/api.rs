@@ -82,7 +82,7 @@ impl FilterNode for HttpImageFetch {
         let timeout = ctx.get_integer("timeout_secs").unwrap_or(30) as u64;
 
         let resp = ureq::agent()
-            .get(&url)
+            .get(url)
             .timeout(std::time::Duration::from_secs(timeout))
             .call()
             .map_err(|e| ExecutionError::NodeExecution {
@@ -284,7 +284,7 @@ impl FilterNode for StableDiffusionGenerate {
         });
 
         let resp = ureq::agent()
-            .post(&api_url)
+            .post(api_url)
             .timeout(std::time::Duration::from_secs(timeout))
             .send_json(&body)
             .map_err(|e| ExecutionError::NodeExecution {
@@ -447,7 +447,7 @@ impl FilterNode for ImageClassify {
         });
 
         let resp = ureq::agent()
-            .post(&api_url)
+            .post(api_url)
             .timeout(std::time::Duration::from_secs(timeout))
             .send_json(&body)
             .map_err(|e| ExecutionError::NodeExecution {
@@ -624,7 +624,7 @@ impl FilterNode for ModelInference {
 
         // Merge extra parameters if provided
         if !extra_params_str.is_empty() {
-            if let Ok(extra) = serde_json::from_str::<serde_json::Value>(&extra_params_str) {
+            if let Ok(extra) = serde_json::from_str::<serde_json::Value>(extra_params_str) {
                 if let (Some(base), Some(ext)) = (body.as_object_mut(), extra.as_object()) {
                     for (k, v) in ext {
                         base.insert(k.clone(), v.clone());
@@ -634,7 +634,7 @@ impl FilterNode for ModelInference {
         }
 
         let resp = ureq::agent()
-            .post(&api_url)
+            .post(api_url)
             .timeout(std::time::Duration::from_secs(timeout))
             .send_json(&body)
             .map_err(|e| ExecutionError::NodeExecution {
@@ -798,8 +798,8 @@ impl FilterNode for StyleTransfer {
             Ok(base64::engine::general_purpose::STANDARD.encode(&png_bytes))
         };
 
-        let content_b64 = encode_image(&content)?;
-        let style_b64 = encode_image(&style)?;
+        let content_b64 = encode_image(content)?;
+        let style_b64 = encode_image(style)?;
 
         let body = serde_json::json!({
             "content_image": content_b64,
@@ -808,7 +808,7 @@ impl FilterNode for StyleTransfer {
         });
 
         let resp = ureq::agent()
-            .post(&api_url)
+            .post(api_url)
             .timeout(std::time::Duration::from_secs(timeout))
             .send_json(&body)
             .map_err(|e| ExecutionError::NodeExecution {

@@ -7,20 +7,15 @@ use crate::core::error::ExecutionError;
 use crate::core::types::{ImageValue, Value};
 
 /// Batch size configuration.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum BatchSize {
     /// Process all images at once
+    #[default]
     Auto,
     /// Fixed batch size
     Fixed(usize),
     /// Dynamic based on available memory
     Dynamic,
-}
-
-impl Default for BatchSize {
-    fn default() -> Self {
-        BatchSize::Auto
-    }
 }
 
 /// Batch processing mode for filters.
@@ -87,7 +82,7 @@ impl BatchContext {
             BatchSize::Dynamic => estimate_batch_size(&images),
         };
 
-        let total_batches = (images.len() + size - 1) / size;
+        let total_batches = images.len().div_ceil(size);
         
         images
             .chunks(size)

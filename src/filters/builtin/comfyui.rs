@@ -652,7 +652,7 @@ impl FilterNode for ComfyKSampler {
             }
         });
 
-        let prompt_id = submit_prompt(&comfyui_url, &workflow, ctx.node_id)?;
+        let prompt_id = submit_prompt(comfyui_url, &workflow, ctx.node_id)?;
 
         ctx.set_output(
             "latent_ref",
@@ -1085,8 +1085,8 @@ impl FilterNode for ComfyImageUpscale {
             }
         });
 
-        let prompt_id = submit_prompt(&comfyui_url, &workflow, ctx.node_id)?;
-        let history = poll_comfyui_result(&comfyui_url, &prompt_id, timeout, ctx.node_id)?;
+        let prompt_id = submit_prompt(comfyui_url, &workflow, ctx.node_id)?;
+        let history = poll_comfyui_result(comfyui_url, &prompt_id, timeout, ctx.node_id)?;
 
         let (filename, subfolder, folder_type) =
             first_output_image(&history).ok_or_else(|| ExecutionError::NodeExecution {
@@ -1095,7 +1095,7 @@ impl FilterNode for ComfyImageUpscale {
             })?;
 
         let img = download_comfyui_image(
-            &comfyui_url,
+            comfyui_url,
             &filename,
             &subfolder,
             &folder_type,

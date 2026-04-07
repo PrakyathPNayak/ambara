@@ -338,6 +338,7 @@ impl ExecutionEngine {
     }
 
     /// Execute a single node.
+    #[allow(clippy::type_complexity)]
     fn execute_node(
         &self,
         graph: &ProcessingGraph,

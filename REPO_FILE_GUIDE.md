@@ -262,11 +262,11 @@ The built-ins are split by topic. Each file typically:
 
 - `src/filters/builtin/blur.rs`
   - Blur operations:
-    - `GaussianBlur`, `BoxBlur`.
+    - `GaussianBlur`, `BoxBlur`, `MedianBlur`, `MotionBlur`.
 
 - `src/filters/builtin/color.rs`
   - Color adjustments:
-    - `Brightness`, `Contrast`, `Saturation`, `Grayscale`, `Invert`, `Sepia`, `HueRotate`, `Threshold`, `Posterize`, `GammaCorrection`, `ColorBalance`.
+    - `Brightness`, `Contrast`, `Saturation`, `Grayscale`, `Invert`, `Sepia`, `HueRotate`, `Threshold`, `Posterize`, `GammaCorrection`, `ColorBalance`, `LevelsAdjust`, `ChannelMixer`, `Vibrance`.
   - Includes HSL color-space utility functions for hue rotation.
 
 - `src/filters/builtin/transform.rs`
@@ -313,6 +313,8 @@ The built-ins are split by topic. Each file typically:
   - Edge detection filters:
     - `EdgeDetect` (Sobel/Prewitt method selection, optional invert).
     - `Emboss` (directional relief effect, 4 direction presets).
+    - `CannyEdge` (dual-threshold Canny edge detection).
+    - `Laplacian` (second-derivative Laplacian edge detection).
 
 - `src/filters/builtin/noise.rs`
   - Noise manipulation filters:

@@ -1,4 +1,10 @@
-"""Main orchestration pipeline for Ambara graph generation with self-repair."""
+"""DEPRECATED: Legacy single-shot graph generation pipeline.
+
+This module has been superseded by the multi-stage agentic pipeline in
+``graph_generator.py`` (Plan -> Select -> Connect -> Validate+Repair).
+Kept for reference only. No code imports this module.
+Safe to delete after verifying no external tools depend on it.
+"""
 
 from __future__ import annotations
 

@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - Unreleased
+
+### Added
+- WebSocket auto-reconnect with exponential backoff (1s → 30s, max 10 retries) in `useChatApi.ts`.
+- Typed response models (`FilterItemModel`, `FilterPortModel`, `FilterParamModel`) for `/filters` and `/filters/search` endpoints.
+- 19 unit tests for agentic router (`test_agent.py`): AgentResult, mock mode, LLM loop, parse, messages.
+- 13 unit tests for connector (`test_connector.py`): port type compatibility, `build_graph` linear/branch topologies.
+- Per-stage timing instrumentation in `graph_generator._generate_agentic` (Plan, Select, Connect, Validate+Repair).
+- Bigram phrase matching and port-type matching in `code_retriever.search()`.
+- Auto-scroll to bottom on new chat messages in `ChatPanel.tsx`.
+- LLM client retry: `_post_with_retry()` retries once on 429/502/503/504 with 2s backoff.
+- Configurable CORS origins via `AMBARA_CORS_ORIGINS` env var (defaults to `*`).
+- Input validation: `max_length` on chat/query fields, `top_k` bounded 1–50, search `q` max 500 chars.
+- DACP entries C10–C13 documenting WebSocket reconnect, typed models, input validation, and LLM retry decisions.
+
+### Changed
+- `/filters/search` now calls public `_ensure_corpus()` instead of private `code_retriever._ensure_loaded()`.
+- Session `_prune()` rate-limited to once per 60 seconds instead of every call.
+- Branch fallback now keyword-matches post-merge processing filters (blur, sharpen, resize, etc.) instead of always producing a fixed 4-node graph.
+- `suggest_pipeline` tool fixed step numbering — input always step 1, output always last.
+- Connection status badge: distinct "● Connected" (green), "↻ Reconnecting…" (amber pulse), "○ Disconnected" (red).
+- Quickstart troubleshooting updated: removed stale embedder reference, added degraded health status tip.
+
+### Deprecated
+- `HealthResponse.chroma_ready` field marked deprecated with `default=True`. Will be removed in a future release.
+
+### Removed
+- Dead `CHROMA_PATH` constant from `main.py` (was unreferenced after ChromaDB removal).
+
 ## [0.9.0] - 2026-03-21
 
 ### Added

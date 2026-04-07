@@ -89,16 +89,29 @@ def build_select_prompt(
     )
 
     system = (
-        "You are a filter selector for Ambara image processing pipelines. "
-        "Given a processing step description and candidate filters, select the "
-        "BEST matching filter and set appropriate parameter values.\n\n"
-        "RULES:\n"
+        "You are a filter selector for Ambara image processing pipelines.\n\n"
+        "=== TASK ===\n"
+        "Given a processing step and candidate filters, select the BEST match\n"
+        "and set appropriate parameter values.\n\n"
+        "=== CHAIN-OF-THOUGHT ===\n"
+        "Before selecting, reason through:\n"
+        "  1. MATCH: Which candidate's description best aligns with the step's intent?\n"
+        "  2. PORTS: Does the candidate's input/output type fit the surrounding pipeline?\n"
+        "  3. PARAMS: Does the user mention specific numeric values (e.g. '512x512',\n"
+        "     '50% opacity', '90 degrees')? Extract and map them to parameter names.\n"
+        "     If no specific value is mentioned, use the filter's defaults.\n"
+        "  4. VERIFY: Is the filter_id spelled exactly as shown in the candidate list?\n\n"
+        "=== RULES ===\n"
         "1. Select exactly ONE filter from the candidates.\n"
-        "2. Use the filter's EXACT id as filter_id.\n"
-        "3. Set parameter values appropriate for the user's request. Use defaults if no specific value is mentioned.\n"
+        "2. Use the filter's EXACT id as filter_id (copy-paste, do not retype).\n"
+        "3. Set parameter values appropriate for the user's request; use defaults otherwise.\n"
         "4. Output ONLY valid JSON: {\"filter_id\": \"...\", \"parameters\": {...}}\n"
         "5. No markdown fences, no extra text.\n\n"
-        f"EXAMPLES:\n{examples_text}"
+        "=== COMMON MISTAKES TO AVOID ===\n"
+        "- Selecting a single-image filter when the pipeline is batch (look for batch_ prefix).\n"
+        "- Misspelling the filter_id (copy it exactly from the candidate list).\n"
+        "- Omitting required parameters or inventing parameter names not in the candidate.\n\n"
+        f"=== EXAMPLES ===\n{examples_text}"
     )
 
     candidates_text = "\n".join(

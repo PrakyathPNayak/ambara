@@ -1,4 +1,10 @@
-"""Intent classifier for routing chat requests to conversational or graph generation paths."""
+"""DEPRECATED: Keyword-based intent classifier.
+
+This module has been superseded by the LLM-powered agentic router in
+``chatbot/generation/agent.py`` which uses tool calls to decide how to
+respond to user messages.  No code imports this module.
+Safe to delete after verifying no external tools depend on it.
+"""
 
 from __future__ import annotations
 

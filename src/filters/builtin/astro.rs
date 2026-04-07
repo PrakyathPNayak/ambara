@@ -344,9 +344,9 @@ impl FilterNode for DarkFrameSubtract {
                 let l = light_rgba.get_pixel(x, y);
                 let d = dark_rgba.get_pixel(x, y);
 
-                let r = (l[0] as f64 - d[0] as f64 * scale).max(0.0).min(255.0) as u8;
-                let g = (l[1] as f64 - d[1] as f64 * scale).max(0.0).min(255.0) as u8;
-                let b = (l[2] as f64 - d[2] as f64 * scale).max(0.0).min(255.0) as u8;
+                let r = (l[0] as f64 - d[0] as f64 * scale).clamp(0.0, 255.0) as u8;
+                let g = (l[1] as f64 - d[1] as f64 * scale).clamp(0.0, 255.0) as u8;
+                let b = (l[2] as f64 - d[2] as f64 * scale).clamp(0.0, 255.0) as u8;
 
                 result.put_pixel(x, y, Rgba([r, g, b, l[3]]));
             }
@@ -444,9 +444,9 @@ impl FilterNode for FlatFieldCorrect {
 
                 let scale = if normalize { flat_mean / 255.0 } else { 1.0 };
 
-                let r = ((p[0] as f64 / fr) * scale).min(255.0).max(0.0) as u8;
-                let g = ((p[1] as f64 / fg) * scale).min(255.0).max(0.0) as u8;
-                let b = ((p[2] as f64 / fb) * scale).min(255.0).max(0.0) as u8;
+                let r = ((p[0] as f64 / fr) * scale).clamp(0.0, 255.0) as u8;
+                let g = ((p[1] as f64 / fg) * scale).clamp(0.0, 255.0) as u8;
+                let b = ((p[2] as f64 / fb) * scale).clamp(0.0, 255.0) as u8;
 
                 result.put_pixel(x, y, Rgba([r, g, b, p[3]]));
             }
@@ -630,7 +630,7 @@ impl FilterNode for HistogramStretch {
                     let clamped = v.max(bp).min(wp);
                     let normalized = (clamped - bp) as f64 / range;
                     let adjusted = normalized.powf(gamma);
-                    (adjusted * 255.0).min(255.0).max(0.0) as u8
+                    (adjusted * 255.0).clamp(0.0, 255.0) as u8
                 };
 
                 result.put_pixel(x, y, Rgba([

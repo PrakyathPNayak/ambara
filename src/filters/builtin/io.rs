@@ -97,8 +97,8 @@ impl FilterNode for LoadImage {
         let memory_limit_mb = ctx.memory_limit_mb();
 
         // Check if image would exceed memory limit
-        if ctx.needs_chunking(width, height) {
-            if !ctx.auto_chunk() {
+        if ctx.needs_chunking(width, height)
+            && !ctx.auto_chunk() {
                 // Auto-chunking is disabled and image is too large
                 let image_mb = image_memory / (1024 * 1024);
                 return Err(ExecutionError::NodeExecution {
@@ -113,7 +113,6 @@ impl FilterNode for LoadImage {
             }
             // Log that we're processing a large image
             // In the future, this would trigger chunked loading
-        }
 
         // Load the image
         let img = image::open(path).map_err(|e| ExecutionError::NodeExecution {
@@ -244,7 +243,7 @@ impl FilterNode for LoadFolder {
                 }
 
                 // Load the image
-                match image::open(&path) {
+                match image::open(path) {
                     Ok(img) => {
                         let image_value = ImageValue::new(img);
                         images.push(Value::Image(image_value));

@@ -40,10 +40,11 @@ pub struct PortDefinition {
 }
 
 /// UI hints for parameter display.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(tag = "widget", content = "options")]
 pub enum UiHint {
     /// Default input widget based on type
+    #[default]
     Default,
     /// Slider for numeric values
     Slider {
@@ -153,6 +154,7 @@ pub enum Constraint {
     Custom {
         name: String,
         description: String,
+        #[allow(clippy::type_complexity)]
         validator: Arc<dyn Fn(&Value) -> Result<(), String> + Send + Sync>,
     },
 }
@@ -617,12 +619,6 @@ impl Constraint {
             Constraint::NonNegative => "Must be non-negative".to_string(),
             Constraint::Custom { description, .. } => description.clone(),
         }
-    }
-}
-
-impl Default for UiHint {
-    fn default() -> Self {
-        UiHint::Default
     }
 }
 

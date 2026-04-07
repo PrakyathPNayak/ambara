@@ -41,6 +41,22 @@ def test_code_retriever_search() -> None:
     assert "gaussian_blur" in ids or "box_blur" in ids
 
 
+def test_code_retriever_search_synonym() -> None:
+    """Synonym expansion: 'smooth' should find blur filters."""
+    retriever = CodeRetriever()
+    results = retriever.search("smooth image")
+    ids = [r.id for r in results]
+    assert any("blur" in fid for fid in ids), f"Expected blur filter in results: {ids}"
+
+
+def test_code_retriever_search_multi_word() -> None:
+    """Multi-word query: 'sharpen image' should find sharpen or unsharp_mask."""
+    retriever = CodeRetriever()
+    results = retriever.search("make it sharp")
+    ids = [r.id for r in results]
+    assert "sharpen" in ids or "unsharp_mask" in ids, f"Expected sharpen filter in results: {ids}"
+
+
 def test_code_retriever_categories() -> None:
     retriever = CodeRetriever()
     cats = retriever.categories
@@ -143,6 +159,23 @@ def test_code_retriever_category_summary() -> None:
     summary = retriever.get_category_summary()
     assert "filters" in summary.lower()
     assert "categories" in summary.lower() or "category" in summary.lower()
+
+
+def test_code_retriever_search_bigram() -> None:
+    """Bigram phrase matching: 'gaussian blur' as a phrase should rank gaussian_blur highest."""
+    retriever = CodeRetriever()
+    results = retriever.search("gaussian blur")
+    assert len(results) >= 1
+    assert results[0].id == "gaussian_blur", f"Expected gaussian_blur first, got {results[0].id}"
+
+
+def test_code_retriever_search_port_type() -> None:
+    """Port type matching: searching by port type name should surface relevant filters."""
+    retriever = CodeRetriever()
+    results = retriever.search("image output")
+    ids = [r.id for r in results]
+    # Most filters have Image ports, so we should get results
+    assert len(results) >= 3, f"Expected 3+ results for 'image output', got {len(results)}"
 
 
 # ---------------------------------------------------------------------------

@@ -457,7 +457,7 @@ impl ImageValue {
     /// Uses copy-on-write semantics: if the image is shared,
     /// it will be cloned before modification.
     pub fn get_image_mut(&mut self) -> Option<&mut DynamicImage> {
-        self.data.as_mut().map(|arc| Arc::make_mut(arc))
+        self.data.as_mut().map(Arc::make_mut)
     }
 
     /// Take ownership of the underlying image.

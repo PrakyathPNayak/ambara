@@ -22,6 +22,9 @@ pub fn register(registry: &mut FilterRegistry) {
     registry.register(|| Box::new(Posterize));
     registry.register(|| Box::new(GammaCorrection));
     registry.register(|| Box::new(ColorBalance));
+    registry.register(|| Box::new(LevelsAdjust));
+    registry.register(|| Box::new(ChannelMixer));
+    registry.register(|| Box::new(Vibrance));
 }
 
 /// Adjusts image brightness.
@@ -71,8 +74,8 @@ impl FilterNode for Brightness {
         
         for pixel in result.pixels_mut() {
             let channels = pixel.channels_mut();
-            for i in 0..3 {
-                channels[i] = (channels[i] as i32 + adjustment).clamp(0, 255) as u8;
+            for ch in channels.iter_mut().take(3) {
+                *ch = (*ch as i32 + adjustment).clamp(0, 255) as u8;
             }
         }
 
@@ -558,9 +561,9 @@ impl FilterNode for Posterize {
         let step = 255.0 / (levels - 1.0);
         for pixel in result.pixels_mut() {
             let ch = pixel.channels_mut();
-            for i in 0..3 {
-                let bucket = (ch[i] as f32 / 255.0 * (levels - 1.0)).round();
-                ch[i] = (bucket * step).clamp(0.0, 255.0) as u8;
+            for c in ch.iter_mut().take(3) {
+                let bucket = (*c as f32 / 255.0 * (levels - 1.0)).round();
+                *c = (bucket * step).clamp(0.0, 255.0) as u8;
             }
         }
         ctx.set_output("image", Value::Image(ImageValue::new(image::DynamicImage::ImageRgba8(result))))?;
@@ -677,6 +680,217 @@ impl FilterNode for ColorBalance {
     fn clone_box(&self) -> Box<dyn FilterNode> { Box::new(self.clone()) }
 }
 
+// --- LevelsAdjust ---
+
+#[derive(Debug, Clone, Copy)]
+pub struct LevelsAdjust;
+
+impl FilterNode for LevelsAdjust {
+    fn metadata(&self) -> NodeMetadata {
+        NodeMetadata::builder("levels_adjust", "Levels Adjust")
+            .description("Remap tonal range with input black/white points and gamma correction")
+            .category(Category::Color)
+            .author("Ambara")
+            .version("1.0.0")
+            .input(PortDefinition::input("image", PortType::Image).with_description("Input image"))
+            .output(PortDefinition::output("image", PortType::Image).with_description("Adjusted image"))
+            .parameter(
+                ParameterDefinition::new("black_point", PortType::Float, Value::Float(0.0))
+                    .with_description("Input black point (0-255)")
+                    .with_ui_hint(UiHint::Slider { logarithmic: false })
+                    .with_constraint(Constraint::Range { min: 0.0, max: 255.0 }),
+            )
+            .parameter(
+                ParameterDefinition::new("white_point", PortType::Float, Value::Float(255.0))
+                    .with_description("Input white point (0-255)")
+                    .with_ui_hint(UiHint::Slider { logarithmic: false })
+                    .with_constraint(Constraint::Range { min: 0.0, max: 255.0 }),
+            )
+            .parameter(
+                ParameterDefinition::new("gamma", PortType::Float, Value::Float(1.0))
+                    .with_description("Mid-tone gamma (0.1-10.0)")
+                    .with_ui_hint(UiHint::Slider { logarithmic: true })
+                    .with_constraint(Constraint::Range { min: 0.1, max: 10.0 }),
+            )
+            .build()
+    }
+
+    fn validate(&self, _ctx: &ValidationContext) -> Result<(), ValidationError> { Ok(()) }
+
+    fn execute(&self, ctx: &mut ExecutionContext) -> Result<(), ExecutionError> {
+        let image = ctx.get_input_image("image")?;
+        let bp = ctx.get_float("black_point").unwrap_or(0.0) as f32;
+        let wp = ctx.get_float("white_point").unwrap_or(255.0) as f32;
+        let gamma = ctx.get_float("gamma").unwrap_or(1.0) as f32;
+        let img_data = image.get_image().ok_or_else(|| ExecutionError::NodeExecution {
+            node_id: ctx.node_id, error: "Image has no data".to_string(),
+        })?;
+        let mut result = img_data.to_rgba8();
+        let range = (wp - bp).max(1.0);
+        let inv_gamma = 1.0 / gamma;
+        for pixel in result.pixels_mut() {
+            let ch = pixel.channels_mut();
+            for c in &mut ch[..3] {
+                let normalised = ((*c as f32) - bp).max(0.0) / range;
+                let corrected = normalised.clamp(0.0, 1.0).powf(inv_gamma);
+                *c = (corrected * 255.0).clamp(0.0, 255.0) as u8;
+            }
+        }
+        ctx.set_output("image", Value::Image(ImageValue::new(image::DynamicImage::ImageRgba8(result))))?;
+        Ok(())
+    }
+
+    fn clone_box(&self) -> Box<dyn FilterNode> { Box::new(*self) }
+}
+
+// --- ChannelMixer ---
+
+#[derive(Debug, Clone, Copy)]
+pub struct ChannelMixer;
+
+impl FilterNode for ChannelMixer {
+    fn metadata(&self) -> NodeMetadata {
+        NodeMetadata::builder("channel_mixer", "Channel Mixer")
+            .description("Mix RGB channels using a 3x3 weight matrix")
+            .category(Category::Color)
+            .author("Ambara")
+            .version("1.0.0")
+            .input(PortDefinition::input("image", PortType::Image).with_description("Input image"))
+            .output(PortDefinition::output("image", PortType::Image).with_description("Mixed image"))
+            .parameter(
+                ParameterDefinition::new("rr", PortType::Float, Value::Float(1.0))
+                    .with_description("Red from Red weight")
+                    .with_constraint(Constraint::Range { min: -2.0, max: 2.0 }),
+            )
+            .parameter(
+                ParameterDefinition::new("rg", PortType::Float, Value::Float(0.0))
+                    .with_description("Red from Green weight")
+                    .with_constraint(Constraint::Range { min: -2.0, max: 2.0 }),
+            )
+            .parameter(
+                ParameterDefinition::new("rb", PortType::Float, Value::Float(0.0))
+                    .with_description("Red from Blue weight")
+                    .with_constraint(Constraint::Range { min: -2.0, max: 2.0 }),
+            )
+            .parameter(
+                ParameterDefinition::new("gr", PortType::Float, Value::Float(0.0))
+                    .with_description("Green from Red weight")
+                    .with_constraint(Constraint::Range { min: -2.0, max: 2.0 }),
+            )
+            .parameter(
+                ParameterDefinition::new("gg", PortType::Float, Value::Float(1.0))
+                    .with_description("Green from Green weight")
+                    .with_constraint(Constraint::Range { min: -2.0, max: 2.0 }),
+            )
+            .parameter(
+                ParameterDefinition::new("gb", PortType::Float, Value::Float(0.0))
+                    .with_description("Green from Blue weight")
+                    .with_constraint(Constraint::Range { min: -2.0, max: 2.0 }),
+            )
+            .parameter(
+                ParameterDefinition::new("br", PortType::Float, Value::Float(0.0))
+                    .with_description("Blue from Red weight")
+                    .with_constraint(Constraint::Range { min: -2.0, max: 2.0 }),
+            )
+            .parameter(
+                ParameterDefinition::new("bg", PortType::Float, Value::Float(0.0))
+                    .with_description("Blue from Green weight")
+                    .with_constraint(Constraint::Range { min: -2.0, max: 2.0 }),
+            )
+            .parameter(
+                ParameterDefinition::new("bb", PortType::Float, Value::Float(1.0))
+                    .with_description("Blue from Blue weight")
+                    .with_constraint(Constraint::Range { min: -2.0, max: 2.0 }),
+            )
+            .build()
+    }
+
+    fn validate(&self, _ctx: &ValidationContext) -> Result<(), ValidationError> { Ok(()) }
+
+    fn execute(&self, ctx: &mut ExecutionContext) -> Result<(), ExecutionError> {
+        let image = ctx.get_input_image("image")?;
+        let rr = ctx.get_float("rr").unwrap_or(1.0) as f32;
+        let rg = ctx.get_float("rg").unwrap_or(0.0) as f32;
+        let rb = ctx.get_float("rb").unwrap_or(0.0) as f32;
+        let gr = ctx.get_float("gr").unwrap_or(0.0) as f32;
+        let gg = ctx.get_float("gg").unwrap_or(1.0) as f32;
+        let gb = ctx.get_float("gb").unwrap_or(0.0) as f32;
+        let br = ctx.get_float("br").unwrap_or(0.0) as f32;
+        let bg = ctx.get_float("bg").unwrap_or(0.0) as f32;
+        let bb = ctx.get_float("bb").unwrap_or(1.0) as f32;
+        let img_data = image.get_image().ok_or_else(|| ExecutionError::NodeExecution {
+            node_id: ctx.node_id, error: "Image has no data".to_string(),
+        })?;
+        let mut result = img_data.to_rgba8();
+        for pixel in result.pixels_mut() {
+            let ch = pixel.channels_mut();
+            let (r, g, b) = (ch[0] as f32, ch[1] as f32, ch[2] as f32);
+            ch[0] = (r * rr + g * rg + b * rb).clamp(0.0, 255.0) as u8;
+            ch[1] = (r * gr + g * gg + b * gb).clamp(0.0, 255.0) as u8;
+            ch[2] = (r * br + g * bg + b * bb).clamp(0.0, 255.0) as u8;
+        }
+        ctx.set_output("image", Value::Image(ImageValue::new(image::DynamicImage::ImageRgba8(result))))?;
+        Ok(())
+    }
+
+    fn clone_box(&self) -> Box<dyn FilterNode> { Box::new(*self) }
+}
+
+// --- Vibrance ---
+
+#[derive(Debug, Clone, Copy)]
+pub struct Vibrance;
+
+impl FilterNode for Vibrance {
+    fn metadata(&self) -> NodeMetadata {
+        NodeMetadata::builder("vibrance", "Vibrance")
+            .description("Selectively boost saturation of less-saturated colours, preserving skin tones")
+            .category(Category::Color)
+            .author("Ambara")
+            .version("1.0.0")
+            .input(PortDefinition::input("image", PortType::Image).with_description("Input image"))
+            .output(PortDefinition::output("image", PortType::Image).with_description("Vibrant image"))
+            .parameter(
+                ParameterDefinition::new("amount", PortType::Float, Value::Float(0.5))
+                    .with_description("Vibrance strength (-1.0 to 1.0)")
+                    .with_ui_hint(UiHint::Slider { logarithmic: false })
+                    .with_constraint(Constraint::Range { min: -1.0, max: 1.0 }),
+            )
+            .build()
+    }
+
+    fn validate(&self, _ctx: &ValidationContext) -> Result<(), ValidationError> { Ok(()) }
+
+    fn execute(&self, ctx: &mut ExecutionContext) -> Result<(), ExecutionError> {
+        let image = ctx.get_input_image("image")?;
+        let amount = ctx.get_float("amount").unwrap_or(0.5) as f32;
+        let img_data = image.get_image().ok_or_else(|| ExecutionError::NodeExecution {
+            node_id: ctx.node_id, error: "Image has no data".to_string(),
+        })?;
+        let mut result = img_data.to_rgba8();
+        for pixel in result.pixels_mut() {
+            let ch = pixel.channels_mut();
+            let (r, g, b) = (ch[0] as f32 / 255.0, ch[1] as f32 / 255.0, ch[2] as f32 / 255.0);
+            let max_c = r.max(g).max(b);
+            let min_c = r.min(g).min(b);
+            let sat = if max_c > 1e-6 { (max_c - min_c) / max_c } else { 0.0 };
+            // Less saturated pixels get a stronger boost
+            let boost = amount * (1.0 - sat);
+            let avg = (r + g + b) / 3.0;
+            let nr = (r + (r - avg) * boost).clamp(0.0, 1.0);
+            let ng = (g + (g - avg) * boost).clamp(0.0, 1.0);
+            let nb = (b + (b - avg) * boost).clamp(0.0, 1.0);
+            ch[0] = (nr * 255.0) as u8;
+            ch[1] = (ng * 255.0) as u8;
+            ch[2] = (nb * 255.0) as u8;
+        }
+        ctx.set_output("image", Value::Image(ImageValue::new(image::DynamicImage::ImageRgba8(result))))?;
+        Ok(())
+    }
+
+    fn clone_box(&self) -> Box<dyn FilterNode> { Box::new(*self) }
+}
+
 // --- HSL color space utilities ---
 
 fn rgb_to_hsl(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
@@ -759,5 +973,117 @@ mod tests {
     fn test_gpu_support() {
         assert!(Grayscale.supports_gpu());
         assert!(Invert.supports_gpu());
+    }
+
+    #[test]
+    fn test_levels_adjust_metadata() {
+        let filter = LevelsAdjust;
+        let m = filter.metadata();
+        assert_eq!(m.id, "levels_adjust");
+        assert_eq!(m.category, Category::Color);
+        assert_eq!(m.parameters.len(), 3);
+    }
+
+    #[test]
+    fn test_channel_mixer_metadata() {
+        let filter = ChannelMixer;
+        let m = filter.metadata();
+        assert_eq!(m.id, "channel_mixer");
+        assert_eq!(m.category, Category::Color);
+    }
+
+    #[test]
+    fn test_vibrance_metadata() {
+        let filter = Vibrance;
+        let m = filter.metadata();
+        assert_eq!(m.id, "vibrance");
+        assert_eq!(m.category, Category::Color);
+    }
+
+    // --- Execution tests ---
+
+    fn make_test_image() -> Value {
+        let img = image::RgbaImage::from_fn(64, 64, |x, y| {
+            let r = ((x * 64) % 256) as u8;
+            let g = ((y * 64) % 256) as u8;
+            image::Rgba([r, g, 128, 255])
+        });
+        Value::Image(ImageValue::new(image::DynamicImage::ImageRgba8(img)))
+    }
+
+    fn make_exec_ctx(filter: &dyn FilterNode, image: Value) -> ExecutionContext {
+        use crate::core::error::NodeId;
+        let mut ctx = ExecutionContext::new(NodeId::new());
+        ctx.add_input("image", image);
+        // Set defaults from metadata
+        for p in &filter.metadata().parameters {
+            ctx.add_parameter(p.name.clone(), p.default_value.clone());
+        }
+        ctx
+    }
+
+    #[test]
+    fn test_levels_adjust_execution() {
+        let filter = LevelsAdjust;
+        let mut ctx = make_exec_ctx(&filter, make_test_image());
+        ctx.add_parameter("black_point", Value::Float(10.0));
+        ctx.add_parameter("white_point", Value::Float(245.0));
+        ctx.add_parameter("gamma", Value::Float(1.0));
+        assert!(filter.execute(&mut ctx).is_ok());
+        let out = ctx.outputs().get("image");
+        assert!(out.is_some());
+    }
+
+    #[test]
+    fn test_channel_mixer_execution() {
+        let filter = ChannelMixer;
+        let mut ctx = make_exec_ctx(&filter, make_test_image());
+        // Swap R and B channels
+        ctx.add_parameter("rr", Value::Float(0.0));
+        ctx.add_parameter("rb", Value::Float(1.0));
+        ctx.add_parameter("br", Value::Float(1.0));
+        ctx.add_parameter("bb", Value::Float(0.0));
+        assert!(filter.execute(&mut ctx).is_ok());
+        let out = ctx.outputs().get("image");
+        assert!(out.is_some());
+    }
+
+    #[test]
+    fn test_vibrance_execution() {
+        let filter = Vibrance;
+        let mut ctx = make_exec_ctx(&filter, make_test_image());
+        ctx.add_parameter("amount", Value::Float(0.8));
+        assert!(filter.execute(&mut ctx).is_ok());
+        let out = ctx.outputs().get("image");
+        assert!(out.is_some());
+    }
+
+    #[test]
+    fn test_brightness_execution() {
+        let filter = Brightness;
+        let mut ctx = make_exec_ctx(&filter, make_test_image());
+        ctx.add_parameter("amount", Value::Float(0.5));
+        assert!(filter.execute(&mut ctx).is_ok());
+    }
+
+    #[test]
+    fn test_grayscale_execution() {
+        let filter = Grayscale;
+        let mut ctx = make_exec_ctx(&filter, make_test_image());
+        assert!(filter.execute(&mut ctx).is_ok());
+    }
+
+    #[test]
+    fn test_invert_execution() {
+        let filter = Invert;
+        let mut ctx = make_exec_ctx(&filter, make_test_image());
+        assert!(filter.execute(&mut ctx).is_ok());
+    }
+
+    #[test]
+    fn test_sepia_execution() {
+        let filter = Sepia;
+        let mut ctx = make_exec_ctx(&filter, make_test_image());
+        assert!(filter.execute(&mut ctx).is_ok());
     }
 }

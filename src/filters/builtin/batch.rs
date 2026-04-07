@@ -66,7 +66,7 @@ impl FilterNode for BatchBrightness {
         
         // Extract images from input (handles both single image and arrays)
         let images = extract_images_from_value(input).map_err(|e| ExecutionError::NodeExecution {
-            node_id: ctx.node_id.clone(),
+            node_id: ctx.node_id,
             error: e,
         })?;
         
@@ -75,7 +75,7 @@ impl FilterNode for BatchBrightness {
             .par_iter()
             .map(|img_val| {
                 let img = img_val.get_image().ok_or_else(|| ExecutionError::NodeExecution {
-                    node_id: ctx.node_id.clone(),
+                    node_id: ctx.node_id,
                     error: "Failed to get image data".to_string(),
                 })?;
                 
@@ -156,7 +156,7 @@ impl FilterNode for BatchResize {
         let was_single = matches!(input, Value::Image(_));
         
         let images = extract_images_from_value(input).map_err(|e| ExecutionError::NodeExecution {
-            node_id: ctx.node_id.clone(),
+            node_id: ctx.node_id,
             error: e,
         })?;
         
@@ -165,7 +165,7 @@ impl FilterNode for BatchResize {
             .par_iter()
             .map(|img_val| {
                 let img = img_val.get_image().ok_or_else(|| ExecutionError::NodeExecution {
-                    node_id: ctx.node_id.clone(),
+                    node_id: ctx.node_id,
                     error: "Failed to get image data".to_string(),
                 })?;
                 
@@ -239,7 +239,7 @@ impl FilterNode for BatchContrast {
         let was_single = matches!(input, Value::Image(_));
         
         let images = extract_images_from_value(input).map_err(|e| ExecutionError::NodeExecution {
-            node_id: ctx.node_id.clone(),
+            node_id: ctx.node_id,
             error: e,
         })?;
         
@@ -247,7 +247,7 @@ impl FilterNode for BatchContrast {
             .par_iter()
             .map(|img_val| {
                 let img = img_val.get_image().ok_or_else(|| ExecutionError::NodeExecution {
-                    node_id: ctx.node_id.clone(),
+                    node_id: ctx.node_id,
                     error: "Failed to get image data".to_string(),
                 })?;
                 
@@ -321,7 +321,7 @@ impl FilterNode for BatchGaussianBlur {
         let was_single = matches!(input, Value::Image(_));
         
         let images = extract_images_from_value(input).map_err(|e| ExecutionError::NodeExecution {
-            node_id: ctx.node_id.clone(),
+            node_id: ctx.node_id,
             error: e,
         })?;
         
@@ -329,7 +329,7 @@ impl FilterNode for BatchGaussianBlur {
             .par_iter()
             .map(|img_val| {
                 let img = img_val.get_image().ok_or_else(|| ExecutionError::NodeExecution {
-                    node_id: ctx.node_id.clone(),
+                    node_id: ctx.node_id,
                     error: "Failed to get image data".to_string(),
                 })?;
                 
@@ -403,7 +403,7 @@ impl FilterNode for BatchSaturation {
         let was_single = matches!(input, Value::Image(_));
         
         let images = extract_images_from_value(input).map_err(|e| ExecutionError::NodeExecution {
-            node_id: ctx.node_id.clone(),
+            node_id: ctx.node_id,
             error: e,
         })?;
         
@@ -411,7 +411,7 @@ impl FilterNode for BatchSaturation {
             .par_iter()
             .map(|img_val| {
                 let img = img_val.get_image().ok_or_else(|| ExecutionError::NodeExecution {
-                    node_id: ctx.node_id.clone(),
+                    node_id: ctx.node_id,
                     error: "Failed to get image data".to_string(),
                 })?;
                 
@@ -484,7 +484,7 @@ impl FilterNode for BatchRotate {
         let was_single = matches!(input, Value::Image(_));
         
         let images = extract_images_from_value(input).map_err(|e| ExecutionError::NodeExecution {
-            node_id: ctx.node_id.clone(),
+            node_id: ctx.node_id,
             error: e,
         })?;
         
@@ -492,7 +492,7 @@ impl FilterNode for BatchRotate {
             .par_iter()
             .map(|img_val| {
                 let img = img_val.get_image().ok_or_else(|| ExecutionError::NodeExecution {
-                    node_id: ctx.node_id.clone(),
+                    node_id: ctx.node_id,
                     error: "Failed to get image data".to_string(),
                 })?;
                 
@@ -560,7 +560,7 @@ impl FilterNode for BatchGrayscale {
         let was_single = matches!(input, Value::Image(_));
         
         let images = extract_images_from_value(input).map_err(|e| ExecutionError::NodeExecution {
-            node_id: ctx.node_id.clone(),
+            node_id: ctx.node_id,
             error: e,
         })?;
         
@@ -568,7 +568,7 @@ impl FilterNode for BatchGrayscale {
             .par_iter()
             .map(|img_val| {
                 let img = img_val.get_image().ok_or_else(|| ExecutionError::NodeExecution {
-                    node_id: ctx.node_id.clone(),
+                    node_id: ctx.node_id,
                     error: "Failed to get image data".to_string(),
                 })?;
                 
@@ -636,7 +636,7 @@ impl FilterNode for BatchInvert {
         let was_single = matches!(input, Value::Image(_));
         
         let images = extract_images_from_value(input).map_err(|e| ExecutionError::NodeExecution {
-            node_id: ctx.node_id.clone(),
+            node_id: ctx.node_id,
             error: e,
         })?;
         
@@ -644,7 +644,7 @@ impl FilterNode for BatchInvert {
             .par_iter()
             .map(|img_val| {
                 let img = img_val.get_image().ok_or_else(|| ExecutionError::NodeExecution {
-                    node_id: ctx.node_id.clone(),
+                    node_id: ctx.node_id,
                     error: "Failed to get image data".to_string(),
                 })?;
                 
@@ -736,7 +736,7 @@ impl FilterNode for BatchCrop {
         let was_single = matches!(input, Value::Image(_));
         
         let images = extract_images_from_value(input).map_err(|e| ExecutionError::NodeExecution {
-            node_id: ctx.node_id.clone(),
+            node_id: ctx.node_id,
             error: e,
         })?;
         
@@ -744,7 +744,7 @@ impl FilterNode for BatchCrop {
             .par_iter()
             .map(|img_val| {
                 let img = img_val.get_image().ok_or_else(|| ExecutionError::NodeExecution {
-                    node_id: ctx.node_id.clone(),
+                    node_id: ctx.node_id,
                     error: "Failed to get image data".to_string(),
                 })?;
                 
@@ -817,7 +817,7 @@ impl FilterNode for BatchFlip {
         let was_single = matches!(input, Value::Image(_));
         
         let images = extract_images_from_value(input).map_err(|e| ExecutionError::NodeExecution {
-            node_id: ctx.node_id.clone(),
+            node_id: ctx.node_id,
             error: e,
         })?;
         
@@ -825,7 +825,7 @@ impl FilterNode for BatchFlip {
             .par_iter()
             .map(|img_val| {
                 let img = img_val.get_image().ok_or_else(|| ExecutionError::NodeExecution {
-                    node_id: ctx.node_id.clone(),
+                    node_id: ctx.node_id,
                     error: "Failed to get image data".to_string(),
                 })?;
                 

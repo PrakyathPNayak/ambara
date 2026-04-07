@@ -185,14 +185,12 @@ impl FilterNode for Divide {
     }
 
     fn validate(&self, ctx: &ValidationContext) -> Result<(), ValidationError> {
-        if let Ok(b) = ctx.get_input("b") {
-            if let Value::Float(val) = b {
-                if *val == 0.0 {
-                    return Err(ValidationError::CustomValidation {
-                        node_id: ctx.node_id,
-                        error: "Division by zero".to_string(),
-                    });
-                }
+        if let Ok(Value::Float(val)) = ctx.get_input("b") {
+            if *val == 0.0 {
+                return Err(ValidationError::CustomValidation {
+                    node_id: ctx.node_id,
+                    error: "Division by zero".to_string(),
+                });
             }
         }
         Ok(())

@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from pathlib import Path
 from typing import Any
 
@@ -40,16 +41,19 @@ def _default_params(f: dict[str, Any]) -> dict[str, Any]:
         if not name:
             continue
         default = p.get("default", "")
+        ptype = p.get("type", "").lower()
         if isinstance(default, str):
-            if default.startswith('String("') and default.endswith('")'):
-                result[name] = default[8:-2]
-            elif default in ("true", "false"):
+            # Boolean
+            if default in ("true", "false"):
                 result[name] = default == "true"
-            else:
+            # Numeric types
+            elif ptype in ("float", "integer", "number"):
                 try:
-                    result[name] = float(default)
+                    result[name] = float(default) if "." in default else int(default)
                 except (ValueError, TypeError):
                     result[name] = default
+            else:
+                result[name] = default
         else:
             result[name] = default
     return result
@@ -68,7 +72,7 @@ class GraphGenerator:
 
     def __init__(
         self,
-        code_retriever: CodeRetriever | None = None,
+        code_retriever: CodeRetriever | str | None = None,
         corpus_path: str = "",
         examples_path: str = "",
         force_mock_llm: bool = False,
@@ -76,6 +80,11 @@ class GraphGenerator:
         # Legacy params for backward compat
         chroma_path: str = "",
     ) -> None:
+        # Legacy callers pass (chroma_path, corpus_path, examples_path) as
+        # positional strings — detect and re-map.
+        if isinstance(code_retriever, str):
+            chroma_path = code_retriever
+            code_retriever = None
         self.code_retriever = code_retriever or CodeRetriever()
         self.code_retriever._ensure_loaded()
         self.repair_builder = RepairPromptBuilder()
@@ -306,7 +315,7 @@ class GraphGenerator:
             LOGGER.warning(
                 "Validation failed (attempt %d), errors: %s", attempt, validation.errors
             )
-            repair_prompt = self.repair_builder.build(query, graph_json, validation.errors)
+            repair_prompt = self.repair_builder.build(query, graph_json, validation.errors, corpus_by_id=self.corpus_by_id)
             try:
                 raw = self.llm_client.generate(repair_prompt, temperature=0.0)
             except RuntimeError as err:
@@ -332,14 +341,19 @@ class GraphGenerator:
         self, query: str, partial_graph: dict[str, Any] | None = None
     ) -> GenerationResultModel:
         """Execute the multi-stage agentic pipeline."""
+        t0 = time.perf_counter()
 
         # Stage 1: Plan.
+        t_plan = time.perf_counter()
         plan = self._plan(query)
+        LOGGER.info("Stage 1 (Plan) completed in %.2fs", time.perf_counter() - t_plan)
         if not plan:
             return self._fallback_generate(query, "Planning stage failed to produce a valid plan.")
 
         # Stage 2: Select.
+        t_select = time.perf_counter()
         selections = self._select(plan, query)
+        LOGGER.info("Stage 2 (Select) completed in %.2fs", time.perf_counter() - t_select)
         if not selections:
             return self._fallback_generate(query, "Selection stage found no valid filters.")
 
@@ -354,15 +368,25 @@ class GraphGenerator:
         LOGGER.info("Selected filters: %s", retrieved_ids)
 
         # Stage 3: Connect.
+        t_connect = time.perf_counter()
         graph = self._connect(valid_selections, plan, query)
+        LOGGER.info("Stage 3 (Connect) completed in %.2fs", time.perf_counter() - t_connect)
 
         # Stage 4: Validate + Repair.
+        t_validate = time.perf_counter()
         final_graph, valid, errors, retries = self._validate_and_repair(graph, query)
+        LOGGER.info("Stage 4 (Validate+Repair) completed in %.2fs, retries=%d", time.perf_counter() - t_validate, retries)
+
+        total_time = time.perf_counter() - t0
 
         if valid and final_graph:
             node_count = len(final_graph.get("nodes", []))
             conn_count = len(final_graph.get("connections", []))
             filter_names = ", ".join(dict.fromkeys(retrieved_ids[:5]))
+            LOGGER.info(
+                "Generation complete: %d nodes, %d connections, %.2fs total",
+                node_count, conn_count, total_time,
+            )
             explanation = (
                 f"I built a {node_count}-node pipeline using {filter_names} "
                 f"with {conn_count} connections. "
@@ -535,13 +559,53 @@ class GraphGenerator:
         return selections
 
     def _deterministic_branch_selections(self, q: str) -> list[dict[str, Any]]:
-        """Infer a branch/merge pipeline from keywords."""
-        return [
+        """Infer a branch/merge pipeline from keywords.
+
+        Always starts with two inputs and a merge (blend or overlay).
+        Appends keyword-matched processing filters after the merge,
+        then finishes with save.
+        """
+        # Pick merge filter
+        if "overlay" in q:
+            merge_id = "overlay"
+        else:
+            merge_id = "blend"
+
+        selections: list[dict[str, Any]] = [
             {"filter_id": "load_image", "parameters": {"path": ""}},
             {"filter_id": "load_image", "parameters": {"path": ""}},
-            {"filter_id": "blend", "parameters": _default_params(self.corpus_by_id.get("blend", {}))},
-            {"filter_id": "save_image", "parameters": _default_params(self.corpus_by_id.get("save_image", {}))},
+            {"filter_id": merge_id, "parameters": _default_params(self.corpus_by_id.get(merge_id, {}))},
         ]
+
+        # Post-merge processing from keywords (same table as linear)
+        post_merge_keywords = [
+            ("blur", "gaussian_blur"), ("smooth", "gaussian_blur"),
+            ("bright", "brightness"), ("dark", "brightness"),
+            ("contrast", "contrast"), ("satur", "saturation"),
+            ("gray", "grayscale"), ("grey", "grayscale"),
+            ("sharpen", "sharpen"), ("edge", "edge_detect"),
+            ("resiz", "resize"), ("rotate", "rotate"),
+            ("crop", "crop"), ("text", "text_overlay"),
+        ]
+        added = set()
+        matches: list[tuple[int, str]] = []
+        for keyword, fid in post_merge_keywords:
+            pos = q.find(keyword)
+            if pos >= 0 and fid not in added and fid in self.corpus_by_id:
+                matches.append((pos, fid))
+                added.add(fid)
+        matches.sort()
+
+        for _, fid in matches:
+            selections.append({
+                "filter_id": fid,
+                "parameters": _default_params(self.corpus_by_id[fid]),
+            })
+
+        selections.append(
+            {"filter_id": "save_image", "parameters": _default_params(self.corpus_by_id.get("save_image", {}))},
+        )
+        return selections
 
     # ------------------------------------------------------------------
     # Mock mode

@@ -315,8 +315,8 @@ impl ValidationStage for ResourceValidation {
                 if param_def.name.contains("path") || param_def.name.contains("file") {
                     if let Some(Value::String(path)) = node.parameters.get(&param_def.name) {
                         // Check if path exists (for input files)
-                        if metadata.id.contains("load") || metadata.id.contains("input") {
-                            if !Path::new(path).exists() {
+                        if (metadata.id.contains("load") || metadata.id.contains("input"))
+                            && !Path::new(path).exists() {
                                 // Check for glob patterns
                                 if path.contains('*') || path.contains('?') {
                                     // It's a glob pattern, check if it matches anything
@@ -344,7 +344,6 @@ impl ValidationStage for ResourceValidation {
                                     });
                                 }
                             }
-                        }
 
                         // For output files, check that directory exists
                         if metadata.id.contains("save") || metadata.id.contains("output") {

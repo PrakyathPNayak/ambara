@@ -70,7 +70,7 @@ The engine automatically:
 
 Professional-grade graph editor for building processing pipelines:
 
-- **60+ Built-in Filters**: Blur, sharpen, color correction, transforms, compositing, and more
+- **111 Built-in Filters**: Blur, sharpen, color correction, transforms, compositing, edge detection, morphology, astrophotography, and more
 - **Real-time Preview**: See results as you build
 - **Batch Processing**: Process thousands of images with one pipeline
 - **Save & Share**: Export pipelines as JSON, share with teams
@@ -236,7 +236,7 @@ engine.execute(&graph, None)?;
 ## Product Roadmap
 
 ### Current Release (v0.2.0)
-- ✅ 60+ built-in filters
+- ✅ 111 built-in filters across 18 categories
 - ✅ Node-based visual editor
 - ✅ Chunked/tiled processing
 - ✅ Batch processing

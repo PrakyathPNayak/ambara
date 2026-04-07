@@ -29,42 +29,64 @@ LOGGER = logging.getLogger(__name__)
 MAX_TOOL_ROUNDS = 4  # Maximum tool-use iterations before forcing a final answer
 
 SYSTEM_PROMPT = """\
-You are Ambara Assistant, an expert on the Ambara image processing application.
-Ambara uses a node-based graph system where filters are connected to form pipelines.
+=== ROLE ===
+You are Ambara Assistant, an expert on the Ambara image-processing application.
+Ambara uses a node-based graph system where filters are connected to form
+image-processing pipelines.
 
-Your capabilities:
+=== AVAILABLE TOOLS ===
 {tools}
 
-INSTRUCTIONS:
-1. Analyze the user's message and conversation history to understand their intent.
-2. If the user wants to BUILD a pipeline or graph, use the generate_graph tool.
-3. If the user asks ABOUT a specific filter, use explain_filter or get_filter_details.
-4. If the user asks what filters are available for a task, use search_filters.
-5. If the user wants to know what categories exist, use list_categories.
-6. If the user wants pipeline suggestions without building one, use suggest_pipeline.
-7. If the user wants to understand an existing graph, use explain_graph.
-8. For general questions you can answer from context, just respond directly.
+=== CHAIN-OF-THOUGHT REASONING ===
+Before choosing a tool or giving an answer, silently reason through these steps:
+  1. UNDERSTAND: What is the user actually asking for? Check conversation history
+     for follow-ups or clarifications that change the intent.
+  2. CLASSIFY: Is this a BUILD request (generate_graph), an INFORMATION request
+     (explain_filter, search_filters, get_filter_details, list_categories), a
+     SUGGESTION request (suggest_pipeline), an EXPLANATION request (explain_graph),
+     or a GENERAL question you can answer directly?
+  3. PLAN: Which single tool best addresses the classified intent? If unsure,
+     use search_filters first to gather context before answering.
+  4. VERIFY: After receiving a tool result, check — does this fully answer the
+     user's question? If not, call another tool. If yes, compose the final answer.
 
-RESPONSE FORMAT:
-- To call a tool, respond with exactly one JSON block:
-  ```json
-  {{"tool": "<tool_name>", "arguments": {{...}}}}
-  ```
-- To give a final answer to the user (no more tools needed), respond with:
-  ```json
-  {{"answer": "<your response to the user>"}}
-  ```
-- Always respond with ONE of these JSON formats. Never mix them.
-- After receiving a tool result, you may call another tool or give a final answer.
+=== DECISION RULES (priority order) ===
+1. Explicit BUILD/CREATE/MAKE intent → generate_graph.
+   IMPORTANT: After generate_graph returns, call validate_graph on the result
+   to verify correctness before presenting it to the user.
+2. Question about a SPECIFIC filter by name → explain_filter or get_filter_details.
+3. "What filters can do X?" → search_filters.
+4. "What categories exist?" → list_categories.
+5. "Suggest a pipeline for X" (no graph needed) → suggest_pipeline.
+6. "Explain this graph" + JSON → explain_graph.
+7. Ambiguous requests → search_filters first, then decide.
+8. General Ambara knowledge → answer directly from context.
 
-GUIDELINES:
-- Be concise but informative.  Users are technical and appreciate specific details.
-- When generating graphs, describe what you built and how many nodes/filters it uses.
-- When explaining filters, mention ports, parameters, defaults, and constraints.
-- Reference filter IDs with backtick formatting: `gaussian_blur`.
-- If you're unsure which filter to suggest, search first before answering.
-- Use conversation history to understand follow-up questions and context.
+=== RESPONSE FORMAT ===
+You MUST respond with exactly ONE JSON object. Two valid forms:
 
+  Tool call:    {{"tool": "<name>", "arguments": {{...}}}}
+  Final answer: {{"answer": "<your response>"}}
+
+Never mix them. Never output markdown fences around the JSON. Never output
+explanatory text outside the JSON object.
+
+=== WHAT NOT TO DO ===
+- Do NOT call generate_graph for questions like "what does gaussian_blur do?".
+- Do NOT guess filter IDs. Search first if unsure.
+- Do NOT produce empty arguments for required tool parameters.
+- Do NOT repeat the same tool call with identical arguments.
+- Do NOT fabricate filter names, port names, or parameter names.
+
+=== ANSWER QUALITY ===
+- Be concise but informative. Users are technical.
+- When generating graphs, describe what you built, how many nodes it uses,
+  and the overall topology.
+- When explaining filters, include ports, parameters, defaults, and constraints.
+- Reference filter IDs in backtick formatting: `gaussian_blur`.
+- Use conversation history to maintain coherent multi-turn context.
+
+=== FILTER CATALOG ===
 {catalog}
 """
 
@@ -104,6 +126,7 @@ class Agent:
 
         tool_calls_made: list[dict[str, Any]] = []
         graph_result: dict[str, Any] | None = None
+        seen_calls: set[str] = set()  # track (tool, args) to avoid duplicates
 
         for round_num in range(MAX_TOOL_ROUNDS):
             try:
@@ -131,6 +154,22 @@ class Agent:
             if parsed.get("tool"):
                 tool_name = parsed["tool"]
                 arguments = parsed.get("arguments", {})
+
+                # Deduplicate tool calls with identical arguments
+                call_key = json.dumps({"tool": tool_name, "arguments": arguments}, sort_keys=True)
+                if call_key in seen_calls:
+                    LOGGER.info("Agent duplicate tool call skipped: %s", tool_name)
+                    messages.append({"role": "assistant", "content": raw})
+                    messages.append({
+                        "role": "user",
+                        "content": (
+                            f"You already called {tool_name} with these same arguments. "
+                            "Use the previous result or try a different approach."
+                        ),
+                    })
+                    continue
+                seen_calls.add(call_key)
+
                 LOGGER.info("Agent tool call [round %d]: %s(%s)", round_num + 1, tool_name, arguments)
 
                 result_str = self.tool_executor.execute(tool_name, arguments)
@@ -153,7 +192,7 @@ class Agent:
                 messages.append({"role": "assistant", "content": raw})
                 messages.append({
                     "role": "user",
-                    "content": f"Tool result from {tool_name}:\n{result_str[:2000]}",
+                    "content": f"Tool result from {tool_name}:\n{result_str[:4000]}",
                 })
                 continue
 
@@ -164,10 +203,37 @@ class Agent:
                 tool_calls=tool_calls_made,
             )
 
-        # Exhausted tool rounds — force a final answer
+        # Exhausted tool rounds — construct the best reply we can from gathered data
+        LOGGER.warning(
+            "Agent exhausted %d tool rounds for message: %.100s", MAX_TOOL_ROUNDS, user_message
+        )
+        if graph_result:
+            node_count = len(graph_result.get("nodes", []))
+            return AgentResult(
+                reply=f"I built a {node_count}-node pipeline for you. "
+                      "Click 'Insert Graph' to load it into the canvas.",
+                graph=graph_result,
+                tool_calls=tool_calls_made,
+            )
+        # Try one final prompt asking the LLM to summarize what it found
+        messages.append({
+            "role": "user",
+            "content": "Please give a concise final answer based on the information gathered so far.",
+        })
+        try:
+            raw = self.llm.generate({"messages": messages}, temperature=0.0)
+            final = self._parse_response(raw)
+            if final.get("answer"):
+                return AgentResult(
+                    reply=final["answer"],
+                    graph=graph_result,
+                    tool_calls=tool_calls_made,
+                )
+        except RuntimeError:
+            pass
         return AgentResult(
-            reply="I've gathered information but couldn't formulate a complete answer. "
-                  "Please try rephrasing your request.",
+            reply="I gathered some information but couldn't complete the request. "
+                  "Could you try being more specific about what you need?",
             graph=graph_result,
             tool_calls=tool_calls_made,
         )

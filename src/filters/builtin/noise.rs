@@ -78,7 +78,7 @@ impl FilterNode for AddNoise {
             ((rng_state >> 33) as f32) / (u32::MAX as f32)
         };
 
-        match noise_type.as_ref() {
+        match noise_type {
             "salt_pepper" => {
                 for pixel in rgba.pixels_mut() {
                     let r = next_rand();
@@ -100,12 +100,12 @@ impl FilterNode for AddNoise {
                 let intensity = amount * 128.0;
                 for pixel in rgba.pixels_mut() {
                     let ch = pixel.channels_mut();
-                    for i in 0..3 {
+                    for c in ch.iter_mut().take(3) {
                         let u1 = next_rand().max(1e-10);
                         let u2 = next_rand();
                         let gauss = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f32::consts::PI * u2).cos();
                         let noise = gauss * intensity;
-                        ch[i] = (ch[i] as f32 + noise).clamp(0.0, 255.0) as u8;
+                        *c = (*c as f32 + noise).clamp(0.0, 255.0) as u8;
                     }
                 }
             }

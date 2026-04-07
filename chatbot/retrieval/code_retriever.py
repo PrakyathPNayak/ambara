@@ -19,6 +19,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 BUILTIN_DIR = ROOT / "src" / "filters" / "builtin"
+EXTRA_FILTER_FILES = [ROOT / "src" / "core" / "node.rs"]
 CORPUS_CACHE = ROOT / "build" / "filter_corpus.json"
 
 
@@ -136,14 +137,33 @@ _RE_DESCRIPTION = re.compile(r'\.description\(\s*"([^"]+)"\s*\)')
 _RE_CATEGORY = re.compile(r'\.category\(\s*Category::(\w+)\s*\)')
 _RE_AUTHOR = re.compile(r'\.author\(\s*"([^"]+)"\s*\)')
 _RE_VERSION = re.compile(r'\.version\(\s*"([^"]+)"\s*\)')
+# Matches simple `PortType::Foo` and compound `PortType::Array(Box::new(PortType::Foo))`
+_PORT_TYPE_PATTERN = r'PortType::(\w+(?:\((?:[^()]*|\([^()]*\))*\))?)'
+
 _RE_INPUT = re.compile(
-    r'\.input\(\s*PortDefinition::input\(\s*"([^"]+)"\s*,\s*PortType::(\w+)\s*\)'
+    r'\.input\(\s*PortDefinition::input\(\s*"([^"]+)"\s*,\s*' + _PORT_TYPE_PATTERN + r'\s*\)'
 )
 _RE_OUTPUT = re.compile(
-    r'\.output\(\s*PortDefinition::output\(\s*"([^"]+)"\s*,\s*PortType::(\w+)\s*\)'
+    r'\.output\(\s*PortDefinition::output\(\s*"([^"]+)"\s*,\s*' + _PORT_TYPE_PATTERN + r'\s*\)'
 )
+
+
+def _normalize_port_type(raw: str) -> str:
+    """Convert a Rust PortType expression to a clean string.
+
+    Examples::
+
+        'Image'                              -> 'Image'
+        'Array(Box::new(PortType::Image))'   -> 'Array<Image>'
+    """
+    if '(' not in raw:
+        return raw
+    m = re.match(r'(\w+)\(Box::new\(PortType::(\w+)\)\)', raw)
+    if m:
+        return f"{m.group(1)}<{m.group(2)}>"
+    return raw.split('(')[0]
 _RE_PARAM = re.compile(
-    r'ParameterDefinition::new\(\s*"([^"]+)"\s*,\s*PortType::(\w+)\s*,\s*Value::(\w+)\(([^)]*)\)\s*\)'
+    r'ParameterDefinition::new\(\s*"([^"]+)"\s*,\s*PortType::(\w+)\s*,\s*Value::(\w+)\(([^)]*(?:\([^)]*\))*[^)]*)\)\s*\)'
 )
 _RE_PARAM_DESC = re.compile(r'\.with_description\(\s*"([^"]+)"\s*\)')
 _RE_CONSTRAINT_RANGE = re.compile(
@@ -187,6 +207,37 @@ def _extract_method(impl_block: str, method_name: str) -> str:
     return impl_block[match.start():match.start() + len(f"fn {method_name}(")] + "..." + body
 
 
+def _clean_rust_default(value_type: str, raw: str) -> str:
+    """Extract a clean Python-friendly default from a Rust Value expression.
+
+    Handles common patterns:
+        String::new()         → ""
+        "foo".to_string()     → "foo"
+        "foo".into()          → "foo"
+        "foo"                 → "foo"
+        2.0                   → "2.0"
+        true / false          → "true" / "false"
+    """
+    s = raw.strip()
+
+    if value_type == "String":
+        # String::new() → empty string
+        if s.startswith("String::new"):
+            return ""
+        # "foo".to_string() or "foo".into()
+        m = re.match(r'"([^"]*)"\s*\.(?:to_string|into)\s*\(\s*\)', s)
+        if m:
+            return m.group(1)
+        # Plain "foo"
+        m = re.match(r'"([^"]*)"', s)
+        if m:
+            return m.group(1)
+        return s.strip('"')
+
+    # Bool / numeric: pass through as-is
+    return s
+
+
 def _parse_param_block(text: str) -> ParamInfo:
     """Parse a .parameter(...) block into ParamInfo."""
     m_new = _RE_PARAM.search(text)
@@ -196,12 +247,12 @@ def _parse_param_block(text: str) -> ParamInfo:
     name = m_new.group(1)
     port_type = m_new.group(2)
     value_type = m_new.group(3)
-    raw_default = m_new.group(4).strip().strip('"')
+    raw_default = m_new.group(4).strip()
 
-    # Simplify default representation
-    default_val = raw_default if raw_default else ""
-    if value_type == "String" and default_val:
-        default_val = f'"{default_val}"'
+    # Extract clean default value from Rust Value expression.
+    # Handles: String::new() → "", "foo".to_string() → "foo",
+    #          "foo" → "foo", 2.0 → "2.0", true → "true"
+    default_val = _clean_rust_default(value_type, raw_default)
 
     desc_m = _RE_PARAM_DESC.search(text)
     description = desc_m.group(1) if desc_m else ""
@@ -263,7 +314,8 @@ def _parse_source_file(path: Path) -> list[FilterInfo]:
         # Parse inputs
         inputs: list[PortInfo] = []
         for inp_m in _RE_INPUT.finditer(metadata_src):
-            port_name, port_type = inp_m.group(1), inp_m.group(2)
+            port_name = inp_m.group(1)
+            port_type = _normalize_port_type(inp_m.group(2))
             # Look for .with_description after this port
             after = metadata_src[inp_m.end():inp_m.end() + 200]
             pdesc_m = _RE_PORT_DESC.search(after)
@@ -272,7 +324,8 @@ def _parse_source_file(path: Path) -> list[FilterInfo]:
         # Parse outputs
         outputs: list[PortInfo] = []
         for out_m in _RE_OUTPUT.finditer(metadata_src):
-            port_name, port_type = out_m.group(1), out_m.group(2)
+            port_name = out_m.group(1)
+            port_type = _normalize_port_type(out_m.group(2))
             after = metadata_src[out_m.end():out_m.end() + 200]
             pdesc_m = _RE_PORT_DESC.search(after)
             outputs.append(PortInfo(port_name, port_type, pdesc_m.group(1) if pdesc_m else ""))
@@ -339,6 +392,13 @@ class CodeRetriever:
                 self._index[info.id] = info
                 self._by_category.setdefault(info.category, []).append(info)
 
+        for extra in EXTRA_FILTER_FILES:
+            if extra.exists():
+                for info in _parse_source_file(extra):
+                    if info.id not in self._index:
+                        self._index[info.id] = info
+                        self._by_category.setdefault(info.category, []).append(info)
+
         self._loaded = True
 
     # --- Query methods ---
@@ -380,38 +440,114 @@ class CodeRetriever:
             return path.read_text(errors="replace")
         return f"Source file {info.source_file} not found."
 
+    # Common synonyms to bridge user language and filter IDs
+    _SYNONYMS: dict[str, list[str]] = {
+        "sharp": ["sharpen", "unsharp_mask"],
+        "smooth": ["blur", "gaussian_blur", "box_blur", "denoise"],
+        "turn": ["rotate"],
+        "spin": ["rotate"],
+        "mirror": ["flip"],
+        "trim": ["crop"],
+        "cut": ["crop"],
+        "scale": ["resize"],
+        "shrink": ["resize"],
+        "enlarge": ["resize"],
+        "dim": ["brightness"],
+        "brighten": ["brightness"],
+        "darken": ["brightness"],
+        "tint": ["hue_rotate", "color_balance"],
+        "colour": ["color_balance", "saturation", "hue_rotate"],
+        "bw": ["grayscale"],
+        "monochrome": ["grayscale"],
+        "negative": ["invert"],
+        "stack": ["image_stack"],
+        "combine": ["blend", "overlay", "merge_channels"],
+        "mix": ["blend"],
+        "watermark": ["text_overlay"],
+        "label": ["text_overlay"],
+        "caption": ["text_overlay"],
+        "denoise": ["denoise", "hot_pixel_removal"],
+        "clean": ["denoise", "hot_pixel_removal"],
+    }
+
     def search(self, query: str, top_k: int = 5) -> list[FilterInfo]:
-        """Search filters by keyword matching against id, name, description, category."""
+        """Search filters by keyword matching against id, name, description, category, and ports."""
         self._ensure_loaded()
         q = query.lower()
         scored: list[tuple[float, FilterInfo]] = []
 
+        # Expand query words with synonyms
+        words = [w for w in q.split() if len(w) >= 3]
+        expanded_ids: set[str] = set()
+        for word in words:
+            for synonym_key, target_ids in self._SYNONYMS.items():
+                if word == synonym_key or synonym_key.startswith(word):
+                    expanded_ids.update(target_ids)
+
+        # Build bigrams for phrase matching (e.g. "edge detection" → ["edge detection"])
+        bigrams = [f"{words[i]} {words[i + 1]}" for i in range(len(words) - 1)] if len(words) >= 2 else []
+
         for info in self._index.values():
             score = 0.0
+            info_id = info.id
+            info_name = info.name.lower()
+            info_desc = info.description.lower()
+            info_cat = info.category.lower()
+
             # Exact ID match
-            if q == info.id:
+            if q == info_id:
                 score += 100
-            # ID contains query
-            elif q in info.id:
+            # ID contains full query
+            elif q in info_id:
                 score += 50
-            # Name match
-            if q in info.name.lower():
+            # Name match (full query)
+            if q in info_name:
                 score += 40
-            # Category match
-            if q in info.category.lower():
+            # Category match (full query)
+            if q in info_cat:
                 score += 30
-            # Description match
-            words = q.split()
+
+            # Synonym expansion bonus
+            if info_id in expanded_ids:
+                score += 45
+
+            # Bigram phrase matching — strong signal when consecutive words appear together
+            for bigram in bigrams:
+                bigram_under = bigram.replace(" ", "_")
+                if bigram in info_desc or bigram in info_name:
+                    score += 35
+                if bigram_under in info_id or bigram_under in info_name:
+                    score += 35
+                # Exact ID match for the bigram form beats a substring match
+                if bigram_under == info_id:
+                    score += 25
+
+            # Word-level matching
             for word in words:
-                if len(word) >= 3:
-                    if word in info.description.lower():
-                        score += 15
-                    if word in info.id:
-                        score += 20
-                    # Check parameter names/descriptions
-                    for p in info.parameters:
-                        if word in p.name or word in p.description.lower():
-                            score += 5
+                # Word substring in ID (e.g. "blur" matches "gaussian_blur")
+                if word in info_id:
+                    score += 20
+                # Word substring in name
+                if word in info_name:
+                    score += 15
+                # Word in description
+                if word in info_desc:
+                    score += 15
+                # Word in category
+                if word in info_cat:
+                    score += 10
+                # Check parameter names/descriptions
+                for p in info.parameters:
+                    if word in p.name or word in p.description.lower():
+                        score += 5
+                # Port type and name matching
+                for port in info.inputs:
+                    if word in port.port_type.lower() or word in port.name.lower():
+                        score += 8
+                for port in info.outputs:
+                    if word in port.port_type.lower() or word in port.name.lower():
+                        score += 8
+
             if score > 0:
                 scored.append((score, info))
 

@@ -25,6 +25,8 @@ class SessionStore:
             raise ValueError("expiry_minutes must be > 0")
         self.expiry = dt.timedelta(minutes=expiry_minutes)
         self._sessions: dict[str, dict[str, Any]] = {}
+        self._last_prune: dt.datetime = dt.datetime.now(dt.UTC)
+        self._prune_interval: dt.timedelta = dt.timedelta(seconds=60)
 
     @staticmethod
     def _utc_now() -> dt.datetime:
@@ -42,7 +44,7 @@ class SessionStore:
         return dt.datetime.now(dt.UTC)
 
     def _prune(self) -> None:
-        """Remove expired sessions.
+        """Remove expired sessions (rate-limited to once per minute).
 
         Args:
             None.
@@ -54,6 +56,9 @@ class SessionStore:
             RuntimeError: Never raised in normal operation.
         """
         now = self._utc_now()
+        if now - self._last_prune < self._prune_interval:
+            return
+        self._last_prune = now
         expired = [sid for sid, data in self._sessions.items() if now - data["updated_at"] > self.expiry]
         for sid in expired:
             self._sessions.pop(sid, None)

@@ -10,12 +10,12 @@ This project was done with the intent of testing the ease of developement with t
 
 - 🎨 **Node-Based Workflow**: Build complex image processing pipelines with an intuitive graph-based approach
 - 🚀 **High Performance**: Built with Rust for maximum speed and memory efficiency
-- 🖼️ **Rich Filter Library**: Comprehensive set of built-in filters and operations
+- 🖼️ **Rich Filter Library**: 111 built-in filters across 18 categories
 - 🔌 **Extensible Architecture**: Easy to add custom filters and operations
 - 💻 **Cross-Platform**: Works on Linux, macOS, and Windows
 - 🎯 **Type-Safe**: Strong type checking for node connections and parameters
 - 🔄 **Parallel Execution**: Automatic parallelization of independent operations
-- 🧪 **Well-Tested**: Comprehensive test suite with 72+ tests
+- 🧪 **Well-Tested**: Comprehensive test suite with 250 tests (144 Rust + 106 Python)
 - 🌐 **External API Surface**: Tauri commands for graph/plugin import-export and manifest inspection
 - 🤖 **Chatbot Sidecar**: FastAPI + RAG pipeline for natural-language graph generation
 
@@ -116,6 +116,8 @@ Ambara uses a graph-based architecture where:
 ### Blur Operations
 - **GaussianBlur**: Apply Gaussian blur with specified radius
 - **BoxBlur**: Apply box blur (faster alternative)
+- **MedianBlur**: Apply median filter for noise reduction (preserves edges)
+- **MotionBlur**: Simulate directional motion blur
 
 ### Color Operations
 - **Brightness**: Adjust image brightness
@@ -124,6 +126,15 @@ Ambara uses a graph-based architecture where:
 - **Grayscale**: Convert to grayscale
 - **Invert**: Invert colors
 - **HueShift**: Rotate hue values
+- **LevelsAdjust**: Black point, white point, and gamma adjustment
+- **ChannelMixer**: 3×3 matrix mixing of RGB channels
+- **Vibrance**: Selective saturation boosting (protects already-saturated colors)
+
+### Edge & Detail Operations
+- **EdgeDetect**: Sobel-based edge detection
+- **Emboss**: Directional emboss effect
+- **CannyEdge**: Canny edge detection with dual thresholds
+- **Laplacian**: Laplacian second-derivative edge detection
 
 ### Transform Operations
 - **Resize**: Resize images with various algorithms
@@ -405,12 +416,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Roadmap
 
 - [✅] GPU acceleration support
+- [✅] Plugin system for community filters
+- [✅] Real-time preview
 - [ ] More advanced filters (ML-based, style transfer)
 - [ ] Animation/video processing
 - [ ] Python bindings
-- [ ] Plugin system for community filters
 - [ ] Cloud execution support
-- [ ] Real-time preview
 - [ ] Undo/redo in UI
 
 ## Support

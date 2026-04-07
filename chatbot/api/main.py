@@ -5,8 +5,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import subprocess
 import tempfile
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from chatbot.api.models import (
     ChatRequest,
     ChatResponse,
+    FilterItemModel,
     GraphExecuteRequest,
     GraphExecuteResult,
     GraphGenerateRequest,
@@ -38,22 +42,18 @@ LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 CORPUS_PATH = ROOT / "build" / "filter_corpus.json"
-CHROMA_PATH = ROOT / "build" / "chroma_db"
 EXAMPLES_PATH = ROOT / "chatbot" / "corpus" / "examples.json"
 SCHEMA_PATH = ROOT / "chatbot" / "corpus" / "graph_schema.json"
 FILTER_IDS_PATH = ROOT / "build" / "filter_id_set.json"
 
 
-app = FastAPI(title="Ambara Chatbot API", version="0.8.0")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 sessions = SessionStore()
 chat_llm = LLMClient(force_mock=False)
 code_retriever = CodeRetriever()
+
+# Startup health tracking — set during lifespan, read by /health
+_startup_status: str = "starting"
+_startup_error: str = ""
 
 
 def _ensure_corpus() -> None:
@@ -71,6 +71,38 @@ def _ensure_corpus() -> None:
     corpus = json.loads(CORPUS_PATH.read_text())
     if not FILTER_IDS_PATH.exists():
         FILTER_IDS_PATH.write_text(json.dumps([item["id"] for item in corpus], indent=2))
+
+
+@asynccontextmanager
+async def _lifespan(application: FastAPI) -> AsyncIterator[None]:
+    """Application lifespan: initialise corpus on startup, cleanup on shutdown."""
+    global _startup_status, _startup_error
+    try:
+        _ensure_corpus()
+        filter_count = len(code_retriever.all_filter_ids)
+        _startup_status = "ok"
+        LOGGER.info(
+            "Startup complete: %d filters loaded, LLM backend=%s/%s",
+            filter_count,
+            chat_llm.backend,
+            chat_llm.model_name,
+        )
+    except Exception as exc:
+        _startup_status = "degraded"
+        _startup_error = f"{type(exc).__name__}: {exc}"
+        LOGGER.error("Corpus initialisation failed — API starting in degraded mode", exc_info=True)
+    yield
+
+
+app = FastAPI(title="Ambara Chatbot API", version="0.9.0", lifespan=_lifespan)
+
+_cors_origins = os.environ.get("AMBARA_CORS_ORIGINS", "*").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def _corpus_stale() -> bool:
@@ -110,12 +142,6 @@ def _validator() -> GraphValidator:
         OSError: If supporting files are missing.
     """
     return GraphValidator(str(SCHEMA_PATH), str(FILTER_IDS_PATH), str(CORPUS_PATH))
-
-
-@app.on_event("startup")
-def on_startup() -> None:
-    """Startup hook ensuring required artifacts are present."""
-    _ensure_corpus()
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -195,8 +221,13 @@ def graph_execute(req: GraphExecuteRequest) -> GraphExecuteResult:
         path = Path(fp.name)
         fp.write(json.dumps(req.graph))
 
-    cmd = ["cargo", "run", "--", "load-graph", str(path), "--execute"]
-    proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=False)
+    try:
+        cmd = ["cargo", "run", "--", "load-graph", str(path), "--execute"]
+        proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=False, timeout=120)
+    except subprocess.TimeoutExpired:
+        return GraphExecuteResult(success=False, output_paths=[], errors=["Graph execution timed out after 120s"])
+    finally:
+        path.unlink(missing_ok=True)
 
     if proc.returncode != 0:
         return GraphExecuteResult(success=False, output_paths=[], errors=[proc.stderr or proc.stdout or "Execution failed"])
@@ -212,17 +243,17 @@ def graph_execute(req: GraphExecuteRequest) -> GraphExecuteResult:
     return GraphExecuteResult(success=success, output_paths=[], errors=errors)
 
 
-@app.get("/filters")
+@app.get("/filters", response_model=list[FilterItemModel])
 def filters() -> list[dict[str, Any]]:
     """Return full filter corpus from code-as-RAG retriever."""
     _ensure_corpus()
     return code_retriever.build_corpus_json()
 
 
-@app.get("/filters/search")
-def filters_search(q: str = Query(...), top_k: int = Query(5)) -> list[dict[str, Any]]:
+@app.get("/filters/search", response_model=list[FilterItemModel])
+def filters_search(q: str = Query(..., max_length=500), top_k: int = Query(5, ge=1, le=50)) -> list[dict[str, Any]]:
     """Search filters by keyword using code-as-RAG retriever."""
-    code_retriever._ensure_loaded()
+    _ensure_corpus()
     results = code_retriever.search(q, top_k=top_k)
     return [r.to_dict() for r in results]
 
@@ -230,14 +261,14 @@ def filters_search(q: str = Query(...), top_k: int = Query(5)) -> list[dict[str,
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     """Service health and readiness endpoint."""
-    _ensure_corpus()
-    filters_count = len(code_retriever.all_filter_ids)
+    filters_count = len(code_retriever.all_filter_ids) if _startup_status == "ok" else 0
     return HealthResponse(
-        status="ok",
+        status=_startup_status,
         filters_loaded=filters_count,
         chroma_ready=True,  # No longer needed but kept for API compat
         llm_backend=chat_llm.backend,
         llm_model=chat_llm.model_name,
+        error=_startup_error or None,
     )
 
 
@@ -282,6 +313,7 @@ def update_llm_config(req: LLMConfigRequest) -> LLMConfigResponse:
             chat_llm.anthropic_key = req.api_key
         elif chat_llm.backend == "groq":
             chat_llm.groq_key = req.api_key
+        LOGGER.info("API key updated for backend: %s", chat_llm.backend)
     return LLMConfigResponse(
         provider=chat_llm.backend,
         model=chat_llm.model_name,
@@ -307,7 +339,18 @@ async def websocket_chat(ws: WebSocket, session_id: str) -> None:
     try:
         while True:
             msg = await ws.receive_text()
-            response = chat(ChatRequest(message=msg, session_id=session_id, context=[]))
+            if not msg.strip():
+                await ws.send_json({"type": "done", "graph": None, "graph_generated": False})
+                continue
+            try:
+                response = await asyncio.to_thread(
+                    chat, ChatRequest(message=msg, session_id=session_id, context=[])
+                )
+            except Exception as exc:
+                LOGGER.error("WebSocket chat error for session %s: %s", session_id, exc)
+                await ws.send_json({"type": "token", "content": f"Error: {exc} "})
+                await ws.send_json({"type": "done", "graph": None, "graph_generated": False})
+                continue
             for token in response.reply.split(" "):
                 await ws.send_json({"type": "token", "content": f"{token} "})
                 await asyncio.sleep(0.01)

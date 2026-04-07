@@ -34,10 +34,27 @@
     color: #9bf0b3;
 }
 
-.chat-status-reconnecting,
-.chat-status-disconnected {
+.chat-status-reconnecting {
     background: #5a3b22;
     color: #ffd59d;
+    animation: pulse-status 1.5s infinite ease-in-out;
+}
+
+.chat-status-disconnected {
+    background: #4a2020;
+    color: #f0a0a0;
+}
+
+@keyframes pulse-status {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
 }
 
 .chat-messages {
@@ -156,9 +173,16 @@
 }
 
 .graph-preview-stats,
-.graph-preview-nodes {
+.graph-preview-nodes,
+.graph-preview-flow {
     font-size: 11px;
     margin-top: 4px;
+}
+
+.graph-preview-flow {
+    color: #8ab4f8;
+    font-family: monospace;
+    word-break: break-word;
 }
 
 .graph-preview-actions {
@@ -179,4 +203,89 @@
 
 .insert-graph-button {
     margin-top: 6px;
+}
+
+.chat-empty-state {
+    padding: 16px 12px;
+    text-align: center;
+    color: #7c8594;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.chat-empty-state p {
+    margin: 0 0 6px;
+}
+
+.chat-empty-state strong {
+    color: #b0b7c3;
+}
+
+.chat-empty-state ul {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0;
+    text-align: left;
+}
+
+.chat-empty-state li {
+    padding: 4px 0;
+    color: #6b9bd2;
+    font-style: italic;
+}
+
+.chat-empty-state li::before {
+    content: '→ ';
+    color: #4f89c7;
+}
+
+.chat-error-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 9px;
+    background: #4a2020;
+    color: #f0a0a0;
+    font-size: 11px;
+    flex: 0 0 auto;
+}
+
+.chat-error-bar button {
+    background: transparent;
+    border: 1px solid #f0a0a0;
+    color: #f0a0a0;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+/* --- Accessibility --- */
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.chat-input-row button {
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.2s;
+}
+
+.chat-input-row button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.chat-input-row button:focus-visible,
+.chat-error-bar button:focus-visible {
+    outline: 2px solid #007acc;
+    outline-offset: 2px;
 }
