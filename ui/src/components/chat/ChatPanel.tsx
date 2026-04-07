@@ -2,11 +2,12 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import { open } from '@tauri-apps/plugin-dialog';
 import { useChatApi } from '../../hooks/useChatApi';
 import { GraphPreviewCard } from './GraphPreviewCard';
 import './ChatPanel.css';
 
-const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp'];
+const IMAGE_FILTERS = [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'bmp', 'tiff', 'tif', 'webp'] }];
 
 interface ChatPanelProps {
     onInsertGraph: (graph: Record<string, unknown>) => void;
@@ -16,7 +17,6 @@ export function ChatPanel({ onInsertGraph }: ChatPanelProps) {
     const { sendMessage, messages, isTyping, connectionStatus, error, clearError } = useChatApi();
     const [draft, setDraft] = useState('');
     const [attachedImages, setAttachedImages] = useState<string[]>([]);
-    const fileInputRef = useRef<HTMLInputElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const statusLabel = useMemo(() => {
@@ -38,24 +38,18 @@ export function ChatPanel({ onInsertGraph }: ChatPanelProps) {
         await sendMessage(message, images);
     };
 
-    const onAttachImage = () => {
-        fileInputRef.current?.click();
-    };
-
-    const onFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const files = event.target.files;
-        if (!files) return;
-        const paths: string[] = [];
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            // Use webkitRelativePath or name — in Tauri, file.name gives the full path
-            const path = (file as File & { path?: string }).path || file.name;
-            if (IMAGE_EXTENSIONS.some(ext => path.toLowerCase().endsWith(ext))) {
-                paths.push(path);
-            }
+    const onAttachImage = async () => {
+        try {
+            const selected = await open({
+                multiple: true,
+                filters: IMAGE_FILTERS,
+            });
+            if (!selected) return;
+            const paths = Array.isArray(selected) ? selected : [selected];
+            setAttachedImages(prev => [...prev, ...paths]);
+        } catch {
+            // User cancelled or dialog unavailable
         }
-        setAttachedImages(prev => [...prev, ...paths]);
-        event.target.value = '';
     };
 
     const removeAttachment = (index: number) => {
@@ -143,14 +137,6 @@ export function ChatPanel({ onInsertGraph }: ChatPanelProps) {
                                 void onSubmit(event);
                             }
                         }}
-                    />
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={onFileSelected}
-                        style={{ display: 'none' }}
                     />
                     <button type="button" className="attach-image-button" onClick={onAttachImage} aria-label="Attach image" title="Attach image">
                         📎

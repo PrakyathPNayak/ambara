@@ -42,6 +42,12 @@
   background: #252526 !important;
 }
 
+/* Override internal MiniMap SVG rect backgrounds (prevents white flash) */
+.graph-minimap svg > rect,
+.react-flow__minimap svg > rect {
+  fill: #252526 !important;
+}
+
 /* Make minimap nodes more visible */
 .react-flow__minimap-node {
   stroke: #666 !important;

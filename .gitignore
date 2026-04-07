@@ -68,4 +68,3 @@ chatbot/.venv/
 
 # Excluded from push per author request
 docs/prompting-techniques-research.*
-docs/FEATURES_MANUAL.md
