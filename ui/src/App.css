@@ -10,6 +10,9 @@ body,
   height: 100%;
   width: 100%;
   overflow: hidden;
+  /* Force dark system colors for all form elements (textarea, button, select, input)
+     on WebKitGTK (Linux Tauri). Without this, GTK light-theme colors bleed through. */
+  color-scheme: dark;
 }
 
 .app {
