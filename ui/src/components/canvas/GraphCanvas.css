@@ -42,13 +42,24 @@
   background: #252526 !important;
 }
 
-/* Override internal MiniMap SVG rect backgrounds (prevents white flash) */
-.graph-minimap svg > rect,
-.react-flow__minimap svg > rect {
+/* Override ALL internal MiniMap SVG rect backgrounds except node rects */
+.graph-minimap svg rect:not(.react-flow__minimap-node),
+.react-flow__minimap svg rect:not(.react-flow__minimap-node) {
   fill: #252526 !important;
 }
 
-/* Make minimap nodes more visible */
+/* Also override any path/use elements that might carry white fills */
+.graph-minimap svg path,
+.react-flow__minimap svg path {
+  fill: #252526 !important;
+}
+
+/* Ensure the minimap mask overlay stays dark */
+.react-flow__minimap-mask {
+  fill: rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Make minimap nodes more visible — nodeColor prop sets fill via inline style */
 .react-flow__minimap-node {
   stroke: #666 !important;
   stroke-width: 2 !important;

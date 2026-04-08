@@ -143,6 +143,18 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         },
         "required": ["graph_json"],
     },
+    {
+        "name": "describe_image",
+        "description": (
+            "Read an image file and return its metadata: dimensions, format, color mode, "
+            "file size, and basic statistics. Use this when the user asks you to describe, "
+            "analyze, or inspect an attached image."
+        ),
+        "parameters": {
+            "path": {"type": "string", "description": "Absolute path to the image file."},
+        },
+        "required": ["path"],
+    },
 ]
 
 
@@ -180,6 +192,7 @@ class ToolExecutor:
             "validate_graph": self._validate_graph,
             "set_input_image": self._set_input_image,
             "execute_pipeline": self._execute_pipeline,
+            "describe_image": self._describe_image,
         }
         self._input_image_path: str | None = None
 
@@ -452,3 +465,75 @@ class ToolExecutor:
             "errors": errors,
             "message": "Pipeline executed successfully." if success else "Pipeline execution had errors.",
         })
+
+    def _describe_image(self, path: str) -> str:
+        """Read an image file and return metadata and basic analysis."""
+        import os
+
+        expanded = os.path.expanduser(path)
+        if not os.path.isfile(expanded):
+            return json.dumps({"error": f"Image file not found: {expanded}"})
+
+        try:
+            from PIL import Image
+            from PIL.ExifTags import TAGS
+
+            file_size = os.path.getsize(expanded)
+            img = Image.open(expanded)
+            width, height = img.size
+
+            info: dict[str, Any] = {
+                "path": expanded,
+                "format": img.format or os.path.splitext(expanded)[1].lstrip(".").upper(),
+                "dimensions": f"{width}x{height}",
+                "width": width,
+                "height": height,
+                "color_mode": img.mode,
+                "file_size_bytes": file_size,
+                "file_size_human": (
+                    f"{file_size / 1024:.1f} KB" if file_size < 1024 * 1024
+                    else f"{file_size / (1024 * 1024):.1f} MB"
+                ),
+            }
+
+            # Extract EXIF data if available
+            exif_data = {}
+            try:
+                raw_exif = img.getexif()
+                if raw_exif:
+                    for tag_id, value in raw_exif.items():
+                        tag_name = TAGS.get(tag_id, str(tag_id))
+                        if isinstance(value, (str, int, float)):
+                            exif_data[tag_name] = value
+            except Exception:
+                pass
+            if exif_data:
+                info["exif"] = {k: v for k, v in list(exif_data.items())[:15]}
+
+            # Basic pixel statistics
+            try:
+                import statistics as stat_mod
+                pixels = list(img.getdata())
+                if img.mode in ("RGB", "RGBA"):
+                    r_vals = [p[0] for p in pixels[:10000]]
+                    g_vals = [p[1] for p in pixels[:10000]]
+                    b_vals = [p[2] for p in pixels[:10000]]
+                    info["avg_color_rgb"] = [
+                        round(stat_mod.mean(r_vals)),
+                        round(stat_mod.mean(g_vals)),
+                        round(stat_mod.mean(b_vals)),
+                    ]
+                    info["brightness"] = round(
+                        stat_mod.mean(0.299 * r + 0.587 * g + 0.114 * b for r, g, b in zip(r_vals, g_vals, b_vals))
+                    )
+                elif img.mode == "L":
+                    sample = [p for p in pixels[:10000]]
+                    info["avg_brightness"] = round(stat_mod.mean(sample))
+            except Exception:
+                pass
+
+            img.close()
+            return json.dumps(info, indent=2)
+
+        except Exception as exc:
+            return json.dumps({"error": f"Failed to read image: {exc}"})

@@ -151,7 +151,13 @@ def chat(req: ChatRequest) -> ChatResponse:
     The agent decides whether to explain, search, or generate a graph
     based on the user's message and conversation history.
     """
-    sessions.append_message(req.session_id, {"role": "user", "content": req.message})
+    # Build the effective user message, including image info if attached
+    effective_message = req.message
+    if req.image_paths:
+        paths_str = ", ".join(req.image_paths)
+        effective_message = f"{req.message}\n\n[Attached images: {paths_str}]"
+
+    sessions.append_message(req.session_id, {"role": "user", "content": effective_message})
     history = sessions.get_history(req.session_id)
 
     agent = Agent(
@@ -165,7 +171,7 @@ def chat(req: ChatRequest) -> ChatResponse:
         for img_path in req.image_paths:
             agent.tool_executor.execute("set_input_image", {"path": img_path})
 
-    result = agent.run(req.message, session_history=history)
+    result = agent.run(effective_message, session_history=history)
 
     sessions.append_message(req.session_id, {"role": "assistant", "content": result.reply})
     return ChatResponse(
