@@ -1,15 +1,18 @@
-# Next loop seed (loop 14)
+# Next loop seed (loop 15)
 
-Top candidate: audit the README "250 tests (144 Rust + 106 Python)" claim. Run `cargo test --workspace` (counts lib + integration + doc across all members), `cd ui && npm test`, `pytest chatbot/tests --collect-only -q | tail -5` to get an accurate count. Update the README claim to match. Loops 11+13 changed Rust-side test totals.
+Top candidate: Either a smoke test for `plugins/comfyui_bridge` or the cycle-branch architecture decision in `topological_sort`. The bridge test is more concrete and harder to drop later — start there. Steps:
+  1. Read `plugins/comfyui_bridge/src/lib.rs` to find a public function with deterministic, dependency-free behavior (e.g., manifest parser, graph translator with a fixed input).
+  2. Add one test to `plugins/comfyui_bridge/src/lib.rs#tests` covering happy path + at least one error case if surface allows.
+  3. Verify `cargo test -p comfyui_bridge` reports >0 passed.
 
-Backup candidate: ARCH decision on the unreachable cycle branch in `topological_sort` (loop 11 reveal). Two options:
-  1. Replace `if result.len() != node_count { return Err(CycleDetected) }` with `debug_assert_eq!` + `unreachable!()`/explanatory comment, on the basis that `connect()` provably rejects all cycles.
-  2. Add `#[cfg(test)] pub(crate) fn force_unchecked_connect` to structure.rs so a test can inject a cycle and verify the branch.
-Pick one with full devil step. Option 1 is honest but irreversible-feeling. Option 2 is safer but adds production-adjacent surface.
+Backup: ARCH cycle-branch decision (loop 11). `topological_sort`'s cycle branch is unreachable through the public API. Two options:
+  1. Replace branch with `unreachable!()` + safety comment, on the basis that `connect()` provably rejects all cycles.
+  2. Add a `#[cfg(test)] pub(crate) fn force_unchecked_connect` to structure.rs to inject cycles for the test.
+Pick one with full devil step.
 
 Other queued items:
-- can_execute() has zero production callers (loop 13 deferred). Decide: delete, or wire into a real call site (e.g., make `Executor::execute()` short-circuit on `!can_execute(graph)` and return a sensible error).
-- Smoke tests for `plugins/comfyui_bridge` and `ui/src-tauri` (loop 13 reveal — both have zero tests).
+- Smoke test for `ui/src-tauri` (similar to plugin smoke test).
+- can_execute() has zero production callers — delete or wire into Executor::execute.
 - Missing git tags v0.7.1 / v0.8.0 / v0.9.0 — maintainer release-process call.
 - chatbot LLM client timeout/retry policy review (60s + 1 retry).
-- Architectural decision: confirm self-feedback edges are intentionally rejected (loop 8 reveal).
+- Self-feedback edges architecture (loop 8 reveal).

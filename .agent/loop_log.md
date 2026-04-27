@@ -335,3 +335,33 @@ ACT: Edited `.github/workflows/tests.yml` rust job to install tauri deps, then `
 REVEALS:
 - `plugins/comfyui_bridge` and `ui/src-tauri` have zero tests today. Once CI gates them, adding even one smoke test per member would ratchet quality. Queued.
 - can_execute() has zero production callers (deferred from this loop's initial pick). Either delete the method or wire it into a real call path. Queued.
+
+## Loop 14 — README test-count audit
+
+OBSERVE:
+- README claimed "250 tests (144 Rust + 106 Python)" — pre-loop-11/13 numbers, possibly an estimate.
+- Authoritative breakdown via `cargo test --workspace` per-target output:
+    main lib       139 (+2 ignored)
+    src/main.rs      2
+    comfyui_bridge   0
+    ui_lib           0
+    ui main          0
+    doc tests        8 (+11 ignored)
+  Rust total: 149 active.
+  UI vitest:    2
+  Python:     106
+  Grand total active: 257.
+
+ORIENT: claim was off by 7, omitted UI vitest entirely.
+
+DECIDE: Update to "257 tests (149 Rust + 2 UI + 106 Python)". One-line edit.
+
+DEVIL:
+- Correctness: counts from direct tool output, not estimation.
+- Scope: README only; no other files reference these numbers.
+- Priority: small but unblocks loop-12's reveal queue.
+- Subtle: counts drift again on next test addition. Acceptable — README is scope, CI is truth.
+
+ACT: edited README features list to the audited counts.
+
+REVEALS: Cargo test discovers EIGHT test targets across the workspace; only two have any tests (main lib + main bin). plugins/comfyui_bridge and ui/src-tauri are still test-empty (loop 13 reveal still standing).

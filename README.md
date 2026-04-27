@@ -17,7 +17,7 @@ This project was done with the intent of testing the ease of developement with t
 - 💻 **Cross-Platform**: Works on Linux, macOS, and Windows
 - 🎯 **Type-Safe**: Strong type checking for node connections and parameters
 - 🔄 **Parallel Execution**: Automatic parallelization of independent operations
-- 🧪 **Well-Tested**: Comprehensive test suite with 250 tests (144 Rust + 106 Python)
+- 🧪 **Well-Tested**: Comprehensive test suite with 257 tests (149 Rust + 2 UI + 106 Python)
 - 🌐 **External API Surface**: Tauri commands for graph/plugin import-export and manifest inspection
 - 🤖 **Chatbot Sidecar**: FastAPI + RAG pipeline for natural-language graph generation
 
