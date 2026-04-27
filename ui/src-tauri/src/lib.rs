@@ -630,6 +630,35 @@ fn validate_graph(graph: GraphState) -> ValidationResult {
         }
     }
 
+    // Detect dangling edges: edges whose source or target id does not match
+    // any node. execute_graph used to silently drop such edges, causing the
+    // executor to run against a graph with fewer connections than the user
+    // intended and produce wrong output.
+    for edge in &graph.edges {
+        if !seen_ids.contains(edge.source.as_str()) {
+            errors.push(ValidationError {
+                node_id: None,
+                connection_id: Some(edge.id.clone()),
+                message: format!(
+                    "Edge '{}' references unknown source node '{}'",
+                    edge.id, edge.source
+                ),
+                error_type: "UnknownEdgeSource".to_string(),
+            });
+        }
+        if !seen_ids.contains(edge.target.as_str()) {
+            errors.push(ValidationError {
+                node_id: None,
+                connection_id: Some(edge.id.clone()),
+                message: format!(
+                    "Edge '{}' references unknown target node '{}'",
+                    edge.id, edge.target
+                ),
+                error_type: "UnknownEdgeTarget".to_string(),
+            });
+        }
+    }
+
     // Check for disconnected required inputs
     for node in &graph.nodes {
         for input in &node.data.inputs {
@@ -734,23 +763,54 @@ fn execute_graph(graph: GraphState, settings: Option<ExecutionSettings>, state: 
 
     // Add connections
     for edge in &graph.edges {
-        if let (Some(&source_id), Some(&target_id)) = 
-            (node_id_map.get(&edge.source), node_id_map.get(&edge.target)) 
-        {
-            let source_port = edge.source_handle.as_deref().unwrap_or("output");
-            let target_port = edge.target_handle.as_deref().unwrap_or("input");
-            
-            if let Err(e) = processing_graph.connect(source_id, source_port, target_id, target_port) {
+        let source_id = match node_id_map.get(&edge.source) {
+            Some(id) => *id,
+            None => {
                 return ExecutionResult {
                     success: false,
                     errors: vec![ExecutionError {
                         node_id: edge.id.clone(),
-                        message: format!("Failed to connect: {:?}", e),
+                        message: format!(
+                            "Edge '{}' references unknown source node '{}'",
+                            edge.id, edge.source
+                        ),
                     }],
                     outputs: HashMap::new(),
                     execution_time: start.elapsed().as_millis() as u64,
                 };
             }
+        };
+        let target_id = match node_id_map.get(&edge.target) {
+            Some(id) => *id,
+            None => {
+                return ExecutionResult {
+                    success: false,
+                    errors: vec![ExecutionError {
+                        node_id: edge.id.clone(),
+                        message: format!(
+                            "Edge '{}' references unknown target node '{}'",
+                            edge.id, edge.target
+                        ),
+                    }],
+                    outputs: HashMap::new(),
+                    execution_time: start.elapsed().as_millis() as u64,
+                };
+            }
+        };
+
+        let source_port = edge.source_handle.as_deref().unwrap_or("output");
+        let target_port = edge.target_handle.as_deref().unwrap_or("input");
+
+        if let Err(e) = processing_graph.connect(source_id, source_port, target_id, target_port) {
+            return ExecutionResult {
+                success: false,
+                errors: vec![ExecutionError {
+                    node_id: edge.id.clone(),
+                    message: format!("Failed to connect: {:?}", e),
+                }],
+                outputs: HashMap::new(),
+                execution_time: start.elapsed().as_millis() as u64,
+            };
         }
     }
 
@@ -989,6 +1049,43 @@ mod tests {
                 .iter()
                 .any(|e| e.error_type == "DuplicateNodeId"),
             "expected DuplicateNodeId error, got {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn validate_graph_flags_dangling_edge_endpoints() {
+        let mut graph = sample_graph();
+        graph.edges.push(GraphEdge {
+            id: "e-bad".to_string(),
+            source: "ghost-source".to_string(),
+            target: "n1".to_string(),
+            source_handle: None,
+            target_handle: None,
+        });
+        graph.edges.push(GraphEdge {
+            id: "e-bad-2".to_string(),
+            source: "n1".to_string(),
+            target: "ghost-target".to_string(),
+            source_handle: None,
+            target_handle: None,
+        });
+        let result = validate_graph(graph);
+        assert!(!result.valid, "dangling edges must invalidate the graph");
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.error_type == "UnknownEdgeSource"),
+            "expected UnknownEdgeSource error, got {:?}",
+            result.errors
+        );
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.error_type == "UnknownEdgeTarget"),
+            "expected UnknownEdgeTarget error, got {:?}",
             result.errors
         );
     }

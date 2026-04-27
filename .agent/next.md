@@ -1,29 +1,31 @@
-# Loop 28 seed
+# Loop 29 seed
 
-Loops 26-27 fixed silent dup-id rerouting in both CLI and Tauri runtime
-paths. Both surfaces now bail on duplicate node ids during validation.
+Loops 26-28 closed three silent-corruption bugs in graph
+import/validation/execution paths (CLI dup-id, Tauri dup-id, Tauri
+dangling edges + silent-drop on execute). Both surfaces now reject all
+three classes with explicit error messages.
 
-## Highest-priority candidates for loop 28
+## Highest-priority candidates for loop 29
 
-1. **Duplicate connection / edge detection.** Neither `validate_graph`
-   (Tauri) nor `validate_serialized_graph` (CLI) detects duplicate
-   connections. Two edges with identical (source, source_handle, target,
-   target_handle) tuples may double-deliver values during execution or
-   silently no-op depending on graph::ProcessingGraph::connect's
-   semantics. Verify connect() behavior, then surface duplicates as a
-   warning or error.
+1. **Mirror dangling-edge detection in CLI `validate_serialized_graph`.**
+   It already checks `from_node` / `to_node` against the node-id set
+   (lines ~478-486 in src/main.rs), so this MAY already be covered.
+   Verify, and add a test if missing.
 
-2. **`execute_graph` defense in depth (lib.rs:652).** Currently relies on
-   `validate_graph` being called first, but the function clones the
-   GraphState and re-validates internally — so if the validator misses a
-   bug, execution proceeds. Worth running through with a critical eye
-   for what slips past validate_graph today.
+2. **`execute_serialized_graph` defense in depth.** It returns Err on
+   unknown from_node/to_node already (lines ~511-524), so the CLI is
+   already resilient on the executor side. Confirm via test if needed.
 
-3. **`apply_graph_state` (state-mutation path) — does it exist for
-   GraphState ingestion?** Search ui/src-tauri/src/lib.rs and frontend
-   for paths that turn imported GraphState into AppState. If imports
-   skip `validate_graph`, the dup-id (and other) bugs reappear on
-   import-without-execute. Likely a real gap — investigate.
+3. **`Position` default sanity.** What does `Position::default()` set
+   x/y to? If it's (NaN, NaN) or some surprising value, deserialized
+   graphs with missing position fields could carry forward weird state.
+   Quick check.
+
+4. **Audit `execute_graph` connect() error handling.** When connect()
+   fails (e.g., type mismatch, port not found, cycle), the error is
+   wrapped with `format!("{:?}", e)`. That uses the Debug impl, which
+   may produce unhelpful output for end users. Switch to Display
+   formatting for graph errors (`{}`).
 
 ## Production unwrap hardening (priority 7, queued)
 - src/graph/topology.rs:40,42,57,58 — `.expect("populated by node_ids() loop above")`.
@@ -31,7 +33,7 @@ paths. Both surfaces now bail on duplicate node ids during validation.
 - src/execution/cache.rs:211 — document NonZeroUsize fallback.
 
 ## Other queued items
-- Anthropic API version `ANTHROPIC_VERSION` env var (`_resolve_str_env` helper).
+- Anthropic API version `ANTHROPIC_VERSION` env var.
 - `_RETRY_DELAY_S` / `_RETRY_AFTER_MAX_S` chatbot env vars.
 - LLMConfig dataclass extraction (defer until 4-5 distinct knobs).
 

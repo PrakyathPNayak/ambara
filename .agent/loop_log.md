@@ -1023,3 +1023,56 @@ VERIFY:
 - cargo test --workspace: 164 Rust tests, all green (ui_lib went 4→5).
 
 NEXT: see .agent/next.md.
+
+## Loop 28 — Detect dangling edges in Tauri validate_graph + execute_graph
+**Status**: COMMITTED
+
+OBSERVE: Per loop-27 next.md, audited duplicate-edge detection. The
+`ProcessingGraph::connect()` already enforces `PortAlreadyConnected` for
+the to_port, so true duplicate edges (same target input) error cleanly
+at execute time. Then audited `execute_graph` connection loop at
+ui/src-tauri/src/lib.rs:736-754 and found a SILENT-DROP bug: edges
+whose `edge.source` or `edge.target` are not in `node_id_map` were
+silently skipped via `if let (Some, Some) = (...) { ... }` with no else
+branch. `validate_graph` did not check edge endpoints either.
+
+ORIENT: Combination is priority-3 silent corruption. A graph with
+dangling edges (e.g., from a stale UI state or hand-edited import) is
+accepted by validation, then executed against fewer connections than
+the user authored, producing wrong results without any signal.
+
+DECIDE: Fix at both layers:
+1. validate_graph — emit ValidationError for edges with unknown source
+   or target, with distinct error_types `UnknownEdgeSource` /
+   `UnknownEdgeTarget`. Reuses the `seen_ids` HashSet built for the
+   dup-id check.
+2. execute_graph — replace the silent-skip `if let` with explicit
+   match arms that return ExecutionResult::failure on missing endpoint.
+   Defense in depth so future callers that bypass validate_graph still
+   fail loudly.
+
+DEVIL:
+1. Correctness — could legitimate graphs have edges to non-existent
+   nodes? No. Edges are always between authored nodes. Dangling edges
+   are bugs/stale state, not features.
+2. Scope — should we also check that `source_handle` / `target_handle`
+   point to real ports? Already covered: ProcessingGraph::connect()
+   returns PortNotFound if the port doesn't exist on the filter, and
+   the connect() error path is preserved.
+3. Priority — same priority-3 class as loops 26-27. Worth doing
+   immediately while the dup-id pattern is fresh.
+
+ACT:
+- ui/src-tauri/src/lib.rs validate_graph (~+30 lines): edge-endpoint
+  loop using the existing `seen_ids` HashSet.
+- ui/src-tauri/src/lib.rs execute_graph (~+30 lines, -10 lines):
+  replace `if let (Some, Some)` with two explicit `match` blocks that
+  fail-loud on missing endpoint.
+- ui/src-tauri/src/lib.rs tests: `validate_graph_flags_dangling_edge_endpoints`
+  with two GraphEdge rows pointing at ghost ids.
+- README.md — test count 327→328, Rust 164→165.
+
+VERIFY:
+- cargo test --workspace: 165 Rust tests, all green (ui_lib went 5→6).
+
+NEXT: see .agent/next.md.
