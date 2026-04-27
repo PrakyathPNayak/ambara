@@ -392,3 +392,32 @@ ACT:
 REVEALS:
 - ui/src-tauri still has zero tests — same gating gap.
 - The plugin scaffold's `filter_execute` returns `ErrNotSupported`. When real filters are added, the test asserting "0 filters" must be replaced with the real count to avoid masking implementation drift.
+
+## Loop 16 — ui/src-tauri smoke tests
+
+OBSERVE:
+- ui/src-tauri/src/lib.rs is 899 lines with ~16 #[tauri::command] fns; src/main.rs is 6 lines (binary entry). Zero tests.
+- Several command fns are pure (no `State<>`/Tauri runtime): `get_external_api_capabilities`, `export_graph_json`, `import_graph_json`. Real production surface — the desktop bin's external API contract.
+
+ORIENT: Pure command fns are testable today. The export→import roundtrip is high-impact: it's the contract every external API client crosses.
+
+DECIDE: Four tests:
+  1. capabilities advertise api_version "v1" + the correct boolean profile (regression-catches accidental capability flips);
+  2. export_graph_json → import_graph_json roundtrip preserves graph content (compared as serde_json::Value because no PartialEq);
+  3. import accepts raw GraphState for backward compat (the explicit fallback at line 446);
+  4. import rejects malformed JSON.
+
+DEVIL:
+- Correctness: First attempt misnamed FilterNodeData fields (used `filter_id` + HashMap-typed `parameters`); compiler caught it. Real shape is `filter_type` String, `category` String, `parameters: Vec<ParameterValue>`, `is_valid`/`error_message` Option<>. Fixed.
+- Scope: 4 tests + sample_graph helper. Cohesive within tauri lib.
+- Priority: Closes loop-13 reveal for ui/src-tauri. Roundtrip test catches the highest-impact regression class on this surface (envelope schema drift).
+- Subtle: serde_json::Value comparison is order-sensitive on object keys; both sides go through the same Serialize impl, so order is deterministic. Safe.
+
+ACT:
+- Added `#[cfg(test)] mod tests` with 4 tests at end of ui/src-tauri/src/lib.rs.
+- `cargo test -p ui` → 4/4 lib pass, 0 main, 0 doc.
+- `cargo clippy --all-targets --workspace -- -D warnings` clean.
+- README test count: 153 → 157 Rust, 261 → 265 total.
+
+REVEALS:
+- The `FilterNodeData` shape exposed to JS (camelCase via serde) is wide (8 fields); test coverage on its (de)serialization is currently driven only by the roundtrip test. A schema-version test (snapshot of one canonical filter node JSON) would catch silent field-rename breakage.

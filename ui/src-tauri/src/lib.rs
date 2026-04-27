@@ -897,3 +897,67 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn external_api_capabilities_advertises_v1() {
+        let caps = get_external_api_capabilities();
+        assert_eq!(caps.api_version, "v1");
+        assert!(caps.supports_graph_import_export);
+        assert!(caps.supports_plugin_import_export);
+        assert!(caps.supports_plugin_manifest_inspection);
+        assert!(!caps.supports_chatbot_assistant_hooks);
+        assert!(!caps.notes.is_empty());
+    }
+
+    fn sample_graph() -> GraphState {
+        GraphState {
+            nodes: vec![GraphNode {
+                id: "n1".to_string(),
+                node_type: "filter".to_string(),
+                position: Position { x: 10.0, y: 20.0 },
+                data: FilterNodeData {
+                    filter_type: "passthrough".to_string(),
+                    label: "test".to_string(),
+                    category: "core".to_string(),
+                    inputs: Vec::new(),
+                    outputs: Vec::new(),
+                    parameters: Vec::new(),
+                    is_valid: None,
+                    error_message: None,
+                },
+            }],
+            edges: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn export_then_import_envelope_preserves_graph() {
+        let original = sample_graph();
+        let json = export_graph_json(original.clone()).expect("export must succeed");
+        let restored = import_graph_json(json).expect("import must succeed");
+
+        // No PartialEq on GraphState; compare via serde_json::Value (strict).
+        let a = serde_json::to_value(&original).unwrap();
+        let b = serde_json::to_value(&restored).unwrap();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn import_graph_json_accepts_raw_graphstate_for_back_compat() {
+        // Older clients may send a bare GraphState (no envelope).
+        let raw_json = serde_json::to_string(&sample_graph()).unwrap();
+        let restored = import_graph_json(raw_json).expect("raw GraphState must still import");
+        assert_eq!(restored.nodes.len(), 1);
+        assert_eq!(restored.nodes[0].id, "n1");
+    }
+
+    #[test]
+    fn import_graph_json_rejects_invalid_payloads() {
+        assert!(import_graph_json("not json".to_string()).is_err());
+        assert!(import_graph_json("{\"nodes\": \"oops\"}".to_string()).is_err());
+    }
+}
