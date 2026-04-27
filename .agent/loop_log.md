@@ -662,3 +662,62 @@ REVEALS:
   need parameterization. Not warranted today.
 - Test count (138 Python) verified unchanged — refactor is purely
   internal restructuring.
+
+## Loop 22 — Configurable Ollama timeout for CPU-bound local models
+
+OBSERVE: Loop 19 reveal — `_post_with_retry(... 60 ...)` hard-coded a
+60s timeout for Ollama. Local CPU inference on 7-8B models routinely
+takes >60s for the first token on cold start. Real bug for the default
+backend.
+
+ORIENT: Reprioritized away from the seeded `can_execute()` deletion
+after re-investigation showed it has internal callers (pipeline.rs:88,
+128) AND is part of pub API of the lib crate — the loop-13 queue note
+was wrong. Reading the code, `can_execute()` is also a clarity win
+over `success` at call sites. Don't delete.
+
+DECIDE: Add `_resolve_ollama_timeout()` reading `OLLAMA_TIMEOUT_S` env
+var with default 180s. Fall back to default for missing/blank/
+non-integer/non-positive values, with a logged warning for the latter
+two. Wire into the Ollama call site only — paid providers stay 60s
+(network APIs reliably first-token in well under that).
+
+DEVIL:
+- Correctness:
+  * `int(raw)` raises ValueError on floats too. That's fine —
+    seconds are integers per the env-var convention.
+  * Negative / zero values fall back rather than passing through.
+    Verified: passing 0 to requests.post would mean "use system default"
+    which is implementation-dependent; falling back is safer.
+  * Whitespace-only env value: `.strip()` then `not raw` catches it.
+- Scope: Could parameterize all three providers with their own env
+  vars. Premature — paid providers are reliably fast and 60s is fine.
+  Adding env vars for them adds API surface to test without benefit.
+- Priority: Real user-facing bug for the default backend. Higher than
+  `can_execute()` cleanup (priority-9 cosmetic). Higher than the
+  CycleDetected doc fix (priority-9 documentation).
+- Subtle: The Ollama path is the only one where `_post_with_retry`
+  is called inside a try/except RuntimeError that wraps the error —
+  that wrap survives because timeout is just one exit path.
+
+ACT:
+- chatbot/generation/llm_client.py:
+  * Added `_PAID_PROVIDER_TIMEOUT_S = 60`,
+    `_OLLAMA_DEFAULT_TIMEOUT_S = 180`.
+  * Added `_resolve_ollama_timeout()` (33 lines, fully documented).
+  * All three call sites updated: paid use constant, Ollama uses
+    resolver.
+- chatbot/tests/test_llm_timeouts.py: 7 new tests (default unset /
+  blank / positive int / non-integer / zero / negative / default >
+  paid).
+- .env.example: documented OLLAMA_TIMEOUT_S env var.
+- Suite: 305 tests (was 298). Python 145. All 53 LLM tests pass in
+  0.83s.
+
+REVEALS:
+- The Anthropic/OpenAI/Groq paths share the constant but Anthropic's
+  `max_tokens=4096` is also hard-coded. If users hit max-token
+  truncation, that's a separate bug surface. Queued.
+- The `_resolve_ollama_timeout` warning logs include the rejected
+  value, useful for debugging misconfiguration. Pattern worth
+  reusing for any future env-var resolver.

@@ -1,32 +1,29 @@
-# Next loop seed (loop 22)
+# Next loop seed (loop 23)
 
-Top candidate: cycle through still-queued items by priority order.
+Top candidate: Anthropic max_tokens hard-coded at 4096 (loop 22 reveal).
+For graph-generation prompts that's enough; for chat-response prompts
+on long contexts it can truncate mid-sentence. Make configurable via
+`ANTHROPIC_MAX_TOKENS` env var with same resolver pattern as
+`_resolve_ollama_timeout`.
 
-Highest remaining: Backup C from loop 19 — Ollama 60s timeout is
-likely too short for CPU-only local models (qwen3:8b on CPU can take
-several minutes for the first token). Either:
-- Bump to a saner default (e.g. 180s) and document the rationale.
-- Make configurable via env var (OLLAMA_TIMEOUT_S).
+DEVIL warning: Test the env-var resolver alone (not the full
+_generate_anthropic) to keep the test boundary tight. Mirror the
+loop-22 test structure.
 
-Priority-3 (real bug) but low impact (only affects local-Ollama users
-on CPU). Adjust to priority-5.
+Backup A: CycleDetected variant doc divergence (loop 17). Document
+that the variant carries one of two shapes (offending edge from
+connect() vs SCC residue from topological_sort). Pure documentation
+fix, low leverage but completes a long-queued item.
 
-Backup A: CycleDetected variant doc divergence (loop 17). Documentation
-fix to clarify the variant carries one of two shapes. Low risk, low
-leverage. Priority-9.
-
-Backup B: can_execute() zero callers — delete or wire into Executor.
-Priority-6 API consistency. Read all callers (none in production) then
-delete; the dead code is misleading.
+Backup B: comfyui_bridge filter-count smoke replacement (loop 15).
+When real filters land, replace `filter_count == 0` smoke test.
+Currently no real filters → blocked.
 
 Other queued (lower priority):
-- Missing git tags v0.7.1 / v0.8.0 / v0.9.0 — release-process call.
+- Missing git tags v0.7.1 / v0.8.0 / v0.9.0.
 - Self-feedback edges architecture (loop 8).
-- comfyui_bridge filter-count smoke replacement (loop 15).
 - FilterNodeData JSON schema-version snapshot (loop 16).
 - Cleaner missing-key test fixture (loop 20).
 
-Decision: take Backup B (`can_execute()` deletion) — it's a true
-priority-6 bug (dead code that misleads readers), simple to fix, and
-has been queued since loop 13. Outranks Ollama timeout (priority-5
-enhancement to a niche path).
+Decision: take the Anthropic max_tokens fix. Symmetric with loop 22's
+work and uses the established resolver pattern.

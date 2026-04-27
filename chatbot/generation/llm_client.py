@@ -19,6 +19,42 @@ _RETRYABLE_STATUS = {429, 502, 503, 504}
 _MAX_RETRIES = 1
 _RETRY_DELAY_S = 2.0
 _RETRY_AFTER_MAX_S = 30.0
+_PAID_PROVIDER_TIMEOUT_S = 60
+_OLLAMA_DEFAULT_TIMEOUT_S = 180
+
+
+def _resolve_ollama_timeout() -> int:
+    """Read `OLLAMA_TIMEOUT_S` from the environment with a CPU-friendly default.
+
+    Local Ollama models on CPU can take well over 60 seconds for the first
+    token, especially on cold-start. Default to 180s and allow override
+    via the `OLLAMA_TIMEOUT_S` environment variable.
+
+    Returns:
+        Positive integer timeout in seconds. Falls back to the default
+        for missing, non-numeric, or non-positive values.
+
+    Raises:
+        None.
+    """
+    raw = os.getenv("OLLAMA_TIMEOUT_S", "").strip()
+    if not raw:
+        return _OLLAMA_DEFAULT_TIMEOUT_S
+    try:
+        value = int(raw)
+    except ValueError:
+        LOGGER.warning(
+            "Ignoring non-integer OLLAMA_TIMEOUT_S=%r; using default %ds",
+            raw, _OLLAMA_DEFAULT_TIMEOUT_S,
+        )
+        return _OLLAMA_DEFAULT_TIMEOUT_S
+    if value <= 0:
+        LOGGER.warning(
+            "Ignoring non-positive OLLAMA_TIMEOUT_S=%d; using default %ds",
+            value, _OLLAMA_DEFAULT_TIMEOUT_S,
+        )
+        return _OLLAMA_DEFAULT_TIMEOUT_S
+    return value
 
 
 def _mock_graph_json() -> str:
@@ -254,7 +290,7 @@ class LLMClient:
             "temperature": temperature,
             "messages": prompt.get("messages", []),
         }
-        response = self._post_with_retry(url, headers, body, 60, provider)
+        response = self._post_with_retry(url, headers, body, _PAID_PROVIDER_TIMEOUT_S, provider)
         if response.status_code >= 400:
             raise RuntimeError(
                 f"{provider} request failed: {response.status_code} {response.text[:200]}"
@@ -293,7 +329,7 @@ class LLMClient:
             "system": system,
             "messages": messages,
         }
-        response = self._post_with_retry(url, headers, body, 60, "Anthropic")
+        response = self._post_with_retry(url, headers, body, _PAID_PROVIDER_TIMEOUT_S, "Anthropic")
         if response.status_code >= 400:
             raise RuntimeError(f"Anthropic request failed: {response.status_code} {response.text[:200]}")
         data = response.json()
@@ -345,7 +381,7 @@ class LLMClient:
             "options": {"temperature": temperature},
             "messages": prompt.get("messages", []),
         }
-        response = self._post_with_retry(url, None, body, 60, "Ollama")
+        response = self._post_with_retry(url, None, body, _resolve_ollama_timeout(), "Ollama")
         if response.status_code >= 400:
             raise RuntimeError(f"Ollama request failed: {response.status_code} {response.text[:200]}")
         data = response.json()
