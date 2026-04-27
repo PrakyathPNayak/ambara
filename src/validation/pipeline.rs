@@ -112,10 +112,22 @@ mod tests {
         let pipeline = ValidationPipeline::default_pipeline();
         let report = pipeline.validate(&graph);
 
-        // Empty graph should fail structural validation (no output nodes)
-        // Actually, an empty graph might pass or fail depending on requirements
-        // For now, let's just check the report is created
-        assert!(report.duration_ms >= 0);
+        // Contract: empty graph is a valid (empty) pipeline that emits the
+        // "Graph is empty" warning from StructuralValidation but no errors.
+        assert!(
+            report.errors.is_empty(),
+            "empty graph must produce no errors, got: {:?}",
+            report.errors
+        );
+        assert!(
+            !report.warnings.is_empty(),
+            "empty graph must emit at least one warning"
+        );
+        assert!(report.success, "empty graph must report success");
+        assert!(
+            report.can_execute(),
+            "empty graph must be considered executable per current contract"
+        );
     }
 
     #[test]

@@ -201,7 +201,6 @@ pub const NAME: &str = env!("CARGO_PKG_NAME");
 #[cfg(test)]
 mod tests {
     use super::prelude::*;
-    use std::collections::HashMap;
 
     #[test]
     fn test_version() {
@@ -237,10 +236,12 @@ mod tests {
     fn test_validation_pipeline() {
         let pipeline = ValidationPipeline::default();
         let graph = ProcessingGraph::new();
-        
-        // Empty graph validation returns a report
+
+        // Empty graph: no errors, success=true, at least one warning
+        // (the "Graph is empty" warning from StructuralValidation).
         let result = pipeline.validate(&graph);
-        // Check the report structure - it always returns a ValidationReport
-        assert!(result.errors.is_empty() || !result.errors.is_empty());
+        assert!(result.errors.is_empty(), "empty graph should not error: {:?}", result.errors);
+        assert!(result.success);
+        assert!(!result.warnings.is_empty(), "empty graph should produce a warning");
     }
 }
