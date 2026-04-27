@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 LOGGER = logging.getLogger(__name__)
 
 _RETRYABLE_STATUS = {429, 502, 503, 504}
-_MAX_RETRIES = 1
+_DEFAULT_MAX_RETRIES = 1
 _RETRY_DELAY_S = 2.0
 _RETRY_AFTER_MAX_S = 30.0
 _PAID_PROVIDER_TIMEOUT_S = 60
@@ -24,24 +24,36 @@ _OLLAMA_DEFAULT_TIMEOUT_S = 180
 _ANTHROPIC_DEFAULT_MAX_TOKENS = 4096
 
 
-def _resolve_positive_int_env(var_name: str, default: int, *, unit: str = "") -> int:
-    """Read a positive integer from `os.environ` with a sane fallback.
+def _resolve_int_env(
+    var_name: str,
+    default: int,
+    *,
+    min_value: int = 1,
+    unit: str = "",
+) -> int:
+    """Read an integer environment variable with a sane fallback.
 
-    Used for environment-driven knobs that must be strictly positive
-    (timeouts, token budgets, retry counts). Missing, blank,
-    non-integer, or non-positive values fall back to ``default``;
-    rejected values are logged at WARNING with the offending input
-    so misconfiguration is debuggable.
+    Used for environment-driven knobs (timeouts, token budgets,
+    retry counts). Missing, blank, non-integer, or below-``min_value``
+    inputs fall back to ``default``; rejected values are logged at
+    WARNING with the offending input so misconfiguration is
+    debuggable.
 
     Args:
         var_name: Name of the environment variable to read.
         default: Fallback value applied when the variable is unset
-            or the parsed value is rejected. Must be positive.
+            or the parsed value is rejected. Must be at least
+            ``min_value``.
+        min_value: Inclusive lower bound applied to the parsed
+            value. Defaults to 1 (strictly positive). Set to 0 for
+            counters where "off" is meaningful (for example retry
+            counts where 0 means "no retry").
         unit: Optional suffix appended to the default in the warning
             message (for example ``"s"`` for seconds). Cosmetic only.
 
     Returns:
-        The parsed positive integer, or ``default``.
+        The parsed integer satisfying ``value >= min_value``, or
+        ``default`` when validation fails.
     """
     raw = os.getenv(var_name, "").strip()
     if not raw:
@@ -54,13 +66,23 @@ def _resolve_positive_int_env(var_name: str, default: int, *, unit: str = "") ->
             var_name, raw, default, unit,
         )
         return default
-    if value <= 0:
+    if value < min_value:
         LOGGER.warning(
-            "Ignoring non-positive %s=%d; using default %d%s",
-            var_name, value, default, unit,
+            "Ignoring %s=%d below minimum %d; using default %d%s",
+            var_name, value, min_value, default, unit,
         )
         return default
     return value
+
+
+def _resolve_positive_int_env(var_name: str, default: int, *, unit: str = "") -> int:
+    """Resolve a strictly-positive integer env var.
+
+    Thin compatibility wrapper around :func:`_resolve_int_env` with
+    ``min_value=1``. Retained for callers that want the
+    "must be positive" intent expressed directly.
+    """
+    return _resolve_int_env(var_name, default, min_value=1, unit=unit)
 
 
 def _resolve_ollama_timeout() -> int:
@@ -94,6 +116,22 @@ def _resolve_anthropic_max_tokens() -> int:
     """
     return _resolve_positive_int_env(
         "ANTHROPIC_MAX_TOKENS", _ANTHROPIC_DEFAULT_MAX_TOKENS,
+    )
+
+
+def _resolve_max_retries() -> int:
+    """Resolve the per-request retry budget for transient HTTP failures.
+
+    The default of 1 retry (2 total attempts) covers the common
+    case of a single transient 5xx or connection blip. Operators
+    behind flaky proxies or unreliable upstreams can raise this
+    via ``LLM_MAX_RETRIES``; setting 0 disables retries entirely.
+
+    Returns:
+        Non-negative integer count of retries after the first attempt.
+    """
+    return _resolve_int_env(
+        "LLM_MAX_RETRIES", _DEFAULT_MAX_RETRIES, min_value=0,
     )
 
 
@@ -150,6 +188,7 @@ class LLMClient:
         self.openai_key = os.getenv("OPENAI_API_KEY")
         self.groq_key = os.getenv("GROQ_API_KEY")
         self.ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+        self.max_retries = _resolve_max_retries()
 
         if self.force_mock:
             self.backend = "mock"
@@ -244,8 +283,8 @@ class LLMClient:
             return 0.0
         return min(seconds, _RETRY_AFTER_MAX_S)
 
-    @staticmethod
     def _post_with_retry(
+        self,
         url: str,
         headers: dict[str, str] | None,
         body: dict[str, Any],
@@ -261,10 +300,11 @@ class LLMClient:
         :class:`requests.RequestException` the constant delay is used (no
         header is available on a failed connection).
         """
-        for attempt in range(_MAX_RETRIES + 1):
+        max_retries = self.max_retries
+        for attempt in range(max_retries + 1):
             try:
                 response = requests.post(url, headers=headers, json=body, timeout=timeout)
-                if response.status_code in _RETRYABLE_STATUS and attempt < _MAX_RETRIES:
+                if response.status_code in _RETRYABLE_STATUS and attempt < max_retries:
                     retry_after_header = None
                     try:
                         retry_after_header = response.headers.get("Retry-After")
@@ -280,7 +320,7 @@ class LLMClient:
                     continue
                 return response
             except requests.RequestException as err:
-                if attempt < _MAX_RETRIES:
+                if attempt < max_retries:
                     LOGGER.warning(
                         "%s request failed (%s), retrying in %.1fs…",
                         provider, err, _RETRY_DELAY_S,

@@ -3,6 +3,11 @@
 Covers the previously-untested critical path that every paid-provider
 (Anthropic / OpenAI / Groq) request routes through. Mocks `requests.post`
 and `time.sleep` to keep the tests deterministic and fast.
+
+These tests use a fresh ``LLMClient()`` per call. With ``LLM_MAX_RETRIES``
+unset in the test env, ``client.max_retries`` defaults to 1 — so
+"retries once after first failure" semantics are pinned regardless of
+the loop-24 configurability change.
 """
 
 from __future__ import annotations
@@ -29,7 +34,7 @@ def test_post_with_retry_returns_first_success() -> None:
     ok = _resp(200, {"ok": True})
     with patch("chatbot.generation.llm_client.requests.post", return_value=ok) as post, \
          patch("chatbot.generation.llm_client.time.sleep") as sleep:
-        result = LLMClient._post_with_retry(
+        result = LLMClient()._post_with_retry(
             "https://example.test", None, {}, 5, "TestProvider",
         )
     assert result is ok
@@ -44,7 +49,7 @@ def test_post_with_retry_retries_on_503_then_succeeds() -> None:
         "chatbot.generation.llm_client.requests.post",
         side_effect=[flaky, ok],
     ) as post, patch("chatbot.generation.llm_client.time.sleep") as sleep:
-        result = LLMClient._post_with_retry(
+        result = LLMClient()._post_with_retry(
             "https://example.test", None, {}, 5, "TestProvider",
         )
     assert result is ok
@@ -60,7 +65,7 @@ def test_post_with_retry_returns_final_5xx_after_exhaustion() -> None:
         "chatbot.generation.llm_client.requests.post",
         side_effect=[bad, bad],
     ) as post, patch("chatbot.generation.llm_client.time.sleep") as sleep:
-        result = LLMClient._post_with_retry(
+        result = LLMClient()._post_with_retry(
             "https://example.test", None, {}, 5, "TestProvider",
         )
     assert result is bad
@@ -74,7 +79,7 @@ def test_post_with_retry_does_not_retry_non_retryable_status() -> None:
     with patch(
         "chatbot.generation.llm_client.requests.post", return_value=bad,
     ) as post, patch("chatbot.generation.llm_client.time.sleep") as sleep:
-        result = LLMClient._post_with_retry(
+        result = LLMClient()._post_with_retry(
             "https://example.test", None, {}, 5, "TestProvider",
         )
     assert result is bad
@@ -90,7 +95,7 @@ def test_post_with_retry_does_not_retry_auth_failure() -> None:
         with patch(
             "chatbot.generation.llm_client.requests.post", return_value=bad,
         ) as post, patch("chatbot.generation.llm_client.time.sleep") as sleep:
-            result = LLMClient._post_with_retry(
+            result = LLMClient()._post_with_retry(
                 "https://example.test", None, {}, 5, "TestProvider",
             )
         assert result is bad
@@ -104,7 +109,7 @@ def test_post_with_retry_retries_on_request_exception_then_succeeds() -> None:
         "chatbot.generation.llm_client.requests.post",
         side_effect=[requests.ConnectionError("boom"), ok],
     ) as post, patch("chatbot.generation.llm_client.time.sleep") as sleep:
-        result = LLMClient._post_with_retry(
+        result = LLMClient()._post_with_retry(
             "https://example.test", None, {}, 5, "TestProvider",
         )
     assert result is ok
@@ -119,7 +124,7 @@ def test_post_with_retry_raises_after_exception_exhaustion() -> None:
         side_effect=[boom, boom],
     ) as post, patch("chatbot.generation.llm_client.time.sleep") as sleep:
         with pytest.raises(RuntimeError, match="TestProvider request failed"):
-            LLMClient._post_with_retry(
+            LLMClient()._post_with_retry(
                 "https://example.test", None, {}, 5, "TestProvider",
             )
     assert post.call_count == 2
@@ -136,7 +141,7 @@ def test_retry_after_numeric_header_is_honored() -> None:
         "chatbot.generation.llm_client.requests.post",
         side_effect=[flaky, ok],
     ), patch("chatbot.generation.llm_client.time.sleep") as sleep:
-        result = LLMClient._post_with_retry(
+        result = LLMClient()._post_with_retry(
             "https://example.test", None, {}, 5, "TestProvider",
         )
     assert result is ok
@@ -153,7 +158,7 @@ def test_retry_after_clamps_to_max() -> None:
         "chatbot.generation.llm_client.requests.post",
         side_effect=[flaky, ok],
     ), patch("chatbot.generation.llm_client.time.sleep") as sleep:
-        LLMClient._post_with_retry(
+        LLMClient()._post_with_retry(
             "https://example.test", None, {}, 5, "TestProvider",
         )
     sleep.assert_called_once_with(_RETRY_AFTER_MAX_S)
@@ -173,7 +178,7 @@ def test_retry_after_http_date_header_is_honored() -> None:
         "chatbot.generation.llm_client.requests.post",
         side_effect=[flaky, ok],
     ), patch("chatbot.generation.llm_client.time.sleep") as sleep:
-        LLMClient._post_with_retry(
+        LLMClient()._post_with_retry(
             "https://example.test", None, {}, 5, "TestProvider",
         )
     assert sleep.call_count == 1
@@ -191,7 +196,7 @@ def test_retry_after_malformed_header_falls_back_to_constant() -> None:
         "chatbot.generation.llm_client.requests.post",
         side_effect=[flaky, ok],
     ), patch("chatbot.generation.llm_client.time.sleep") as sleep:
-        LLMClient._post_with_retry(
+        LLMClient()._post_with_retry(
             "https://example.test", None, {}, 5, "TestProvider",
         )
     sleep.assert_called_once_with(_RETRY_DELAY_S)
@@ -206,7 +211,7 @@ def test_retry_after_missing_header_falls_back_to_constant() -> None:
         "chatbot.generation.llm_client.requests.post",
         side_effect=[flaky, ok],
     ), patch("chatbot.generation.llm_client.time.sleep") as sleep:
-        LLMClient._post_with_retry(
+        LLMClient()._post_with_retry(
             "https://example.test", None, {}, 5, "TestProvider",
         )
     sleep.assert_called_once_with(_RETRY_DELAY_S)
@@ -219,7 +224,7 @@ def test_retry_after_negative_or_past_date_yields_zero_delay() -> None:
         "chatbot.generation.llm_client.requests.post",
         side_effect=[flaky, ok],
     ), patch("chatbot.generation.llm_client.time.sleep") as sleep:
-        LLMClient._post_with_retry(
+        LLMClient()._post_with_retry(
             "https://example.test", None, {}, 5, "TestProvider",
         )
     sleep.assert_called_once_with(0.0)
@@ -233,8 +238,71 @@ def test_retry_after_only_applies_to_5xx_status_with_header() -> None:
         "chatbot.generation.llm_client.requests.post",
         side_effect=[requests.ConnectionError("boom"), ok],
     ), patch("chatbot.generation.llm_client.time.sleep") as sleep:
-        LLMClient._post_with_retry(
+        LLMClient()._post_with_retry(
             "https://example.test", None, {}, 5, "TestProvider",
         )
     from chatbot.generation.llm_client import _RETRY_DELAY_S
     sleep.assert_called_once_with(_RETRY_DELAY_S)
+
+
+# ── LLM_MAX_RETRIES env-var configurability (loop 24) ────────────────────────
+
+
+def test_max_retries_default_is_one(monkeypatch) -> None:
+    monkeypatch.delenv("LLM_MAX_RETRIES", raising=False)
+    client = LLMClient()
+    assert client.max_retries == 1
+
+
+def test_max_retries_env_override_higher(monkeypatch) -> None:
+    # With max_retries=3 (4 attempts total), verify all four are made
+    # before giving up on a sequence of retryable failures.
+    monkeypatch.setenv("LLM_MAX_RETRIES", "3")
+    client = LLMClient()
+    assert client.max_retries == 3
+    bad = _resp(503)
+    with patch(
+        "chatbot.generation.llm_client.requests.post",
+        side_effect=[bad, bad, bad, bad],
+    ) as post, patch("chatbot.generation.llm_client.time.sleep"):
+        result = client._post_with_retry(
+            "https://example.test", None, {}, 5, "TestProvider",
+        )
+    assert result is bad
+    assert post.call_count == 4
+
+
+def test_max_retries_env_zero_disables_retries(monkeypatch) -> None:
+    # 0 retries = exactly one attempt; transient failures are returned
+    # immediately without sleeping.
+    monkeypatch.setenv("LLM_MAX_RETRIES", "0")
+    client = LLMClient()
+    assert client.max_retries == 0
+    bad = _resp(503)
+    with patch(
+        "chatbot.generation.llm_client.requests.post",
+        return_value=bad,
+    ) as post, patch("chatbot.generation.llm_client.time.sleep") as sleep:
+        result = client._post_with_retry(
+            "https://example.test", None, {}, 5, "TestProvider",
+        )
+    assert result is bad
+    assert post.call_count == 1
+    sleep.assert_not_called()
+
+
+def test_max_retries_zero_also_disables_exception_retry(monkeypatch) -> None:
+    # The exception path must respect max_retries=0 too: a single
+    # ConnectionError is wrapped immediately, with no second attempt.
+    monkeypatch.setenv("LLM_MAX_RETRIES", "0")
+    client = LLMClient()
+    with patch(
+        "chatbot.generation.llm_client.requests.post",
+        side_effect=requests.ConnectionError("dead"),
+    ) as post, patch("chatbot.generation.llm_client.time.sleep") as sleep:
+        with pytest.raises(RuntimeError, match="TestProvider request failed"):
+            client._post_with_retry(
+                "https://example.test", None, {}, 5, "TestProvider",
+            )
+    assert post.call_count == 1
+    sleep.assert_not_called()

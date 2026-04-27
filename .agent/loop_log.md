@@ -789,3 +789,88 @@ REVEALS:
 - All three env-var helpers now share warning format. If a future
   loop adds structured logging, swap one `LOGGER.warning(...)` and
   all three downstream knobs benefit.
+
+## Loop 24 — Configurable retry budget; generic min_value resolver
+
+OBSERVE: Loop 23 reveal — `_MAX_RETRIES = 1` is hard-coded. Operators
+behind flaky proxies, unreliable VPNs, or transient-prone upstreams
+have no way to raise it. Conversely, integration test environments
+that mock all network may want 0 to fail fast. Real config knob,
+predicted by loop 23's "ready for a third use" reveal.
+
+ORIENT: Retry counts have a different validity domain than
+timeouts/token budgets — 0 is meaningful (disable retries) but
+negative is not. The loop-23 resolver rejected 0. Three options:
+  (a) duplicate the resolver with `<` instead of `<=` — DRY violation.
+  (b) accept the duplication — fast but compounds for any future
+      knob with bespoke bounds.
+  (c) generalize to `_resolve_int_env(min_value=N)` and reimplement
+      `_resolve_positive_int_env` as a wrapper.
+Picked (c). Symmetrical with how Rust's `Range`/`RangeFrom` factor
+out lower-bound choice.
+
+DECIDE: Three changes:
+1. Add `_resolve_int_env(var_name, default, *, min_value=1, unit="")`.
+   Reimplement `_resolve_positive_int_env` as a thin wrapper.
+2. Add `_resolve_max_retries()` calling it with `min_value=0`.
+3. Convert `_post_with_retry` from `@staticmethod` to instance method
+   reading `self.max_retries`. Set `self.max_retries` in `__init__`.
+
+DEVIL:
+- Correctness: Static→instance conversion breaks all existing
+  retry-test call sites. They call `LLMClient._post_with_retry(...)`
+  on the class. Must update every call site to `LLMClient()._post_with_retry(...)`.
+  Verified by sed-rewriting the file (22 occurrences). All 18
+  pre-existing retry tests pass post-rewrite without further edits.
+- Correctness: Warning-message wording changed from "non-positive"
+  to "below minimum N" for the generic helper. Old test asserting
+  on "non-positive" must be updated. Done.
+- Scope: Could also have made `_RETRY_DELAY_S` and `_RETRY_AFTER_MAX_S`
+  configurable — both are reasonable knobs. Holding for now;
+  current defaults are sound for paid-API ratios and bouncing
+  too many env vars at users harms ergonomics.
+- Priority: Real operator knob. Specifically, the loop-19 Retry-After
+  honor goes to waste at max_retries=0 — but that's the operator's
+  explicit choice and is correct.
+- Subtle: `_resolve_positive_int_env` now passes through `_resolve_int_env`
+  with `min_value=1`. The shared warning format means existing log
+  consumers see the new "below minimum 1" wording for non-positive
+  values. Acceptable — the message is more informative anyway and
+  the only consumer is humans reading logs.
+
+ACT:
+- chatbot/generation/llm_client.py:
+  * Added `_resolve_int_env(var_name, default, *, min_value=1, unit="")`.
+  * Reimplemented `_resolve_positive_int_env` as a wrapper.
+  * Added `_resolve_max_retries()`.
+  * Renamed `_MAX_RETRIES` → `_DEFAULT_MAX_RETRIES`.
+  * `LLMClient.__init__` now sets `self.max_retries = _resolve_max_retries()`.
+  * `_post_with_retry` is now an instance method; reads `self.max_retries`.
+- chatbot/tests/test_llm_retry.py:
+  * Sed-rewritten 22 call sites: `LLMClient._post_with_retry(...)`
+    → `LLMClient()._post_with_retry(...)`. Module docstring updated
+    to explain the convention and pin default semantics.
+  * Added 4 new tests for LLM_MAX_RETRIES env var: default=1,
+    override=3 with 4-attempt verification, =0 disables retry on
+    5xx, =0 disables retry on ConnectionError.
+- chatbot/tests/test_llm_timeouts.py:
+  * Updated `test_resolver_rejects_zero` assertion text:
+    "non-positive" → "below minimum".
+  * Added `test_resolver_min_value_zero_accepts_zero` and
+    `test_resolver_min_value_zero_rejects_negative`.
+- .env.example: documents LLM_MAX_RETRIES.
+
+Suite: 321 tests (158 Rust + 2 UI + 161 Python). All green.
+
+REVEALS:
+- The instance-method conversion of `_post_with_retry` opens the
+  door for per-client retry policy: a future test could mutate
+  `client.max_retries = N` after construction without env-var
+  manipulation. Cleaner pattern than the env-var-only approach.
+- Three resolver functions now exist; if a fourth lands the
+  tower-of-thin-wrappers gets noisy. Watch for that. Threshold
+  is probably 4-5 distinct knobs before considering a small
+  config object.
+- The Anthropic API version pin "2023-06-01" is still hard-coded
+  (loop 23 backup A). String resolver pattern would be useful but
+  no critical bug yet.

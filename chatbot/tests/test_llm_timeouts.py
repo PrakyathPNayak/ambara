@@ -58,7 +58,7 @@ def test_resolver_rejects_zero(monkeypatch) -> None:
         result = _resolve_positive_int_env("AMBARA_TEST_KNOB", 42)
     assert result == 42
     warn.assert_called_once()
-    assert "non-positive" in warn.call_args.args[0]
+    assert "below minimum" in warn.call_args.args[0]
 
 
 def test_resolver_rejects_negative(monkeypatch) -> None:
@@ -76,6 +76,24 @@ def test_resolver_unit_appears_in_warning(monkeypatch) -> None:
     fmt, *args = warn.call_args.args
     rendered = fmt % tuple(args)
     assert "60s" in rendered
+
+
+def test_resolver_min_value_zero_accepts_zero(monkeypatch) -> None:
+    # Counter-style knobs (retry counts, attempt budgets) should
+    # be allowed to pass 0 explicitly.
+    from chatbot.generation.llm_client import _resolve_int_env
+    monkeypatch.setenv("AMBARA_TEST_KNOB", "0")
+    assert _resolve_int_env("AMBARA_TEST_KNOB", 5, min_value=0) == 0
+
+
+def test_resolver_min_value_zero_rejects_negative(monkeypatch) -> None:
+    from chatbot.generation.llm_client import _resolve_int_env
+    monkeypatch.setenv("AMBARA_TEST_KNOB", "-1")
+    with patch.object(llm_client.LOGGER, "warning") as warn:
+        result = _resolve_int_env("AMBARA_TEST_KNOB", 5, min_value=0)
+    assert result == 5
+    warn.assert_called_once()
+    assert "below minimum" in warn.call_args.args[0]
 
 
 # ── _resolve_ollama_timeout (regression-style; covers wiring) ────────────────

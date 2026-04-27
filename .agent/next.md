@@ -1,36 +1,35 @@
-# Next loop seed (loop 24)
+# Next loop seed (loop 25)
 
-Top candidate: Anthropic API version is hard-coded to "2023-06-01" in
-the request headers. New Anthropic features (extended thinking,
-caching, etc) require newer API versions. Make `ANTHROPIC_VERSION`
-configurable with the same resolver pattern (string variant — needs a
-`_resolve_str_env(var_name, default)` helper).
+Top candidate: the `LLMClient.__init__` env-var reading is
+spread across 6 separate `os.getenv` calls and 3 resolver calls.
+The "configuration" of the client is implicitly defined by which
+env vars it reads. This is fine at 9 knobs but starting to feel
+loose. Consider extracting an `LLMConfig` dataclass that:
+- documents every env var in one place
+- supports test injection without monkeypatching
+- separates "what backend is configured" from "what ambient state
+  is now"
 
-DEVIL pre-warning: Will need a string resolver, not the positive-int
-one. Don't shoehorn — write a small parallel helper if needed, OR
-just call `os.getenv(name, default)` directly since the validation
-needs are different. Don't over-engineer.
+DEVIL pre-warning: This is structural cleanup, not bug-fix. Priority-9
+work. Skip if any priority-1-7 item exists. Reread .agent/bootstrap.md
+critical-path list before starting.
 
-Backup A: Make retry count configurable (`LLM_MAX_RETRIES`). Currently
-`_MAX_RETRIES = 1` hard-coded. Operators behind flaky proxies might
-want more. Uses the existing positive-int resolver directly — the
-cleanest possible application.
+Actual highest-priority candidates worth checking first:
+- src/graph/topology.rs cycle detection: did loop 17 actually cover
+  all branches, or just the SCC-residue one? Reread.
+- ComfyUI bridge error handling: what happens on a malformed
+  workflow JSON? Read plugins/comfyui_bridge/src/lib.rs.
+- The validation/pipeline.rs error-aggregation paths — any
+  swallowed errors?
 
-Backup B: CycleDetected variant doc divergence (loop 17). Documentation
-fix, low priority.
+Backup A: Anthropic API version configurable (loop 23 backup).
+String resolver pattern. Real but not critical — current
+"2023-06-01" still works.
 
-Backup C: comfyui_bridge filter-count smoke replacement (loop 15) —
-blocked on real filters landing.
+Backup B: CycleDetected variant doc divergence (loop 17). Doc-only.
 
-Other queued (lower priority):
-- Missing git tags v0.7.1 / v0.8.0 / v0.9.0.
-- Self-feedback edges architecture (loop 8).
-- FilterNodeData JSON schema-version snapshot (loop 16).
-- Cleaner missing-key test fixture (loop 20).
-- Anthropic system-message join awkwardness (loop 21).
+Backup C: comfyui_bridge filter-count smoke (loop 15) — blocked.
 
-Decision: take Backup A (retry count). It's the cleanest and most
-direct re-use of the loop-23 resolver — drop-in caller, no new
-helper code, immediate win for unreliable-network operators. The
-Anthropic version knob is real but adds a string-resolver concern
-that would dilute focus.
+Decision: OBSERVE step in loop 25 should re-run cargo test, re-read
+the bootstrap priority list, and check for any priority-1-7 items
+that have surfaced. Don't auto-pick the structural cleanup.
