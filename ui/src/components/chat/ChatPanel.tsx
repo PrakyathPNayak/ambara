@@ -26,7 +26,10 @@ export function ChatPanel({ onInsertGraph }: ChatPanelProps) {
     }, [connectionStatus]);
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        const node = messagesEndRef.current;
+        if (node && typeof node.scrollIntoView === 'function') {
+            node.scrollIntoView({ behavior: 'smooth' });
+        }
     }, [messages, isTyping]);
 
     const onSubmit = async (event: FormEvent) => {

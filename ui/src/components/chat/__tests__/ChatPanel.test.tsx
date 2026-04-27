@@ -11,6 +11,8 @@ vi.mock('../../../hooks/useChatApi', () => ({
         isTyping: false,
         sessionId: 'sess-1',
         connectionStatus: 'connected',
+        error: null,
+        clearError: vi.fn(),
         setMessages: vi.fn(),
     }),
 }));
