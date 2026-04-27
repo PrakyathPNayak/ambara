@@ -102,6 +102,28 @@ def test_anthropic_separates_system_from_user_messages(clean_env, monkeypatch) -
     assert body["messages"] == [{"role": "user", "content": "hi"}]
 
 
+def test_anthropic_max_tokens_default(clean_env, monkeypatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.delenv("ANTHROPIC_MAX_TOKENS", raising=False)
+    client = LLMClient()
+    response = _resp(200, payload={"content": [{"type": "text", "text": "ok"}]})
+    with patch.object(client, "_post_with_retry", return_value=response) as call:
+        client.generate({"messages": [{"role": "user", "content": "hi"}]})
+    body = call.call_args.args[2]
+    assert body["max_tokens"] == 4096
+
+
+def test_anthropic_max_tokens_env_override(clean_env, monkeypatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("ANTHROPIC_MAX_TOKENS", "8192")
+    client = LLMClient()
+    response = _resp(200, payload={"content": [{"type": "text", "text": "ok"}]})
+    with patch.object(client, "_post_with_retry", return_value=response) as call:
+        client.generate({"messages": [{"role": "user", "content": "hi"}]})
+    body = call.call_args.args[2]
+    assert body["max_tokens"] == 8192
+
+
 def test_anthropic_raises_on_4xx_status(clean_env, monkeypatch) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     client = LLMClient()

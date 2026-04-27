@@ -1,29 +1,36 @@
-# Next loop seed (loop 23)
+# Next loop seed (loop 24)
 
-Top candidate: Anthropic max_tokens hard-coded at 4096 (loop 22 reveal).
-For graph-generation prompts that's enough; for chat-response prompts
-on long contexts it can truncate mid-sentence. Make configurable via
-`ANTHROPIC_MAX_TOKENS` env var with same resolver pattern as
-`_resolve_ollama_timeout`.
+Top candidate: Anthropic API version is hard-coded to "2023-06-01" in
+the request headers. New Anthropic features (extended thinking,
+caching, etc) require newer API versions. Make `ANTHROPIC_VERSION`
+configurable with the same resolver pattern (string variant — needs a
+`_resolve_str_env(var_name, default)` helper).
 
-DEVIL warning: Test the env-var resolver alone (not the full
-_generate_anthropic) to keep the test boundary tight. Mirror the
-loop-22 test structure.
+DEVIL pre-warning: Will need a string resolver, not the positive-int
+one. Don't shoehorn — write a small parallel helper if needed, OR
+just call `os.getenv(name, default)` directly since the validation
+needs are different. Don't over-engineer.
 
-Backup A: CycleDetected variant doc divergence (loop 17). Document
-that the variant carries one of two shapes (offending edge from
-connect() vs SCC residue from topological_sort). Pure documentation
-fix, low leverage but completes a long-queued item.
+Backup A: Make retry count configurable (`LLM_MAX_RETRIES`). Currently
+`_MAX_RETRIES = 1` hard-coded. Operators behind flaky proxies might
+want more. Uses the existing positive-int resolver directly — the
+cleanest possible application.
 
-Backup B: comfyui_bridge filter-count smoke replacement (loop 15).
-When real filters land, replace `filter_count == 0` smoke test.
-Currently no real filters → blocked.
+Backup B: CycleDetected variant doc divergence (loop 17). Documentation
+fix, low priority.
+
+Backup C: comfyui_bridge filter-count smoke replacement (loop 15) —
+blocked on real filters landing.
 
 Other queued (lower priority):
 - Missing git tags v0.7.1 / v0.8.0 / v0.9.0.
 - Self-feedback edges architecture (loop 8).
 - FilterNodeData JSON schema-version snapshot (loop 16).
 - Cleaner missing-key test fixture (loop 20).
+- Anthropic system-message join awkwardness (loop 21).
 
-Decision: take the Anthropic max_tokens fix. Symmetric with loop 22's
-work and uses the established resolver pattern.
+Decision: take Backup A (retry count). It's the cleanest and most
+direct re-use of the loop-23 resolver — drop-in caller, no new
+helper code, immediate win for unreliable-network operators. The
+Anthropic version knob is real but adds a string-resolver concern
+that would dilute focus.

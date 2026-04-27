@@ -721,3 +721,71 @@ REVEALS:
 - The `_resolve_ollama_timeout` warning logs include the rejected
   value, useful for debugging misconfiguration. Pattern worth
   reusing for any future env-var resolver.
+
+## Loop 23 — Configurable Anthropic max_tokens + extracted env-var resolver
+
+OBSERVE: Loop 22 reveal — Anthropic's `max_tokens` was hard-coded at
+4096. Anthropic's Messages API silently truncates output exceeding
+this budget. For long chat responses on graphs of 30+ nodes, that's a
+real failure mode (mid-sentence cutoff, no error). Second hard-coded
+knob in two loops: time to extract.
+
+ORIENT: Two patterns now want the same env-var-with-fallback shape:
+`OLLAMA_TIMEOUT_S` (loop 22) and `ANTHROPIC_MAX_TOKENS`. DRY win is
+real. Without extraction, every future env-var knob duplicates the
+same blank-handling, parse-handling, sign-checking, and warning-format
+code. Three knobs would become unmaintainable.
+
+DECIDE: Extract `_resolve_positive_int_env(var_name, default, *, unit)`
+as the generic helper. Reimplement `_resolve_ollama_timeout` on top of
+it. Add `_resolve_anthropic_max_tokens`. Wire the latter into
+`_generate_anthropic`'s body construction.
+
+DEVIL:
+- Correctness: The `unit` parameter is purely cosmetic (warning
+  suffix). It does not affect parsing or the returned int. Verified
+  by `test_resolver_unit_appears_in_warning`. The Anthropic resolver
+  passes no unit; the Ollama one passes "s". Both verified end-to-end.
+- Scope: Could also extract OpenAI/Groq temperature handling, but
+  those aren't env-driven currently. Not in scope. Could also have
+  generalized to `_resolve_int_env(allow_zero=True)` for retry counts
+  but no such knob exists today — premature.
+- Priority: Real critical-path bug (silent truncation on paid API).
+  Better than backup candidates (CycleDetected doc, comfyui_bridge
+  smoke).
+- Subtle: Anthropic API docs note `max_tokens` is REQUIRED on every
+  request; cannot be omitted. Default of 4096 preserves existing
+  behavior exactly — pinned by `test_anthropic_max_tokens_default`
+  asserting `body["max_tokens"] == 4096`.
+- Subtle: We do NOT enforce an upper bound. Anthropic's per-model
+  ceiling varies (8192 for Haiku, 64K for Sonnet 3.5 with extended
+  output, etc). Letting the API reject is clearer than a stale
+  client-side limit.
+
+ACT:
+- chatbot/generation/llm_client.py:
+  * Added `_ANTHROPIC_DEFAULT_MAX_TOKENS = 4096`.
+  * Added `_resolve_positive_int_env(var_name, default, *, unit="")`
+    — generic resolver with full docstring.
+  * Reimplemented `_resolve_ollama_timeout` as a thin wrapper.
+  * Added `_resolve_anthropic_max_tokens`.
+  * `_generate_anthropic`: `"max_tokens": _resolve_anthropic_max_tokens()`.
+- chatbot/tests/test_llm_timeouts.py: rewrote to cover the generic
+  resolver (7 tests) + Ollama wiring (4) + Anthropic resolver (4).
+  15 tests total (was 7).
+- chatbot/tests/test_llm_providers.py: added 2 integration tests
+  asserting the env var actually flows into the request body
+  (default=4096, override=8192).
+- .env.example: documents ANTHROPIC_MAX_TOKENS.
+
+Suite: 315 tests (158 Rust + 2 UI + 155 Python). All green.
+
+REVEALS:
+- The resolver pattern is now ready for a third use. Likely next
+  candidates: max retries (`LLM_MAX_RETRIES`), Anthropic version
+  pin (`ANTHROPIC_VERSION`, currently hard-coded "2023-06-01").
+- The Anthropic system-message join (loop 21 reveal) is still
+  awkward but no second consumer materialized; staying queued.
+- All three env-var helpers now share warning format. If a future
+  loop adds structured logging, swap one `LOGGER.warning(...)` and
+  all three downstream knobs benefit.

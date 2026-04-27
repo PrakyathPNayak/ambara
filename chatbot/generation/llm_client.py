@@ -21,40 +21,80 @@ _RETRY_DELAY_S = 2.0
 _RETRY_AFTER_MAX_S = 30.0
 _PAID_PROVIDER_TIMEOUT_S = 60
 _OLLAMA_DEFAULT_TIMEOUT_S = 180
+_ANTHROPIC_DEFAULT_MAX_TOKENS = 4096
 
 
-def _resolve_ollama_timeout() -> int:
-    """Read `OLLAMA_TIMEOUT_S` from the environment with a CPU-friendly default.
+def _resolve_positive_int_env(var_name: str, default: int, *, unit: str = "") -> int:
+    """Read a positive integer from `os.environ` with a sane fallback.
 
-    Local Ollama models on CPU can take well over 60 seconds for the first
-    token, especially on cold-start. Default to 180s and allow override
-    via the `OLLAMA_TIMEOUT_S` environment variable.
+    Used for environment-driven knobs that must be strictly positive
+    (timeouts, token budgets, retry counts). Missing, blank,
+    non-integer, or non-positive values fall back to ``default``;
+    rejected values are logged at WARNING with the offending input
+    so misconfiguration is debuggable.
+
+    Args:
+        var_name: Name of the environment variable to read.
+        default: Fallback value applied when the variable is unset
+            or the parsed value is rejected. Must be positive.
+        unit: Optional suffix appended to the default in the warning
+            message (for example ``"s"`` for seconds). Cosmetic only.
 
     Returns:
-        Positive integer timeout in seconds. Falls back to the default
-        for missing, non-numeric, or non-positive values.
-
-    Raises:
-        None.
+        The parsed positive integer, or ``default``.
     """
-    raw = os.getenv("OLLAMA_TIMEOUT_S", "").strip()
+    raw = os.getenv(var_name, "").strip()
     if not raw:
-        return _OLLAMA_DEFAULT_TIMEOUT_S
+        return default
     try:
         value = int(raw)
     except ValueError:
         LOGGER.warning(
-            "Ignoring non-integer OLLAMA_TIMEOUT_S=%r; using default %ds",
-            raw, _OLLAMA_DEFAULT_TIMEOUT_S,
+            "Ignoring non-integer %s=%r; using default %d%s",
+            var_name, raw, default, unit,
         )
-        return _OLLAMA_DEFAULT_TIMEOUT_S
+        return default
     if value <= 0:
         LOGGER.warning(
-            "Ignoring non-positive OLLAMA_TIMEOUT_S=%d; using default %ds",
-            value, _OLLAMA_DEFAULT_TIMEOUT_S,
+            "Ignoring non-positive %s=%d; using default %d%s",
+            var_name, value, default, unit,
         )
-        return _OLLAMA_DEFAULT_TIMEOUT_S
+        return default
     return value
+
+
+def _resolve_ollama_timeout() -> int:
+    """Resolve the Ollama HTTP timeout, defaulting to a CPU-friendly value.
+
+    Local Ollama inference on CPU can exceed 60 seconds for first
+    token on cold-start. The default is intentionally generous;
+    operators on slower hardware can raise it further via
+    ``OLLAMA_TIMEOUT_S``.
+
+    Returns:
+        Positive integer timeout in seconds.
+    """
+    return _resolve_positive_int_env(
+        "OLLAMA_TIMEOUT_S", _OLLAMA_DEFAULT_TIMEOUT_S, unit="s",
+    )
+
+
+def _resolve_anthropic_max_tokens() -> int:
+    """Resolve the Anthropic ``max_tokens`` request parameter.
+
+    Anthropic's Messages API requires ``max_tokens`` on every
+    request and silently truncates output that exceeds it. The
+    default of 4096 is enough for graph-generation prompts but
+    can clip long chat responses; operators can raise it via
+    ``ANTHROPIC_MAX_TOKENS`` (subject to the model's per-request
+    upper bound, which the API enforces).
+
+    Returns:
+        Positive integer token budget.
+    """
+    return _resolve_positive_int_env(
+        "ANTHROPIC_MAX_TOKENS", _ANTHROPIC_DEFAULT_MAX_TOKENS,
+    )
 
 
 def _mock_graph_json() -> str:
@@ -324,7 +364,7 @@ class LLMClient:
         system = "\n".join(m.get("content", "") for m in prompt.get("messages", []) if m.get("role") == "system")
         body = {
             "model": self.model_name,
-            "max_tokens": 4096,
+            "max_tokens": _resolve_anthropic_max_tokens(),
             "temperature": temperature,
             "system": system,
             "messages": messages,
