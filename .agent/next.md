@@ -1,4 +1,12 @@
-# Next Loop Seed
-- Fix `chatbot/tests/test_e2e.py::test_e2e_queries` timeout. It spawns a real uvicorn + invokes `/graph/generate` with default Ollama backend and 20 s per-request timeout. Without a running Ollama+model, it hangs ~280 s and fails.
-- Approach: force `LLM_BACKEND=mock` (or equivalent env) in the spawned subprocess so the deterministic mock backend handles the calls; or skip the test when no backend is reachable. The real-server e2e is valuable, so prefer mock-backend over skip.
-- After that: add a tests CI workflow gated on PRs, then start fixing the 5 Rust warnings + the tautological `duration_ms >= 0` assert.
+# Next loop seed
+
+Top candidate: investigate `src/graph/topology.rs` test ~lines 253-254 with unused `c`/`d` vars. Strong smell: nodes were created but never asserted against — likely a reduced/incomplete test on subgraph or parallel-batch detection. If a real bug is hiding, this is priority 3. If it's just dead vars, priority 7 cleanup.
+
+Backup candidate: audit `src/graph/structure.rs` cycle prevention on `connect()` and `add_node()` — bootstrap flagged this as a possible priority-1 area.
+
+Other queued items:
+- Add `.github/workflows/tests.yml` — `cargo test`, UI vitest, fast subset of pytest.
+- Remaining warning: unused `ImageDataRef` import in `src/core/batch.rs:162`.
+- Verify `chatbot/generation/graph_generator_legacy.py` is unused; remove if so.
+- Version drift across Cargo.toml / README / tags / package.json.
+- Revisit `can_execute()` contract for empty graphs — should it be false?

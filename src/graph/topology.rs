@@ -247,22 +247,38 @@ mod tests {
     fn test_parallel_batches() {
         let mut graph = ProcessingGraph::new();
 
-        // Create diamond pattern: A -> B, A -> C, B -> D, C -> D
+        // Fan-out + isolated source pattern (PassthroughNode has only one
+        // input port, so a true diamond merge isn't expressible here).
+        //   A ──> B
+        //   A ──> C
+        //   D            (isolated source/leaf)
+        //
+        // Expected batches by depth:
+        //   depth 0: {A, D}
+        //   depth 1: {B, C}
         let a = graph.add_node(create_test_node());
         let b = graph.add_node(create_test_node());
         let c = graph.add_node(create_test_node());
         let d = graph.add_node(create_test_node());
 
         graph.connect(a, "output", b, "input").unwrap();
-        // Note: Each node can only have one input connected
-        // So we'll use a simpler pattern
+        graph.connect(a, "output", c, "input").unwrap();
 
         let analyzer = TopologyAnalyzer::new(&graph);
         let batches = analyzer.parallel_batches().unwrap();
 
-        // With A->B pattern, we should have 2 batches
-        // Batch 1: [A, C, D] (no deps), Batch 2: [B]
-        assert!(!batches.is_empty());
+        assert_eq!(batches.len(), 2, "fan-out + isolated source should yield 2 depth-batches, got {batches:?}");
+
+        let batch0: HashSet<NodeId> = batches[0].iter().copied().collect();
+        let batch1: HashSet<NodeId> = batches[1].iter().copied().collect();
+
+        assert!(batch0.contains(&a), "depth-0 batch must contain source A");
+        assert!(batch0.contains(&d), "depth-0 batch must contain isolated D");
+        assert_eq!(batch0.len(), 2, "depth-0 batch should be exactly {{A, D}}: {batch0:?}");
+
+        assert!(batch1.contains(&b), "depth-1 batch must contain B");
+        assert!(batch1.contains(&c), "depth-1 batch must contain C");
+        assert_eq!(batch1.len(), 2, "depth-1 batch should be exactly {{B, C}}: {batch1:?}");
     }
 
     #[test]
