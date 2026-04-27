@@ -128,3 +128,27 @@ REVEALS:
 - Workflow has no `cargo build --release` job; not needed for test gating, but a smoke build on PR could catch tauri-config breakage. Queue.
 - chatbot job will be slow on cold runners until HF cache warms. Acceptable cost for first deployment of CI.
 - No `tests.yml` badge in README. Cosmetic, low priority.
+
+## Loop 6 — Zero Rust warnings (compiler + clippy)
+
+OBSERVE: After loop 4, only the `ImageDataRef` unused-import warning at `src/core/batch.rs:162` remained. Confirmed exactly one occurrence in the file (`grep -c ImageDataRef` → 1) — pure dead import with no cfg-conditional uses. Bonus check: ran `cargo clippy --lib --tests` for the first time. Three identical warnings (`approx_constant` on `3.14` literals at `src/core/types.rs:694`, `:696`, `:729`); the floats are not π in intent — they are arbitrary non-integer test values. False positives, but `clippy::all` is `warn` per `src/lib.rs:106`.
+
+ORIENT: Without the loop-5 CI workflow being clippy-enforced, no future loop can rely on `-D warnings`. Clearing both compiler warnings AND clippy warnings is the unblocker; once at zero, a single-line addition to `tests.yml` can promote clippy to a gate.
+
+DECIDE candidates:
+  1. Remove `ImageDataRef` only (minimal scope, leaves 3 clippy false positives).
+  2. Remove `ImageDataRef` + change `3.14` test literals to `2.5` (still trivial; preserves test intent — these were never PI-relevant).
+  3. Remove `ImageDataRef` + add `#[allow(clippy::approx_constant)]` to those tests (preserves the literal but signals "yes we know"). Worse than (2) because the literal carries no semantic meaning.
+Picked (2): single edit per file, total of 4 lines changed across 2 files; preserves test intent (`Value::Float(N) where N is non-integer`) and unlocks the clippy gate without an allow-list growing over time.
+
+DEVIL'S ADVOCATE:
+- Correctness: `ImageDataRef` was imported but unreferenced (verified by grep count). The `3.14 → 2.5` change preserves test semantics: both tests are checking that a non-integer float matches `PortType::Float` and does not match `PortType::Integer`. The exact float value is irrelevant — only "non-integer" matters. `2.5` is exactly representable in IEEE-754, so no rounding artifacts could surprise a future maintainer either.
+- Scope: I expanded scope from "fix one warning" to "fix one warning + three clippy lints". Defensible because all four are zero-risk single-character edits in tests, and the bigger payoff (CI clippy gate) requires all four. Did NOT expand to silencing-by-allow, did NOT touch any product code.
+- Priority: Cycle audit in `graph/structure.rs` is still queued at priority 1 if a real bug exists there. Did this loop block it? No — the audit benefits from clippy-clean baseline, and the audit itself is a multi-test affair that deserves its own loop with proper devil-step on each new test.
+
+ACT: Removed `ImageDataRef` from `src/core/batch.rs:162` import list. Replaced two `3.14` literals with `2.5` in `src/core/types.rs:694` and `:696` (test_port_type_matching), and one in `:729` (test_value_type_inference). `cargo test --lib` → 134/134, `cargo clippy --lib --tests` → 0 warnings.
+
+REVEALS:
+- Now safe to add `cargo clippy --lib --tests -- -D warnings` to the rust job in `tests.yml`. Queue for next loop.
+- Doc tests (`cargo test --doc`) and integration tests (`cargo test --test '*'`) not yet run under clippy. Most likely also clean but worth a verification before tightening CI.
+- `Cargo.toml` still 0.5.0; README references v0.9.0; tags up to v0.7.0. Version drift unresolved.

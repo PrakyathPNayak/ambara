@@ -30,6 +30,9 @@ jobs:
       - name: cargo test --doc
         run: cargo test --doc --no-fail-fast
 
+      - name: cargo clippy (deny warnings)
+        run: cargo clippy --all-targets -- -D warnings
+
   ui:
     name: UI (vitest)
     runs-on: ubuntu-latest
