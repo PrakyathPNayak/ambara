@@ -99,3 +99,32 @@ REVEALS:
 - `topological_sort` has no test for the empty graph or for graphs with cycles being rejected — possible follow-up.
 - No test workflow on PRs; tests-as-PR-gates is queued.
 - `chatbot/generation/graph_generator_legacy.py` may be dead code.
+
+## Loop 5 — Add CI test workflow
+
+OBSERVE: Loop 1-4 fixes (jsdom scrollIntoView guard, e2e mock-LLM env override, validation contract asserts, parallel-batches coverage) all rest on local-only verification. The only CI workflow `.github/workflows/build-release.yml` runs on tags/dispatch and only does `npm run tauri build` — never runs tests. A future contributor (or a stale branch) can regress any of those fixes without anything catching it.
+
+ORIENT: This is a meta-priority loop. Adding CI doesn't fix a bug today, but it locks in every previous fix and gates every future change against the test suites that already exist. Highest leverage among open candidates.
+
+DECIDE candidates:
+  1. Three-job tests workflow (Rust + UI + Chatbot) on push/PR. (Chosen.)
+  2. Rust-only — easy and fast, but UI + chatbot already pass locally and are at higher regression risk.
+  3. Rust+UI+Chatbot+Clippy with `-D warnings` — would currently fail because of the leftover `ImageDataRef` warning in `core/batch.rs:162`. Add clippy in a later loop after warnings are zero.
+Picked (1): broadest protection that doesn't fail-out-of-the-gate. Set `AMBARA_FORCE_MOCK_LLM=1` (added in loop 2) on the chatbot job and explicitly blank LLM API keys to keep CI deterministic. Cache HuggingFace + cargo + npm to keep wall time reasonable.
+
+DEVIL'S ADVOCATE:
+- Correctness: Each command is verified locally. `cargo test --lib` (134/134), `cd ui && npm test` (2/2), `pytest chatbot/tests` (106/106 in ~3 min). YAML parses (validated with `python3 -c yaml.safe_load`). `npm ci` requires `ui/package-lock.json` — confirmed present. `cache-dependency-path` set correctly for both. `--no-fail-fast` so one failing rust test doesn't hide others.
+- Scope: Could the workflow itself be wrong? Possible failure modes:
+    * `dtolnay/rust-toolchain@stable` and `Swatinem/rust-cache@v2` — both widely used, stable.
+    * HuggingFace cache may be cold on first run; chatbot job will be slow once but cached after. Acceptable.
+    * `pip install -r chatbot/requirements.txt` includes `chromadb` and `sentence-transformers` — heavy but installable on Ubuntu CI.
+    * Removed dependence on missing `chatbot/requirements-dev.txt` by `pip install pytest` directly.
+- Priority: Could there be a real bug we're masking by doing meta-work? The cycle-prevention audit in `graph/structure.rs` is still pending — but adding CI is exactly the right precondition for invasive code audits, so the order is defensible.
+
+ACT: Created `.github/workflows/tests.yml` with three jobs (`rust`, `ui`, `chatbot`), `concurrency` group to cancel superseded PR runs, lockfile-aware caching, deterministic chatbot env. YAML validated via `python3 -c "yaml.safe_load(...)"`. No production code touched, so test status unchanged: Rust 134 / UI 2 / chatbot 106.
+
+REVEALS:
+- `core/batch.rs:162` `ImageDataRef` import still warning — once cleared, can add `cargo clippy -- -D warnings` to CI.
+- Workflow has no `cargo build --release` job; not needed for test gating, but a smoke build on PR could catch tauri-config breakage. Queue.
+- chatbot job will be slow on cold runners until HF cache warms. Acceptable cost for first deployment of CI.
+- No `tests.yml` badge in README. Cosmetic, low priority.

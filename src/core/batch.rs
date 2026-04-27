@@ -159,7 +159,7 @@ pub fn extract_images_from_value(value: &Value) -> Result<Vec<ImageValue>, Strin
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::{ImageMetadata, ImageFormat, ImageDataRef};
+    use crate::core::types::{ImageMetadata, ImageFormat};
     use std::path::PathBuf;
 
     fn create_test_image(width: u32, height: u32) -> ImageValue {

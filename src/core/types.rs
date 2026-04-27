@@ -691,9 +691,9 @@ mod tests {
     #[test]
     fn test_port_type_matching() {
         assert!(PortType::Integer.matches(&Value::Integer(42)));
-        assert!(PortType::Float.matches(&Value::Float(3.14)));
+        assert!(PortType::Float.matches(&Value::Float(2.5)));
         assert!(PortType::Float.matches(&Value::Integer(42))); // Implicit conversion
-        assert!(!PortType::Integer.matches(&Value::Float(3.14))); // No downcast
+        assert!(!PortType::Integer.matches(&Value::Float(2.5))); // No downcast
         assert!(PortType::Any.matches(&Value::String("test".to_string())));
     }
 
@@ -726,7 +726,7 @@ mod tests {
     #[test]
     fn test_value_type_inference() {
         assert_eq!(Value::Integer(42).get_type(), PortType::Integer);
-        assert_eq!(Value::Float(3.14).get_type(), PortType::Float);
+        assert_eq!(Value::Float(2.5).get_type(), PortType::Float);
         assert_eq!(
             Value::Array(vec![Value::Integer(1), Value::Integer(2)]).get_type(),
             PortType::Array(Box::new(PortType::Integer))
