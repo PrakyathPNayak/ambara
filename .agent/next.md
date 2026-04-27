@@ -1,16 +1,16 @@
-# Next loop seed (loop 9)
+# Next loop seed (loop 11)
 
-Top candidate: investigate `chatbot/generation/graph_generator_legacy.py` — bootstrap suspected dead code. Steps:
-  1. `grep -r graph_generator_legacy chatbot/` (expect: only the file itself, no importers).
-  2. Check `chatbot/generation/__init__.py` for re-exports.
-  3. If genuinely dead, delete it and confirm `pytest chatbot/tests` still 106/106. Otherwise update or document why it lives.
+Top candidate: `topological_sort` regression tests. Source `src/graph/topology.rs` exposes a sort that should:
+  1. return an empty/single-element result for an empty graph (verify which);
+  2. return `Err(GraphError::CycleDetected)` (or equivalent) when a cycle exists.
+Currently neither path has explicit coverage. Add two tests asserting both contracts. Cross-check the error variant name in `src/core/errors.rs` before wiring.
 
-Backup candidate: address version drift. `Cargo.toml` 0.5.0 / `ui/package.json` 0.5.0 / latest git tag v0.7.0 / README references v0.9.0. Consensus action: bump Cargo.toml + ui/package.json to v0.7.0 to match the actual release tag, and either add a v0.9.0 tag aligned with current state or correct the README. This is a coordination question — start by reading README to confirm which version it claims.
+Backup candidate: README CI badge for the `tests.yml` workflow. Quick one-liner near the top of `README.md`. Confirms loop 5's CI is visible to contributors.
 
 Other queued items:
-- `ValidationReport::can_execute()` semantics for empty graphs (returns true; questionable).
-- chatbot LLM client timeout/retry policy review.
-- `topological_sort` empty-graph + cycle-rejection test (loop 4 noted gap).
-- README badge for tests.yml workflow.
-- `ui/src-tauri` clippy/test gating in CI.
+- Missing git tags v0.7.1 / v0.8.0 / v0.9.0 — maintainer release-process call (do NOT auto-tag).
+- `ValidationReport::can_execute()` semantics for empty graphs (returns true today; semantically wrong).
+- chatbot LLM client timeout/retry policy review (60s + 1 retry).
+- `ui/src-tauri` clippy/test gating in CI (separate workspace, not covered by main rust job).
 - Architectural decision: confirm self-feedback edges are intentionally rejected (loop 8 reveal).
+- Loop-9 reveal: no transitive cleanup possible from legacy purge — all imports still in use by active code.

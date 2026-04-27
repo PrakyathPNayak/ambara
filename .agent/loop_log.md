@@ -202,3 +202,60 @@ REVEALS:
 - The new tests caught nothing today, but they would catch the most likely future regressions in a perf refactor of `is_reachable`. Worth the four lines of YAML in CI plus the two tests.
 - Loop 8 raises an architectural question worth queuing: connecting two ports of the SAME node (e.g. node has two inputs `a` and `b`, output wired to its own `a`) — currently rejected by the cycle check. Confirm this is intentional vs a side-effect of `start == target` short-circuit. Most filter graphs do not allow self-feedback by design, but loop scheduling for some processing models (e.g. RNN-shaped pipelines) might. Probably out of scope for ambara; queue as an architectural-doc todo.
 - `is_reachable` is `pub` but `would_create_cycle` is private. Public reachability has uses (UI dependency tracking) — confirms the API split is intentional.
+
+## Loop 9 — Remove `graph_generator_legacy.py` dead code
+
+OBSERVE: Bootstrap flagged `chatbot/generation/graph_generator_legacy.py` (622 lines) as suspected dead code. The file's own docstring states: "DEPRECATED: Legacy single-shot graph generation pipeline... No code imports this module. Safe to delete after verifying no external tools depend on it." `CHANGELOG.md:126` documents that the new `graph_generator.py` replaced it and the old version was "backed up as graph_generator_legacy.py". Comprehensive grep across `.py`, `Dockerfile.chatbot`, `docker-compose*.yml`, `scripts/`, `*.md`, `*.toml`, `*.json`, `*.yml`, `*.yaml` confirmed zero importers anywhere except the agent state files and the CHANGELOG entry.
+
+ORIENT: 622 lines of unimported code is more than mere clutter — it imports `graph_validator`, `llm_client`, `prompt_builder`, `repair_prompt_builder`, `GenerationResultModel`, `ExampleRetriever`, and `FilterRetriever`. Every refactor of any of those modules has to keep this file's call sites compilable, or hide the truth that the legacy file's lint output is silently ignored. That is false coupling: the freedom to refactor active code is constrained by code no one runs.
+
+DECIDE candidates:
+  1. Delete the file. (Chosen.)
+  2. Move to a `legacy/` directory. Reduces visibility but preserves the false-coupling problem (still imported by IDE indexers, still adds maintenance load).
+  3. Leave with a stronger deprecation comment. Doesn't unblock the refactor freedom argument.
+
+DEVIL'S ADVOCATE:
+- Correctness: Zero importers verified across all relevant file types. Deletion cannot affect runtime. Confirmed by running `pytest chatbot/tests -q` after deletion: 106 passed in 209.59s, identical to pre-deletion. CI workflow added in loop 5 already runs the same suite.
+- Scope: One-file deletion. No active code touched.
+- Priority: Could there be a hidden consumer? Tutorials / blog posts could reference the file path — but the file's own docstring acknowledges that risk and concludes "Safe to delete". CHANGELOG already records the supersession event so future archaeologists have a breadcrumb. Deletion is reversible (git history preserves the file).
+
+ACT: `git rm chatbot/generation/graph_generator_legacy.py` (622 lines removed). `pytest chatbot/tests -q` → 106/106 pass in 209s. No code/test changes required.
+
+REVEALS:
+- Now zero "_legacy" / "_old" / "_backup" files in chatbot/. Repo hygiene improved.
+- The 7 imports the legacy file made are all still used by active code — no transitive cleanup is now possible. (Verified by spot-check: `graph_validator` imported by `agent.py`, `llm_client` imported widely, etc.)
+- Architectural item still queued: validate `ValidationReport::can_execute()` semantics for empty graphs.
+
+## Loop 10 — Version drift (manifest catch-up to CHANGELOG)
+
+OBSERVE:
+- Manifests at v0.5.0 across `Cargo.toml`, `ui/src-tauri/Cargo.toml`, `ui/package.json`, `ui/src-tauri/tauri.conf.json`.
+- Latest git tag `v0.7.0`; CHANGELOG documents v0.7.0, v0.7.1, v0.8.0, v0.9.0 as released, plus v0.9.1 "Unreleased".
+- Spot-checked CHANGELOG claims: `AMBARA_CORS_ORIGINS` env in `chatbot/api/main.py:99`; WS reconnect in `useChatApi.ts`. Both real → CHANGELOG is the source of truth, manifests are 4 minor versions stale.
+
+ORIENT:
+- Real downstream impact: bug reports show wrong version, `cargo audit` semver math is off, tauri bundle metadata lies.
+- Missing git tags for v0.7.1/0.8.0/0.9.0 is a release-process gap, not a code gap. Out of scope (creating tags requires deliberate maintainer action).
+
+DECIDE:
+- Candidates:
+  (a) Bump manifests to v0.9.0 to match latest released CHANGELOG entry. ← chosen
+  (b) Bump to v0.7.0 to match latest git tag. Loses 0.8/0.9 information.
+  (c) Bump to v0.9.1. Premature — that entry is "Unreleased".
+
+DEVIL:
+- Correctness: 4 metadata edits, no logic touched. Verified two CHANGELOG features exist in code; confidence high that v0.9.0 is the right stake.
+- Scope: doesn't fix the missing git tags, but creating tags retroactively is a maintainer judgment call. Documented as queued.
+- Priority: nothing more impactful pending — clippy gate live, CI gates live, dead code purged. Manifest lies block accurate bug triage.
+- Subtle: `Cargo.lock` for top-level workspace pkg doesn't pin its own version; verified `cargo build --lib` produces a clean lockfile (no diff). 136/136 tests still pass.
+
+ACT:
+- `Cargo.toml`: 0.5.0 → 0.9.0
+- `ui/src-tauri/Cargo.toml`: 0.5.0 → 0.9.0
+- `ui/package.json`: 0.5.0 → 0.9.0
+- `ui/src-tauri/tauri.conf.json`: 0.5.0 → 0.9.0
+- `cargo build --lib` → clean; `cargo test --lib` → 136/136 pass.
+
+REVEALS:
+- Missing git tags v0.7.1/0.8.0/0.9.0 — queued as release-process item for maintainer.
+- README v0.9.0 reference (line ~309 region) now consistent with manifests.
