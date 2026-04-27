@@ -979,3 +979,47 @@ VERIFY:
 - cargo test --workspace: 163 Rust tests, all green.
 
 NEXT: see .agent/next.md.
+
+## Loop 27 — Detect duplicate node ids in Tauri validate_graph
+**Status**: COMMITTED
+
+OBSERVE: Loop-26 next.md mandated auditing the Tauri `apply_graph_state`
+/ `execute_graph` paths for the same dup-id silent-rerouting bug.
+Confirmed at ui/src-tauri/src/lib.rs:686-706: `node_id_map.insert(
+ui_node.id.clone(), added_node_id)` overwrites for repeated `ui_node.id`,
+then connections referencing the duplicated id silently route to the
+last-inserted node. `validate_graph` at lib.rs:606 had no dup-id check.
+
+ORIENT: Same bug class as loop 26, different surface (Tauri runtime vs
+CLI). `execute_graph` calls `validate_graph` first and bails on errors,
+so fixing validation closes the runtime path. Direct unit-test calls
+into `execute_graph` already supply unique ids, so no regression risk.
+
+DECIDE: Mirror loop 26's CLI fix in `validate_graph`, emitting a
+`DuplicateNodeId` ValidationError with the offending id. Add a
+regression test that clones a node into the sample graph and asserts
+the error surfaces.
+
+DEVIL:
+1. Correctness — does the UI ever produce duplicate ids legitimately?
+   No; React-Flow node ids are unique by construction client-side. Only
+   malformed imports or JS bugs would produce duplicates, and those
+   should be surfaced.
+2. Scope — should `execute_graph` also defensively re-check?
+   `execute_graph` already invokes `validate_graph` and bails on any
+   error (lib.rs:657-668). Single source of truth is fine; layered
+   defense not justified for this loop.
+3. Priority — same priority-3 silent corruption as loop 26. Doing it
+   immediately closes the parallel attack surface.
+
+ACT:
+- ui/src-tauri/src/lib.rs:606 — duplicate-id detection block in
+  `validate_graph`, before the existing required-input check.
+- ui/src-tauri/src/lib.rs tests — `validate_graph_flags_duplicate_node_ids`
+  appended.
+- README.md — test count 326→327, Rust 163→164.
+
+VERIFY:
+- cargo test --workspace: 164 Rust tests, all green (ui_lib went 4→5).
+
+NEXT: see .agent/next.md.

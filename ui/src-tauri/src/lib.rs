@@ -615,6 +615,21 @@ fn validate_graph(graph: GraphState) -> ValidationResult {
         });
     }
 
+    // Detect duplicate node ids: HashMap-keyed lookup downstream silently
+    // overwrites entries for repeated ids, so any connection referencing the
+    // duplicated id would be rerouted to whichever copy was inserted last.
+    let mut seen_ids: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    for node in &graph.nodes {
+        if !seen_ids.insert(node.id.as_str()) {
+            errors.push(ValidationError {
+                node_id: Some(node.id.clone()),
+                connection_id: None,
+                message: format!("Duplicate node id: {}", node.id),
+                error_type: "DuplicateNodeId".to_string(),
+            });
+        }
+    }
+
     // Check for disconnected required inputs
     for node in &graph.nodes {
         for input in &node.data.inputs {
@@ -959,5 +974,22 @@ mod tests {
     fn import_graph_json_rejects_invalid_payloads() {
         assert!(import_graph_json("not json".to_string()).is_err());
         assert!(import_graph_json("{\"nodes\": \"oops\"}".to_string()).is_err());
+    }
+
+    #[test]
+    fn validate_graph_flags_duplicate_node_ids() {
+        let mut graph = sample_graph();
+        let dup = graph.nodes[0].clone();
+        graph.nodes.push(dup);
+        let result = validate_graph(graph);
+        assert!(!result.valid, "duplicate ids must invalidate the graph");
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.error_type == "DuplicateNodeId"),
+            "expected DuplicateNodeId error, got {:?}",
+            result.errors
+        );
     }
 }
