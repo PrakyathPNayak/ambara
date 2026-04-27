@@ -483,3 +483,70 @@ REVEALS:
 - Line 156 of llm_client.py (`raise RuntimeError(f"... after retries: {last_err}")`) is unreachable — the loop always exits via earlier `return` or `raise`. Cosmetic; queued.
 - _RETRYABLE_STATUS does NOT include 401/403, but the helper has no auth-aware short-circuit either. Tests pinned the correct current behavior (no retry on 4xx), but the implementation's correctness here is incidental — it falls out of "not in {429,502,503,504}" rather than from explicit auth handling. Documenting this is fine.
 - Retry-After header is ignored on 429. Real client-citizen issue; queued for future.
+
+## Loop 19 — Honor Retry-After header on transient HTTP failures
+
+OBSERVE: Loop-18 reveal — `_post_with_retry` ignored server-supplied
+`Retry-After` headers on 429/503, sleeping a flat 2s instead. Real
+API-citizen bug; with provider rate limits this can pre-emptively
+trigger further throttling.
+
+ORIENT: Two candidates from next.md — Retry-After parsing (priority 5,
+real bug) vs CycleDetected doc divergence (priority 9). Retry-After
+wins on priority order AND has tests already in place from loop 18 to
+guard against regressions during the change.
+
+DECIDE:
+1. Add `_parse_retry_after(header_value)` static method:
+   - numeric seconds (RFC 7231 §7.1.3 delta-seconds form)
+   - HTTP-date (RFC 7231 §7.1.3 HTTP-date form)
+   - clamp to `_RETRY_AFTER_MAX_S = 30.0`
+   - return None for missing/malformed → caller falls back to constant
+   - negative/past date → 0.0 (don't sleep but proceed to retry)
+2. Wire into `_post_with_retry`'s 5xx branch only — `RequestException`
+   path can't carry a header.
+3. Remove confirmed-dead `last_err` tracking + dead final raise. Replace
+   the unreachable line with a `# pragma: no cover` defensive guard so
+   coverage tooling doesn't flag it.
+
+DEVIL:
+- Correctness:
+  * `parsedate_to_datetime` may return None or raise on garbage. Guard
+    both. `email.utils` doesn't raise TypeError per docs but defensive
+    catch is cheap. Confirmed by exercise: malformed test passes.
+  * `target.tzinfo is None` check: HTTP-date parsing always returns
+    tz-aware in Python 3.10+, but RFC 850 dates without timezone have
+    been seen; assume UTC in that case. Pragmatic choice.
+  * Negative numeric value → clamp to 0 not None. Server-allowed
+    semantics: "you may retry now."
+- Scope: I considered also adding exponential backoff on
+  RequestException, but loop-18 tests already pin the constant-delay
+  contract. Changing that would invalidate them and is unnecessary —
+  one retry is enough for transient connection errors.
+- Priority: Could the LLMClient's actual behavior under HTTP errors
+  hide a worse bug? I read every caller again — all three paid
+  providers do `if response.status_code >= 400: raise`. The pattern is
+  consistent. No deeper bug.
+
+ACT:
+- chatbot/generation/llm_client.py:
+  * Imports: datetime, timezone, parsedate_to_datetime
+  * New constant `_RETRY_AFTER_MAX_S = 30.0`
+  * New `_parse_retry_after` staticmethod
+  * `_post_with_retry`: read `response.headers.get("Retry-After")`,
+    pass through parser, fall back to `_RETRY_DELAY_S`, log actual delay
+  * Removed dead `last_err` tracking; final raise marked `pragma: no cover`
+- chatbot/tests/test_llm_retry.py:
+  * Updated `_resp` helper to accept headers
+  * 7 new tests: numeric, clamp, HTTP-date, malformed, missing,
+    negative, exception-path-uses-constant
+- Suite: 280 tests (was 273); 158 Rust + 2 UI + 120 Python.
+- Verified: all 14 retry tests pass; all 14 generation tests pass.
+
+REVEALS:
+- LLMClient's three paid providers (`_generate_anthropic`,
+  `_generate_openai`, `_generate_groq`) all repeat the same boilerplate
+  body construction and post-then-status-check pattern. Real DRY
+  opportunity. Each path is ~25 lines. Queued.
+- The Ollama path uses `60` second timeout for a local server. Likely
+  aggressive — local models on CPU can take longer. Queued for review.

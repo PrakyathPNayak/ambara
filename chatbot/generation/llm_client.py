@@ -6,6 +6,8 @@ import json
 import logging
 import os
 import time
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import requests
@@ -16,6 +18,7 @@ LOGGER = logging.getLogger(__name__)
 _RETRYABLE_STATUS = {429, 502, 503, 504}
 _MAX_RETRIES = 1
 _RETRY_DELAY_S = 2.0
+_RETRY_AFTER_MAX_S = 30.0
 
 
 def _mock_graph_json() -> str:
@@ -123,6 +126,49 @@ class LLMClient:
             ) from err
 
     @staticmethod
+    def _parse_retry_after(header_value: str | None) -> float | None:
+        """Parse an HTTP `Retry-After` header to a non-negative second count.
+
+        Per RFC 7231 §7.1.3 the header is either:
+        - delta-seconds (an integer), e.g. ``"30"``
+        - HTTP-date, e.g. ``"Wed, 21 Oct 2015 07:28:00 GMT"``
+
+        The result is clamped to ``[0, _RETRY_AFTER_MAX_S]`` so that a
+        misconfigured server cannot force the client to block for an
+        unbounded interval. Returns ``None`` for missing or malformed
+        values so the caller can fall back to ``_RETRY_DELAY_S``.
+
+        Args:
+            header_value: Raw `Retry-After` header value or ``None``.
+
+        Returns:
+            Wait duration in seconds, or ``None`` if unparseable.
+
+        Raises:
+            None.
+        """
+        if not header_value:
+            return None
+        candidate = header_value.strip()
+        if not candidate:
+            return None
+        try:
+            seconds = float(candidate)
+        except ValueError:
+            try:
+                target = parsedate_to_datetime(candidate)
+            except (TypeError, ValueError):
+                return None
+            if target is None:
+                return None
+            if target.tzinfo is None:
+                target = target.replace(tzinfo=timezone.utc)
+            seconds = (target - datetime.now(timezone.utc)).total_seconds()
+        if seconds <= 0:
+            return 0.0
+        return min(seconds, _RETRY_AFTER_MAX_S)
+
+    @staticmethod
     def _post_with_retry(
         url: str,
         headers: dict[str, str] | None,
@@ -130,30 +176,46 @@ class LLMClient:
         timeout: int,
         provider: str,
     ) -> requests.Response:
-        """POST with a single retry on transient failures."""
-        last_err: Exception | None = None
+        """POST with a single retry on transient failures.
+
+        On retryable HTTP statuses (429/502/503/504) the helper honors a
+        server-supplied ``Retry-After`` header (RFC 7231) when present and
+        parseable, clamped to ``_RETRY_AFTER_MAX_S``. Otherwise it falls
+        back to the constant ``_RETRY_DELAY_S``. On
+        :class:`requests.RequestException` the constant delay is used (no
+        header is available on a failed connection).
+        """
         for attempt in range(_MAX_RETRIES + 1):
             try:
                 response = requests.post(url, headers=headers, json=body, timeout=timeout)
                 if response.status_code in _RETRYABLE_STATUS and attempt < _MAX_RETRIES:
+                    retry_after_header = None
+                    try:
+                        retry_after_header = response.headers.get("Retry-After")
+                    except AttributeError:
+                        retry_after_header = None
+                    parsed = LLMClient._parse_retry_after(retry_after_header)
+                    delay = parsed if parsed is not None else _RETRY_DELAY_S
                     LOGGER.warning(
-                        "%s returned %d, retrying in %.0fs…",
-                        provider, response.status_code, _RETRY_DELAY_S,
+                        "%s returned %d, retrying in %.1fs…",
+                        provider, response.status_code, delay,
                     )
-                    time.sleep(_RETRY_DELAY_S)
+                    time.sleep(delay)
                     continue
                 return response
             except requests.RequestException as err:
-                last_err = err
                 if attempt < _MAX_RETRIES:
                     LOGGER.warning(
-                        "%s request failed (%s), retrying in %.0fs…",
+                        "%s request failed (%s), retrying in %.1fs…",
                         provider, err, _RETRY_DELAY_S,
                     )
                     time.sleep(_RETRY_DELAY_S)
                     continue
                 raise RuntimeError(f"{provider} request failed: {err}") from err
-        raise RuntimeError(f"{provider} request failed after retries: {last_err}") from last_err
+        # Unreachable: the for-loop's body always returns or raises before
+        # exhausting the iterator. Kept as a defensive guard for future
+        # refactors that might add new exit conditions.
+        raise RuntimeError(f"{provider} request failed after retries")  # pragma: no cover
 
     def _generate_anthropic(self, prompt: dict[str, Any], temperature: float) -> str:
         """Call Anthropic messages API.

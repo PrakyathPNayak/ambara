@@ -1,24 +1,34 @@
-# Next loop seed (loop 19)
+# Next loop seed (loop 20)
 
-Top candidate: chatbot LLM client `Retry-After` header support. On HTTP 429
-the helper sleeps a flat 2s rather than honoring the server-supplied
-Retry-After. Real API-citizen bug. Implementation: parse the header
-(seconds or HTTP-date), clamp to a sane max (e.g. 30s), fall back to
-the existing 2s constant. New test cases covering: numeric header,
-HTTP-date header, missing header, malformed header. Read RFC 7231 §7.1.3
-to confirm both formats.
+Top candidate: DRY refactor of LLMClient's three paid-provider paths
+(_generate_anthropic, _generate_openai, _generate_groq). All three
+repeat the same shape:
+  1. assert API key
+  2. build OpenAI-shaped or Anthropic-shaped body
+  3. _post_with_retry
+  4. raise on >=400
+  5. extract content from JSON
 
-Backup A: CycleDetected variant doc divergence (loop 17 reveal). Document
-that the variant carries one of two shapes (offending edge from connect()
-vs SCC residue from topological_sort) so future callers can write correct
-match arms.
+The OpenAI/Groq paths are nearly identical (Groq uses an
+OpenAI-compatible endpoint). Refactor opportunity:
+- Extract `_call_openai_compatible(url, headers, body)` for OpenAI/Groq
+- Keep Anthropic separate (its body shape differs)
+- Add per-provider tests covering 200 happy path + 4xx error path
 
-Backup B: Remove unreachable line 156 in llm_client.py (loop 18 reveal).
-Cosmetic but warranted; the loop's exit invariants are now provable
-by tests.
+DEVIL warning: this refactor touches paid-API call paths. Ensure tests
+cover both the happy path AND the error path BEFORE refactoring; the
+loop-18 retry tests cover the helper but not the response-shape
+extraction. Add response-shape tests first if missing.
 
-Other queued items:
-- can_execute() has zero production callers — delete or wire.
+Backup A: CycleDetected variant doc divergence (loop 17).
+
+Backup B: can_execute() zero callers — delete or wire into Executor.
+
+Backup C: Ollama 60s timeout — likely too short for CPU-only local
+models. Bump to 180s and document the rationale, or make configurable
+via env var.
+
+Other queued:
 - Missing git tags v0.7.1 / v0.8.0 / v0.9.0.
 - Self-feedback edges architecture (loop 8 reveal).
 - comfyui_bridge filter-count smoke replacement (loop 15 reveal).
