@@ -611,3 +611,54 @@ REVEALS:
   catches RuntimeError from `_post_with_retry` and re-raises with
   a different message. Pinned by `test_ollama_unreachable_wraps_*`.
   Refactor must preserve this exact wrap.
+
+## Loop 21 — DRY refactor of OpenAI-compatible providers
+
+OBSERVE: Loop-19 reveal queued, loop-20 unblocked (32 tests pinning the
+contract). _generate_openai (line 263-296) and _generate_groq (line
+331-364) are 95% identical — Groq's API is OpenAI-compatible by design.
+
+ORIENT: This is the seeded loop, gated on green tests. All 32 contract
+tests confirmed green pre-refactor.
+
+DECIDE: Extract `_call_openai_compatible(url, key, prompt, temperature,
+provider)` and have OpenAI/Groq paths become 4-line wrappers around it.
+Anthropic stays separate (different body shape, different response
+extraction). Also remove the noop `try: ... except RuntimeError: raise`
+in all three paid paths (no semantic change).
+
+DEVIL:
+- Correctness: walked through both paths character-by-character. Body,
+  headers, response shape, error format are byte-identical except for
+  url, key, provider label. Helper takes those three plus prompt +
+  temperature. Caller checks key presence and produces correct
+  missing-key error message — verified pinned by tests
+  test_openai_raises_when_key_missing / test_groq_raises_when_key_missing.
+- Scope: Could also extract Anthropic's pattern, but the body and
+  response shapes are sufficiently different that doing so would
+  require a parameterized strategy (extractor closure) — bigger
+  surface, less benefit. Skipped.
+- Priority: Confirmed top of queue. The refactor's value is
+  reduced cognitive load on every future provider addition. Each new
+  OpenAI-compatible provider is now one method, not three.
+- Subtle: The noop try/except removal was unrelated to the seeded
+  refactor but cohesive — it was confirmed dead by reading. Kept in
+  loop scope.
+
+ACT:
+- Added `_call_openai_compatible` (43 lines, fully documented).
+- _generate_openai: 26 → 9 lines.
+- _generate_groq:   26 → 9 lines.
+- _generate_anthropic / _generate_ollama: removed noop try/except blocks.
+- Suite: 298 unchanged (no new tests; existing 32 contract tests proved
+  the refactor preserves behavior).
+
+REVEALS:
+- Anthropic's body building (filter+join system messages) is awkward.
+  Could be extracted to a helper if a second Anthropic-shape provider
+  is ever added. Premature today.
+- The bare `_post_with_retry` calls in all three paths use timeout=60
+  hard-coded. If any provider needs a different timeout, this will
+  need parameterization. Not warranted today.
+- Test count (138 Python) verified unchanged — refactor is purely
+  internal restructuring.

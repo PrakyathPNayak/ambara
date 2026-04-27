@@ -1,33 +1,32 @@
-# Next loop seed (loop 21)
+# Next loop seed (loop 22)
 
-Top candidate (now unblocked): DRY refactor of LLMClient's three paid
-paths. Loop 20 added 18 shape-extraction tests + 7 retry tests
-(loop 18) + 7 Retry-After tests (loop 19) = 32 tests pinning the
-contract. The refactor can proceed with high confidence.
+Top candidate: cycle through still-queued items by priority order.
 
-Plan:
-1. Extract `_call_openai_compatible(url, headers, body, provider)`
-   shared between OpenAI and Groq (their endpoints are nearly
-   identical — Groq is OpenAI-compatible by design).
-2. Keep `_generate_anthropic` separate (different body shape /
-   response shape).
-3. The `try: ... except RuntimeError: raise` pattern in each paid
-   path is a noop — remove it (it doesn't change semantics).
-4. Run all 32 tests to verify no behavior change.
+Highest remaining: Backup C from loop 19 — Ollama 60s timeout is
+likely too short for CPU-only local models (qwen3:8b on CPU can take
+several minutes for the first token). Either:
+- Bump to a saner default (e.g. 180s) and document the rationale.
+- Make configurable via env var (OLLAMA_TIMEOUT_S).
 
-Devil note: the `_call_openai_compatible` extraction must preserve:
-- "OpenAI request failed: STATUS TEXT" vs "Groq request failed: STATUS TEXT"
-  prefix (different per-provider). Pass `provider` in.
-- The 200-content extraction is identical in both: `data["choices"][0]["message"]["content"]`.
+Priority-3 (real bug) but low impact (only affects local-Ollama users
+on CPU). Adjust to priority-5.
 
-Backup A: CycleDetected variant doc divergence (loop 17).
-Backup B: can_execute() zero callers — delete or wire.
-Backup C: Ollama 60s timeout is likely too short for CPU-only models
-(loop 19 reveal).
+Backup A: CycleDetected variant doc divergence (loop 17). Documentation
+fix to clarify the variant carries one of two shapes. Low risk, low
+leverage. Priority-9.
 
-Other queued:
-- Missing git tags v0.7.1 / v0.8.0 / v0.9.0.
-- Self-feedback edges architecture (loop 8 reveal).
-- comfyui_bridge filter-count smoke replacement (loop 15 reveal).
-- FilterNodeData JSON schema-version snapshot (loop 16 reveal).
-- Cleaner missing-key test fixture (loop 20 reveal).
+Backup B: can_execute() zero callers — delete or wire into Executor.
+Priority-6 API consistency. Read all callers (none in production) then
+delete; the dead code is misleading.
+
+Other queued (lower priority):
+- Missing git tags v0.7.1 / v0.8.0 / v0.9.0 — release-process call.
+- Self-feedback edges architecture (loop 8).
+- comfyui_bridge filter-count smoke replacement (loop 15).
+- FilterNodeData JSON schema-version snapshot (loop 16).
+- Cleaner missing-key test fixture (loop 20).
+
+Decision: take Backup B (`can_execute()` deletion) — it's a true
+priority-6 bug (dead code that misleads readers), simple to fix, and
+has been queued since loop 13. Outranks Ollama timeout (priority-5
+enhancement to a niche path).

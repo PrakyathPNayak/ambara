@@ -217,6 +217,51 @@ class LLMClient:
         # refactors that might add new exit conditions.
         raise RuntimeError(f"{provider} request failed after retries")  # pragma: no cover
 
+    def _call_openai_compatible(
+        self,
+        url: str,
+        key: str,
+        prompt: dict[str, Any],
+        temperature: float,
+        provider: str,
+    ) -> str:
+        """POST to an OpenAI-shape chat-completions endpoint and extract content.
+
+        Shared by `_generate_openai` and `_generate_groq` because Groq exposes
+        an OpenAI-compatible API. The caller is responsible for verifying the
+        API key is present and producing the correct missing-key error
+        message.
+
+        Args:
+            url: Full chat-completions URL.
+            key: Bearer token (must be non-empty).
+            prompt: Messages payload.
+            temperature: Sampling temperature.
+            provider: Human-readable provider label for error messages.
+
+        Returns:
+            Model text response from `choices[0].message.content`.
+
+        Raises:
+            RuntimeError: If the request fails or returns a non-2xx status.
+        """
+        headers = {
+            "authorization": f"Bearer {key}",
+            "content-type": "application/json",
+        }
+        body = {
+            "model": self.model_name,
+            "temperature": temperature,
+            "messages": prompt.get("messages", []),
+        }
+        response = self._post_with_retry(url, headers, body, 60, provider)
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"{provider} request failed: {response.status_code} {response.text[:200]}"
+            )
+        data = response.json()
+        return data["choices"][0]["message"]["content"]
+
     def _generate_anthropic(self, prompt: dict[str, Any], temperature: float) -> str:
         """Call Anthropic messages API.
 
@@ -248,10 +293,7 @@ class LLMClient:
             "system": system,
             "messages": messages,
         }
-        try:
-            response = self._post_with_retry(url, headers, body, 60, "Anthropic")
-        except RuntimeError:
-            raise
+        response = self._post_with_retry(url, headers, body, 60, "Anthropic")
         if response.status_code >= 400:
             raise RuntimeError(f"Anthropic request failed: {response.status_code} {response.text[:200]}")
         data = response.json()
@@ -275,25 +317,13 @@ class LLMClient:
         """
         if not self.openai_key:
             raise RuntimeError("OPENAI_API_KEY missing")
-
-        url = "https://api.openai.com/v1/chat/completions"
-        headers = {
-            "authorization": f"Bearer {self.openai_key}",
-            "content-type": "application/json",
-        }
-        body = {
-            "model": self.model_name,
-            "temperature": temperature,
-            "messages": prompt.get("messages", []),
-        }
-        try:
-            response = self._post_with_retry(url, headers, body, 60, "OpenAI")
-        except RuntimeError:
-            raise
-        if response.status_code >= 400:
-            raise RuntimeError(f"OpenAI request failed: {response.status_code} {response.text[:200]}")
-        data = response.json()
-        return data["choices"][0]["message"]["content"]
+        return self._call_openai_compatible(
+            "https://api.openai.com/v1/chat/completions",
+            self.openai_key,
+            prompt,
+            temperature,
+            "OpenAI",
+        )
 
     def _generate_ollama(self, prompt: dict[str, Any], temperature: float) -> str:
         """Call local Ollama chat API.
@@ -315,10 +345,7 @@ class LLMClient:
             "options": {"temperature": temperature},
             "messages": prompt.get("messages", []),
         }
-        try:
-            response = self._post_with_retry(url, None, body, 60, "Ollama")
-        except RuntimeError:
-            raise
+        response = self._post_with_retry(url, None, body, 60, "Ollama")
         if response.status_code >= 400:
             raise RuntimeError(f"Ollama request failed: {response.status_code} {response.text[:200]}")
         data = response.json()
@@ -343,22 +370,10 @@ class LLMClient:
         """
         if not self.groq_key:
             raise RuntimeError("GROQ_API_KEY missing")
-
-        url = "https://api.groq.com/openai/v1/chat/completions"
-        headers = {
-            "authorization": f"Bearer {self.groq_key}",
-            "content-type": "application/json",
-        }
-        body = {
-            "model": self.model_name,
-            "temperature": temperature,
-            "messages": prompt.get("messages", []),
-        }
-        try:
-            response = self._post_with_retry(url, headers, body, 60, "Groq")
-        except RuntimeError:
-            raise
-        if response.status_code >= 400:
-            raise RuntimeError(f"Groq request failed: {response.status_code} {response.text[:200]}")
-        data = response.json()
-        return data["choices"][0]["message"]["content"]
+        return self._call_openai_compatible(
+            "https://api.groq.com/openai/v1/chat/completions",
+            self.groq_key,
+            prompt,
+            temperature,
+            "Groq",
+        )
