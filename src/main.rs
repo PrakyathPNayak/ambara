@@ -441,7 +441,16 @@ fn parse_serialized_graph(text: &str) -> Result<SerializedGraph, serde_json::Err
         return Ok(graph);
     }
 
+    // Fallback: tolerate documents that are missing optional top-level
+    // fields (`version`, `metadata`, `metadata.tags`) by injecting
+    // defaults before a second deserialization attempt. Only meaningful
+    // for JSON objects — bare scalars, arrays, or null cannot represent
+    // a graph and would panic on Value::IndexMut. Re-parse them so the
+    // caller gets the original deserialization error instead.
     let mut raw: serde_json::Value = serde_json::from_str(text)?;
+    if !raw.is_object() {
+        return serde_json::from_value(raw);
+    }
     if raw.get("version").is_none() {
         raw["version"] = serde_json::Value::String(SerializedGraph::VERSION.to_string());
     }
@@ -601,5 +610,44 @@ mod tests {
         };
         let errors = validate_serialized_graph(&graph, &registry);
         assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn parse_serialized_graph_accepts_full_payload() {
+        let json = serde_json::json!({
+            "version": "1.0.0",
+            "metadata": { "name": "demo", "tags": [] },
+            "nodes": [],
+            "connections": []
+        })
+        .to_string();
+        let parsed = parse_serialized_graph(&json).expect("full payload must parse");
+        assert!(parsed.nodes.is_empty());
+    }
+
+    #[test]
+    fn parse_serialized_graph_injects_missing_top_level_fields() {
+        let json = r#"{ "nodes": [], "connections": [] }"#;
+        let parsed = parse_serialized_graph(json).expect("partial payload must parse");
+        assert_eq!(parsed.version, SerializedGraph::VERSION);
+        assert!(parsed.metadata.tags.is_empty());
+    }
+
+    #[test]
+    fn parse_serialized_graph_rejects_bare_scalar_without_panic() {
+        // Regression: previously the fallback path called Value::IndexMut on
+        // the parsed Value unconditionally. Bare strings/numbers/booleans
+        // panicked instead of returning a serde_json::Error.
+        for payload in ["\"plain\"", "42", "true", "null", "[1, 2, 3]"] {
+            let err = parse_serialized_graph(payload)
+                .expect_err(&format!("bare scalar payload {payload:?} must error, not parse"));
+            // Sanity check: it produced an Err rather than panicking.
+            let _ = err.to_string();
+        }
+    }
+
+    #[test]
+    fn parse_serialized_graph_rejects_invalid_json() {
+        assert!(parse_serialized_graph("not json").is_err());
     }
 }

@@ -874,3 +874,56 @@ REVEALS:
 - The Anthropic API version pin "2023-06-01" is still hard-coded
   (loop 23 backup A). String resolver pattern would be useful but
   no critical bug yet.
+
+## Loop 25 — Fix CLI panic on bare-scalar JSON in `parse_serialized_graph`
+**Status**: COMMITTED
+
+OBSERVE: Loop-24 next.md mandated re-checking priority-1-7 items. Surveyed
+production unwraps: gpu.rs:225 (mpsc send to live local rx — safe by stack
+order), topology.rs:40-58 (HashMap unwraps backed by `connect()` validation
++ `remove_node` cascade — invariant holds for normal flow). Then audited
+`parse_serialized_graph` in src/main.rs:439. Found a **priority-1 panic**.
+
+ORIENT: `parse_serialized_graph` is called by the CLI `load-graph`
+subcommand on user-supplied files. The fallback path indexes
+`serde_json::Value` via `IndexMut` to inject defaults for missing
+`version`/`metadata`/`metadata.tags`. But `Value::index_mut` panics if
+the parsed JSON is not an object (bare string, number, bool, null,
+array). Verified empirically — `cannot access key "version" in JSON
+string` panic at serde_json/value/index.rs:102. The function's signature
+claims `Result<_, serde_json::Error>` but actually panics, so callers
+have no way to recover.
+
+DECIDE: Add `if !raw.is_object()` guard before any `IndexMut` mutation,
+and re-call `from_value` to surface the original deserialization error.
+Add 4 regression tests covering: full payload, missing-fields injection,
+bare-scalar/array rejection (5 payloads, none panic), invalid JSON.
+
+DEVIL:
+1. Correctness — could the guard mis-classify a valid payload? No. A
+   serialized graph is always a JSON object (`SerializedGraph` is a
+   struct). Non-objects cannot deserialize regardless of which path.
+2. Scope — is this fixing a symptom? No, the root cause is unconditional
+   `IndexMut`. Fix is at the actual mutation point. Could also look at
+   the inner `raw["metadata"]["tags"]` — but that's gated by
+   `raw["metadata"].is_object()` already (line 448 ensures metadata is
+   set to `{}` if missing/non-object before tags is accessed).
+3. Priority — is there a higher-impact bug? Surveyed: no other
+   production unwraps had unprovable invariants this loop. CLI panic on
+   user file input is priority 1. Confirmed.
+
+ACT:
+- src/main.rs:439-465 — added `if !raw.is_object() { return ... }` guard
+  with explanatory comment.
+- src/main.rs:tests — 4 new tests:
+  - parse_serialized_graph_accepts_full_payload
+  - parse_serialized_graph_injects_missing_top_level_fields
+  - parse_serialized_graph_rejects_bare_scalar_without_panic (5 payloads)
+  - parse_serialized_graph_rejects_invalid_json
+- README.md — test count 321→325, Rust 158→162.
+
+VERIFY:
+- cargo test --workspace: 140 lib + 4 bin + 6 ui_lib + 4 ui-tauri-lib +
+  8 doc = 162 Rust tests, all green.
+
+NEXT: see .agent/next.md.
