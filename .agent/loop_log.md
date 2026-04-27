@@ -287,3 +287,21 @@ ACT:
 REVEALS:
 - The cycle-detection branch in `topological_sort` is currently unreachable through the public API. Either the branch is genuinely dead (and could be `unreachable!()` with a safety comment) or it's defensive against a future bypass. Decide architecturally next loop or queue.
 - `has_cycle()` is also untestable for the `true` case for the same reason.
+
+## Loop 12 — README CI badge
+
+OBSERVE: README has no badges. tests.yml workflow exists since loop 5. Repo slug PrakyathPNayak/ambara (env context).
+
+ORIENT: Pure visibility win — anyone landing on the README sees CI status without clicking through.
+
+DECIDE: One-line markdown badge under the `# Ambara` H1, linking the badge.svg to the workflow run page. Chosen over (a) badge in a "Status" section (over-engineered for one badge) and (b) multiple badges including license/version (premature; can grow later).
+
+DEVIL:
+- Correctness: GitHub serves /actions/workflows/<file>/badge.svg automatically. Filename `tests.yml` and slug confirmed.
+- Scope: Doesn't fix the stale "250 tests (144 Rust + 106 Python)" claim in the features list (current Rust lib count is 139, plus ignored/integration tests not yet audited). That deserves its own loop with a full count audit.
+- Priority: Smaller than the queued can_execute() semantics fix, but that fix changes behavior + a loop-3 test, so it deserves a dedicated loop too. Splitting is correct.
+
+ACT: Inserted badge line in README.md right under the H1.
+
+REVEALS:
+- Stale test-count claim in README features list ("250 tests / 144 Rust"). Audit counts across `cargo test` (lib + doc + integration + workspace), `cd ui && npm test`, and `pytest chatbot/tests` for the next docs loop.

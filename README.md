@@ -4,6 +4,8 @@ This project was done with the intent of testing the ease of developement with t
 
 # Ambara
 
+[![Tests](https://github.com/PrakyathPNayak/ambara/actions/workflows/tests.yml/badge.svg)](https://github.com/PrakyathPNayak/ambara/actions/workflows/tests.yml)
+
 **Ambara** is a high-performance, node-based image processing library written in Rust, with a ComfyUI-inspired visual editor built on Tauri.
 
 ## Features
