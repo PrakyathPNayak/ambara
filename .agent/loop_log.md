@@ -23,3 +23,33 @@
 **Verify**: `npm test` → 2/2 pass. Rust + Python suites unchanged.
 
 **Reveals**: Need to address the e2e ReadTimeout and add a CI workflow that actually runs tests. Next loop: make `test_e2e_queries` skip-or-pass deterministically when no LLM is configured, OR mock the LLM there.
+
+---
+## Loop 2 — Chatbot e2e: deterministic mock-backend escape hatch
+
+**Observe**: Loop 1 left UI green, Rust green, but `chatbot/tests/test_e2e.py::test_e2e_queries` still fails — uvicorn subprocess auto-selects ollama, real LLM call, 20s per-request timeout × 10 queries → ReadTimeout.
+
+**Orient**: Highest-leverage option is making the running server use the deterministic mock backend without a code-only test patch. That also delivers a real ops feature: an env-var escape hatch for offline/CI smoke tests.
+
+**Decide**: Honor `AMBARA_FORCE_MOCK_LLM=1` in `LLMClient.__init__` to override auto-selection; set the env in the e2e subprocess.
+
+Candidates considered and rejected:
+- Skip when no LLM reachable → hides regressions, weaker.
+- Mock `requests` in test → couples test to internal HTTP shape.
+- Generic `AMBARA_LLM_BACKEND=mock|openai|...` → broader but scope creep; do narrow first.
+
+**Devil**:
+- Correctness: env override only takes effect when explicitly set; existing `force_mock=False` callers unchanged when env unset; `force_mock=True` constructor still works (OR’d). ✓
+- Scope: addresses both symptom (timeout) and capability gap (no offline override). Right depth. ✓
+- Priority: clears the last red test and adds production value. Higher impact than chasing warnings. ✓
+
+**Act**:
+- `chatbot/generation/llm_client.py`: read `AMBARA_FORCE_MOCK_LLM` env var; OR with `force_mock` arg; store on `self.force_mock`. Updated docstring.
+- `chatbot/tests/test_e2e.py`: spawn uvicorn with `AMBARA_FORCE_MOCK_LLM=1` in env.
+
+**Verify**:
+- `pytest chatbot/tests/test_e2e.py` → 1 passed in 3.93s (was 280s timeout).
+- `pytest chatbot/tests` → **106 passed**, 0 failed.
+- UI + Rust unchanged from loop 1.
+
+**Reveals**: Test runtime still high (181s) due to many corpus/embedding tests. CI workflow gap remains — no automated test runs on PRs. Next loop: add a minimal CI workflow to actually run `cargo test` + UI vitest + chatbot unit tests on PRs. Skip slow integration paths (corpus build, e2e) on PR runs but keep on main.

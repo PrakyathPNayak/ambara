@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -15,11 +16,16 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def _start_server() -> subprocess.Popen:
+    env = os.environ.copy()
+    # Force the deterministic mock LLM backend so this e2e test does not
+    # depend on a live Ollama/OpenAI/Anthropic/Groq endpoint.
+    env["AMBARA_FORCE_MOCK_LLM"] = "1"
     return subprocess.Popen(
         ["/usr/bin/python3", "-m", "uvicorn", "chatbot.api.main:app", "--host", "127.0.0.1", "--port", "8765"],
         cwd=ROOT,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env=env,
     )
 
 

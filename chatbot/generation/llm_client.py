@@ -53,7 +53,10 @@ class LLMClient:
         """Create LLM client with backend auto-selection.
 
         Args:
-            force_mock: Force deterministic mock backend.
+            force_mock: Force deterministic mock backend. The environment variable
+                ``AMBARA_FORCE_MOCK_LLM`` (set to ``1``/``true``/``yes``) overrides
+                auto-selection and forces the mock backend; this is intended for
+                deterministic smoke/e2e tests and offline CI.
 
         Returns:
             None.
@@ -62,13 +65,14 @@ class LLMClient:
             RuntimeError: If backend configuration is invalid.
         """
         load_dotenv()
-        self.force_mock = force_mock
+        env_force = os.getenv("AMBARA_FORCE_MOCK_LLM", "").strip().lower() in {"1", "true", "yes", "on"}
+        self.force_mock = bool(force_mock or env_force)
         self.anthropic_key = os.getenv("ANTHROPIC_API_KEY")
         self.openai_key = os.getenv("OPENAI_API_KEY")
         self.groq_key = os.getenv("GROQ_API_KEY")
         self.ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
 
-        if force_mock:
+        if self.force_mock:
             self.backend = "mock"
             self.model_name = "mock"
         elif self.anthropic_key:
