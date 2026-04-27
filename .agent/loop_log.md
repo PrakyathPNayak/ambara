@@ -1124,3 +1124,66 @@ VERIFY:
   (ui_lib 6→7).
 
 NEXT: see .agent/next.md.
+
+## Loop 30 — Document and harden topology.rs HashMap unwraps
+
+OBSERVE: src/graph/topology.rs:40,42,57,58 had four bare `.unwrap()`
+calls on HashMap lookups inside `topological_sort()`. Safe by
+construction (every key is inserted in lines 31-34 from
+`self.graph.node_ids()`; connections() endpoints are guaranteed by
+`connect()` and preserved by `remove_node()` which purges connections
+touching removed nodes), but the invariant was nowhere documented in
+the topology code itself.
+
+ORIENT: Priority-7 (fragile assumptions). Topological sort runs on
+every graph execution; a future refactor that introduces a new
+mutation API bypassing connect()/remove_node() would silently
+corrupt the invariant and trigger an undebuggable `unwrap on None`
+panic. Cheap fix; lock in the invariant explicitly with a regression
+test that exercises remove_node.
+
+DECIDE: Replace each `.unwrap()` with `.expect("...")` carrying a
+message that names the invariant and points at the maintainers
+(`ProcessingGraph::connect()` / `remove_node()`). Add a comment
+block above the for-loop explaining the invariant. Add a regression
+test that builds A→B→C, removes B, and verifies topological_sort
+still succeeds on the surviving pair — this exercises the orphan-
+connection cleanup that the unwraps depend on.
+
+DEVIL:
+1. Correctness — Are the unwraps really infallible? Verified:
+   structure.rs:194-196 (remove_node retains only connections whose
+   endpoints both survive), structure.rs:243+ (connect rejects edges
+   to nonexistent nodes), structure.rs:229-231 (node_ids returns
+   exactly the keys in the same map). The maps are seeded in lockstep
+   on lines 31-34. `.expect()` is a strict improvement (no behavior
+   change, better panic messages, in-code documentation).
+2. Scope — Should I also fix gpu.rs:225 (`tx.send(result).unwrap()`)
+   and cache.rs:211 (`NonZeroUsize::new(100).unwrap()`)? gpu.rs is
+   a separate concern (channel send across map_async callback);
+   cache.rs is provably safe (literal 100 ≠ 0) and the message
+   would be uninformative. Left for loop 31+. Topology is the
+   highest-impact site (hot path) and benefits most from a regression
+   test.
+3. Priority — Am I avoiding harder problems? Loops 25-29 closed the
+   silent-corruption cluster across CLI + Tauri. Remaining items
+   (chatbot env-var hardening, Position::default sanity, gpu.rs
+   unwraps) are lower-impact. This loop's regression test also
+   indirectly validates remove_node's connection cleanup, which has
+   no direct test today — extra value.
+
+ACT:
+- src/graph/topology.rs:36-50 — replaced 2 .unwrap() in adjacency
+  build loop with .expect() and added an invariant comment block.
+- src/graph/topology.rs:54-67 — replaced 2 .unwrap() in BFS loop
+  with .expect() that names the in-degree/adjacency lockstep
+  invariant.
+- src/graph/topology.rs tests — added
+  `test_topological_sort_after_remove_node_does_not_panic`.
+- README.md — test count 329→330, Rust 166→167.
+
+VERIFY:
+- cargo test --workspace: 167 Rust tests, all green
+  (lib 140→141 = +1).
+
+NEXT: see .agent/next.md.

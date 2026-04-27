@@ -1,47 +1,45 @@
-# Next loop seed (loop 30)
+# Next loop seed (loop 31)
 
-Loops 25-29 closed the silent-graph-corruption / user-facing-error
-formatting cluster in the Tauri + CLI graph paths. Move on to the
-next-highest-impact items.
+Loop 30 documented and hardened the topology.rs HashMap unwraps,
+locking the invariant in with a remove_node regression test.
 
 ## Candidates
 
-1. **Production unwrap hardening — src/graph/topology.rs:40,42,57,58.**
-   Four `.unwrap()` calls on HashMap lookups inside the topological
-   sort. They are safe by construction (the keys are inserted in a
-   prior loop over the same node set) but produce ugly panics if a
-   future refactor breaks the invariant. Replace with
-   `.expect("topology: <documented invariant>")` and add a doctest
-   or unit test that documents the invariant. Priority-7 (fragile
-   assumptions).
+1. **gpu.rs:225 channel send unwrap** — `tx.send(result).unwrap()`
+   inside the wgpu map_async callback. Safe by stack scope (rx held
+   through `rx.recv()` on the next line) but fails with an unhelpful
+   panic if a future refactor moves the channel out of scope.
+   Replace with `.expect("buffer-map callback fired after rx was
+   dropped; buffer.slice().map_async lifetime invariant violated")`.
+   Priority-7. Harder to test without a live wgpu device, so accept
+   the documentation-only improvement.
 
-2. **`Position::default()` sanity — ui/src-tauri/src/lib.rs.** Verify
-   what x/y values it produces on missing fields (almost certainly
-   0.0/0.0). If a serialized graph omits position, do nodes overlap
-   silently in the UI? Either document the default or add a test that
-   pins the contract. Priority-8.
+2. **gpu.rs:231 wgpu error Display** — `format!("Buffer mapping
+   failed: {:?}", e)` — same Debug→Display class as loop 29.
+   `wgpu::BufferAsyncError` derives `std::error::Error` so Display
+   is available. Switch to `{}`.
 
-3. **GpuError Debug→Display in src/core/gpu.rs:231** for wgpu errors.
-   Audit whether wgpu::BufferAsyncError's Display is actually clean;
-   if so, switch to `{}`. Priority-7.
+3. **Anthropic API version env var** — chatbot/generation/llm_client.py
+   hardcodes ANTHROPIC_VERSION = "2023-06-01". Wrap with the
+   `_resolve_str_env` helper introduced in loops 22-24.
+   Priority-7. Requires touching pytest.
 
-4. **Anthropic API version env var** — chatbot/generation/llm_client.py
-   pins ANTHROPIC_VERSION = "2023-06-01" as a module constant. Wrap
-   with the `_resolve_str_env` helper introduced in loops 22-24 so
-   ops can override without redeploy. Priority-7.
+4. **`_RETRY_DELAY_S` / `_RETRY_AFTER_MAX_S` env overrides** — same
+   chatbot file, same helper pattern. Could batch with #3.
 
-5. **`_RETRY_DELAY_S` / `_RETRY_AFTER_MAX_S` env overrides** — same
-   chatbot file, same helper pattern. Priority-7.
+5. **CLI executor edge defense in depth** — verify
+   `execute_serialized_graph` in src/main.rs does not silently drop
+   edges referencing missing nodes (mirror of loop 28 fix). The
+   validate_serialized_graph check should already catch this, but
+   the executor itself should fail-loud.
 
 ## Recommended pick
 
-Candidate 1 (topology.rs unwrap hardening). Priority-7 but it's a
-production hot path (every graph execution runs topological sort)
-and the invariant is currently undocumented — the next refactor of
-`add_node` could silently break the assumption. The fix is small
-(four `.expect` calls + a comment block + one test) and the test
-would lock in the invariant explicitly.
+Candidates 1 + 2 batched (both in src/core/gpu.rs, same loop).
+The Display fix carries a regression test; the unwrap fix is
+documentation-only but trivial. Together this closes the gpu.rs
+hardening hole opened in next.md.
 
-## Loop 29 result summary
-Tauri user-facing error messages now use Display instead of Debug.
-Test suite: 329 (166 Rust + 2 UI + 161 Python), all green.
+## Loop 30 result summary
+topology.rs unwraps documented + tested via remove_node regression.
+Test suite: 330 (167 Rust + 2 UI + 161 Python), all green.

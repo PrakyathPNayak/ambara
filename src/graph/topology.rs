@@ -33,13 +33,25 @@ impl<'a> TopologyAnalyzer<'a> {
             adjacency.insert(node_id, Vec::new());
         }
 
-        // Build adjacency list and count in-degrees
+        // Build adjacency list and count in-degrees.
+        //
+        // Invariant: every connection's `from.node_id` and `to.node_id` are
+        // present in `self.graph.node_ids()`. This is enforced by
+        // `ProcessingGraph::connect()` (validates node existence before
+        // inserting) and preserved by `remove_node()` (purges all
+        // connections touching the removed node). The four lookups below
+        // are therefore infallible by construction; `.expect()` is used
+        // instead of `.unwrap()` so a future refactor that breaks the
+        // invariant produces a diagnosable panic rather than a silent
+        // unwrap on None.
         for conn in self.graph.connections() {
             adjacency
                 .get_mut(&conn.from.node_id)
-                .unwrap()
+                .expect("topology: connection.from.node_id missing from node set; ProcessingGraph::connect() / remove_node() invariant violated")
                 .push(conn.to.node_id);
-            *in_degree.get_mut(&conn.to.node_id).unwrap() += 1;
+            *in_degree
+                .get_mut(&conn.to.node_id)
+                .expect("topology: connection.to.node_id missing from node set; ProcessingGraph::connect() / remove_node() invariant violated") += 1;
         }
 
         // Start with nodes that have no incoming edges
@@ -54,8 +66,13 @@ impl<'a> TopologyAnalyzer<'a> {
         while let Some(node) = queue.pop_front() {
             result.push(node);
 
-            for &neighbor in adjacency.get(&node).unwrap() {
-                let degree = in_degree.get_mut(&neighbor).unwrap();
+            for &neighbor in adjacency
+                .get(&node)
+                .expect("topology: node popped from queue missing from adjacency map; queue is seeded only from in_degree which mirrors node_ids()")
+            {
+                let degree = in_degree
+                    .get_mut(&neighbor)
+                    .expect("topology: adjacency neighbor missing from in_degree map; both maps are seeded from node_ids() in lockstep");
                 *degree -= 1;
                 if *degree == 0 {
                     queue.push_back(neighbor);
@@ -379,6 +396,40 @@ mod tests {
         let ready = analyzer.ready_to_execute(&executed);
         assert!(ready.contains(&node2));
         assert!(!ready.contains(&node3));
+    }
+
+    #[test]
+    fn test_topological_sort_after_remove_node_does_not_panic() {
+        // Regression: the topological_sort lookups (formerly .unwrap(),
+        // now .expect()) rely on the invariant that every connection
+        // endpoint is present in node_ids(). This invariant is preserved
+        // by ProcessingGraph::remove_node, which purges all connections
+        // touching the removed node. Lock in that contract: build a
+        // 3-node chain A→B→C, remove B (which kills 2 connections), and
+        // verify the sort still succeeds on the surviving {A, C} pair.
+        let mut graph = ProcessingGraph::new();
+        let a = graph.add_node(create_test_node());
+        let b = graph.add_node(create_test_node());
+        let c = graph.add_node(create_test_node());
+        graph.connect(a, "output", b, "input").unwrap();
+        graph.connect(b, "output", c, "input").unwrap();
+
+        graph
+            .remove_node(b)
+            .expect("remove_node must succeed for an existing node");
+
+        // Removed node must take its connections with it; otherwise the
+        // expect() lookups inside topological_sort would panic.
+        let analyzer = TopologyAnalyzer::new(&graph);
+        let sorted = analyzer
+            .topological_sort()
+            .expect("topological_sort must succeed after remove_node");
+
+        let set: HashSet<NodeId> = sorted.into_iter().collect();
+        assert_eq!(set.len(), 2, "two nodes must remain after removing B");
+        assert!(set.contains(&a), "A must survive remove_node(B)");
+        assert!(set.contains(&c), "C must survive remove_node(B)");
+        assert!(!set.contains(&b), "B must be gone after remove_node(B)");
     }
 
     #[test]
