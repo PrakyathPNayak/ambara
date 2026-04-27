@@ -1,15 +1,25 @@
-# Next loop seed (loop 18)
+# Next loop seed (loop 19)
 
-Top candidate: `GraphError::CycleDetected { nodes }` shape inconsistency (loop 17 reveal). `connect()` populates `nodes = vec![from, to]` (the offending edge); `topological_sort` populates it with all SCC-residue nodes. Callers can't tell which shape they're getting. Either:
-  1. Document both shapes in the variant's doc comment so callers know the contract is union-of-two-shapes.
-  2. Split into two variants (`CycleAtConnection { from, to }` vs `CycleInGraph { nodes: Vec<NodeId> }`).
-Option 2 is cleaner but breaks downstream pattern matches; option 1 is honest about the current state. Read all callers of `GraphError::CycleDetected` first to assess blast radius.
+Top candidate: chatbot LLM client `Retry-After` header support. On HTTP 429
+the helper sleeps a flat 2s rather than honoring the server-supplied
+Retry-After. Real API-citizen bug. Implementation: parse the header
+(seconds or HTTP-date), clamp to a sane max (e.g. 30s), fall back to
+the existing 2s constant. New test cases covering: numeric header,
+HTTP-date header, missing header, malformed header. Read RFC 7231 §7.1.3
+to confirm both formats.
 
-Backup: chatbot LLM client timeout/retry policy review (60s + 1 retry per loop-2 reveal). Read `chatbot/generation/llm_client.py`, decide whether 60s is too long for interactive UX and whether 1 retry on 5xx is the right number.
+Backup A: CycleDetected variant doc divergence (loop 17 reveal). Document
+that the variant carries one of two shapes (offending edge from connect()
+vs SCC residue from topological_sort) so future callers can write correct
+match arms.
+
+Backup B: Remove unreachable line 156 in llm_client.py (loop 18 reveal).
+Cosmetic but warranted; the loop's exit invariants are now provable
+by tests.
 
 Other queued items:
-- can_execute() has zero production callers — delete or wire into Executor::execute.
-- Missing git tags v0.7.1 / v0.8.0 / v0.9.0 — maintainer release-process call.
+- can_execute() has zero production callers — delete or wire.
+- Missing git tags v0.7.1 / v0.8.0 / v0.9.0.
 - Self-feedback edges architecture (loop 8 reveal).
-- When real comfyui filters land, replace `filter_count == 0` smoke test (loop 15 reveal).
-- Schema-version snapshot test for FilterNodeData JSON shape (loop 16 reveal).
+- comfyui_bridge filter-count smoke replacement (loop 15 reveal).
+- FilterNodeData JSON schema-version snapshot (loop 16 reveal).

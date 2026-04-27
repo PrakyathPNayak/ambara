@@ -448,3 +448,38 @@ ACT:
 REVEALS:
 - The CycleDetected error includes a node list, but the cycle-check call site at structure.rs:294 sets it to `vec![from_node, to_node]` (just the offending edge endpoints). The topological_sort branch at topology.rs:68 sets it to all remaining-in-degree>0 nodes. Two different shapes for the same error variant — semantic drift documented for future review.
 - ui/src-tauri tests now run reliably under the workspace CI; cycle backdoor pattern could be reused to test other defensive branches if any exist.
+
+## Loop 18 — Test gap on chatbot LLM retry policy
+
+OBSERVE:
+- Existing chatbot tests mock at the GraphGenerator/LLMClient layer; nothing exercised _post_with_retry directly. Every paid-provider call (Anthropic/OpenAI/Groq/Ollama) routes through this function. Priority-3 test gap on a critical path.
+
+ORIENT: Two candidates surfaced —
+1. CycleDetected variant doc divergence (loop 17 reveal): doc-fix only, priority 9.
+2. LLM retry policy lacks tests: priority 3 on a path that runs every paid call.
+(2) wins on priority order.
+
+DECIDE: Add 7 unit tests for `LLMClient._post_with_retry`:
+- 200 immediate return (no sleep)
+- 503 → 200 retry path
+- 503 → 503 final-attempt fall-through (returns 5xx for caller to raise)
+- 400 non-retryable passthrough (no sleep)
+- 401 / 403 auth failure passthrough (must not burn budget retrying)
+- ConnectionError → 200 retry path
+- Timeout → Timeout exhaustion → RuntimeError
+
+DEVIL:
+- Correctness: I walked through every branch of the for-loop manually before writing tests; the existing logic is correct. Tests confirm by execution. Edge: if requests.post itself raises a non-RequestException (e.g. ValueError from a bad header), the loop won't catch it — that's fine because the public API wraps the helper inside `try: ... except RuntimeError`. Out of scope.
+- Scope: Could also fix Retry-After ignoring (real enhancement) or remove the dead code at line 156 (cosmetic). Skipped — the test coverage gap is the higher-leverage fix and locks current behavior in before any refactor.
+- Priority: Cannot find anything higher-priority untested. Confirmed.
+
+ACT:
+- New file chatbot/tests/test_llm_retry.py with 7 tests, all using `unittest.mock.patch` (already used in test_agent.py / test_session.py — no new deps).
+- Patches `chatbot.generation.llm_client.requests.post` and `time.sleep` to keep tests deterministic and fast (2.03s total).
+- All pass.
+- Python collected: 113 (was 106). README updated to 273 / 113 Python.
+
+REVEALS:
+- Line 156 of llm_client.py (`raise RuntimeError(f"... after retries: {last_err}")`) is unreachable — the loop always exits via earlier `return` or `raise`. Cosmetic; queued.
+- _RETRYABLE_STATUS does NOT include 401/403, but the helper has no auth-aware short-circuit either. Tests pinned the correct current behavior (no retry on 4xx), but the implementation's correctness here is incidental — it falls out of "not in {429,502,503,504}" rather than from explicit auth handling. Documenting this is fine.
+- Retry-After header is ignored on 429. Real client-citizen issue; queued for future.
