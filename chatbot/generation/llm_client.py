@@ -110,6 +110,47 @@ def _resolve_positive_int_env(var_name: str, default: int, *, unit: str = "") ->
     return _resolve_int_env(var_name, default, min_value=1, unit=unit)
 
 
+def _resolve_positive_float_env(var_name: str, default: float, *, unit: str = "") -> float:
+    """Read a strictly-positive float env var with a sane fallback.
+
+    Used for retry-loop tuning knobs (sleep durations, header caps).
+    Missing, blank, non-numeric, or non-positive inputs fall back to
+    ``default``; rejected values are logged at WARNING so
+    misconfiguration is debuggable. Zero and negative values are
+    rejected because they would either cause a busy-loop (zero
+    sleep) or violate the natural "duration" semantics (negative).
+
+    Args:
+        var_name: Name of the environment variable to read.
+        default: Fallback value applied when the variable is unset
+            or the parsed value is rejected. Must itself be > 0.
+        unit: Optional suffix appended to the default in the warning
+            message (for example ``"s"`` for seconds). Cosmetic only.
+
+    Returns:
+        The parsed float ``> 0``, or ``default`` when validation
+        fails.
+    """
+    raw = os.getenv(var_name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        LOGGER.warning(
+            "Ignoring non-numeric %s=%r; using default %s%s",
+            var_name, raw, default, unit,
+        )
+        return default
+    if value <= 0:
+        LOGGER.warning(
+            "Ignoring non-positive %s=%s; using default %s%s",
+            var_name, value, default, unit,
+        )
+        return default
+    return value
+
+
 def _resolve_ollama_timeout() -> int:
     """Resolve the Ollama HTTP timeout, defaulting to a CPU-friendly value.
 
@@ -175,6 +216,42 @@ def _resolve_max_retries() -> int:
     """
     return _resolve_int_env(
         "LLM_MAX_RETRIES", _DEFAULT_MAX_RETRIES, min_value=0,
+    )
+
+
+def _resolve_retry_delay() -> float:
+    """Resolve the fixed sleep duration between retry attempts.
+
+    Used as the fallback delay when a server does not return a
+    parseable ``Retry-After`` header, and as the unconditional delay
+    after a connection-level :class:`requests.RequestException`.
+    Operators on noisy networks may want a longer cool-off; tight
+    test/CI loops may want a shorter one. Override via
+    ``LLM_RETRY_DELAY_S``.
+
+    Returns:
+        Strictly-positive float seconds.
+    """
+    return _resolve_positive_float_env(
+        "LLM_RETRY_DELAY_S", _RETRY_DELAY_S, unit="s",
+    )
+
+
+def _resolve_retry_after_max() -> float:
+    """Resolve the upper clamp applied to server-supplied ``Retry-After``.
+
+    Servers can legitimately request very long waits (an hour, a
+    day) under heavy load; without a clamp a misconfigured upstream
+    could pin the chatbot for arbitrary durations. Default of 30s
+    matches the historical hardcode and is a sensible interactive
+    upper bound. Operators with batch/background workloads can
+    raise it via ``LLM_RETRY_AFTER_MAX_S``.
+
+    Returns:
+        Strictly-positive float seconds.
+    """
+    return _resolve_positive_float_env(
+        "LLM_RETRY_AFTER_MAX_S", _RETRY_AFTER_MAX_S, unit="s",
     )
 
 
@@ -324,7 +401,7 @@ class LLMClient:
             seconds = (target - datetime.now(timezone.utc)).total_seconds()
         if seconds <= 0:
             return 0.0
-        return min(seconds, _RETRY_AFTER_MAX_S)
+        return min(seconds, _resolve_retry_after_max())
 
     def _post_with_retry(
         self,
@@ -344,6 +421,7 @@ class LLMClient:
         header is available on a failed connection).
         """
         max_retries = self.max_retries
+        retry_delay = _resolve_retry_delay()
         for attempt in range(max_retries + 1):
             try:
                 response = requests.post(url, headers=headers, json=body, timeout=timeout)
@@ -354,7 +432,7 @@ class LLMClient:
                     except AttributeError:
                         retry_after_header = None
                     parsed = LLMClient._parse_retry_after(retry_after_header)
-                    delay = parsed if parsed is not None else _RETRY_DELAY_S
+                    delay = parsed if parsed is not None else retry_delay
                     LOGGER.warning(
                         "%s returned %d, retrying in %.1fs…",
                         provider, response.status_code, delay,
@@ -366,9 +444,9 @@ class LLMClient:
                 if attempt < max_retries:
                     LOGGER.warning(
                         "%s request failed (%s), retrying in %.1fs…",
-                        provider, err, _RETRY_DELAY_S,
+                        provider, err, retry_delay,
                     )
-                    time.sleep(_RETRY_DELAY_S)
+                    time.sleep(retry_delay)
                     continue
                 raise RuntimeError(f"{provider} request failed: {err}") from err
         # Unreachable: the for-loop's body always returns or raises before

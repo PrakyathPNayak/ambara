@@ -1,21 +1,27 @@
-# Loop 34 seed
+# Loop 35 seed
 
-**Loop 33 outcome**: ANTHROPIC_VERSION is now env-overridable; `_resolve_str_env` helper available for future string knobs. Chatbot Python tests 161→167. No behavioral change when env unset.
+**Loop 34 outcome**: Both retry-loop floats are now env-overridable via `LLM_RETRY_DELAY_S` and `LLM_RETRY_AFTER_MAX_S`. `_resolve_positive_float_env` is available for future float knobs. Test count 337 → 349.
 
-**Loop 33 revealed**:
-- `_RETRY_DELAY_S` (default 1.0) and `_RETRY_AFTER_MAX_S` (default 60.0) in llm_client.py are still hardcoded floats. Same risk class as ANTHROPIC_VERSION but lower urgency — retry behavior is internal, not a third-party contract.
-- `chatbot/tests/test_llm_retry.py` imports both constants directly and asserts `sleep.assert_called_once_with(_RETRY_DELAY_S)`. Constants must remain at module level; the resolvers should *consume* them as defaults, not replace them.
+**Env-override theme is now complete for the chatbot.** All operationally-significant LLM client knobs are env-driven:
+- Timeouts: `LLM_OLLAMA_TIMEOUT_S`, `OPENAI_TIMEOUT_S` / `GROQ_TIMEOUT_S` / `ANTHROPIC_TIMEOUT_S` (loop ≤28)
+- Token budget: `ANTHROPIC_MAX_TOKENS`
+- Retry budget: `LLM_MAX_RETRIES`
+- Retry timing: `LLM_RETRY_DELAY_S`, `LLM_RETRY_AFTER_MAX_S` (this loop)
+- API version: `ANTHROPIC_VERSION` (loop 33)
 
-**Top candidates for loop 34** (ranked by impact):
+**Top candidates for loop 35** (move to a new theme):
 
-1. **`_resolve_positive_float_env` + retry-delay env overrides** (priority 6 — API/interface inconsistency: half the knobs are env-overridable, half aren't). Add helper, wrap `_RETRY_DELAY_S`/`_RETRY_AFTER_MAX_S` with `_resolve_retry_delay()` / `_resolve_retry_after_max()`. Constants stay at module level as defaults; resolvers called inside the retry loop. New tests in test_llm_timeouts.py mirroring loop 33's pattern.
+1. **`ResultCache::new(0)` silent fallback test** (priority 7 — fragile assumption). `src/execution/cache.rs:211` falls back to `NonZeroUsize::new(100).unwrap()` when caller passes 0. Add a unit test pinning that fallback so the literal can never silently drift to 0 (which would `unwrap` panic). Quick, low-risk regression coverage.
 
-2. **`ResultCache::new(0)` regression test** (priority 7 — fragile assumption). `src/execution/cache.rs:211` falls back to `NonZeroUsize::new(100).unwrap()` when caller passes 0. Add a unit test pinning that fallback so the literal can never silently drift to 0.
+2. **Re-read `.agent/bootstrap.md`** to surface unaddressed priority-1 through priority-4 items. Specifically check:
+   - `plugins/comfyui_bridge` error paths (was flagged vaguely; needs scoping).
+   - `src/execution/cache.rs` TTL eviction logic — is there a test for stale-entry pruning? Are there any silent overflows on size accounting?
+   - `chatbot/generation/llm_client.py` retry exhaustion path: when `_post_with_retry` exhausts retries on a 5xx (not exception), it returns the bad response unchecked. Does the caller surface the status code, or does it silently parse a non-2xx body as success?
 
-3. **plugin loader hardening** — `plugins/comfyui_bridge` was flagged in bootstrap.md as having weak error paths. Re-read bootstrap to confirm what's still unaddressed.
+3. **Audit `src/main.rs` execute_serialized_graph** for any remaining silent-failure paths beyond the duplicate-id check added in loop 32 — e.g., does it validate that node_map lookups in the connection loop succeed?
 
-4. **Re-read .agent/bootstrap.md priority list** for any silent-failure / missing-error-handling pattern not yet addressed (chatbot retry loop, comfyui_bridge, execution cache TTL eviction).
+4. **plugin manifest loader hardening** in `src/plugins/`. Check whether load failures are bubbled to the user or silently dropped.
 
-**Recommendation**: pick #1 — finish the env-override theme started in loop 33 while it's fresh. Pattern is proven: helper + resolver + 6 tests + 4-line patch.
+**Recommendation**: pick #2 — specifically the chatbot retry-exhaustion behavior. That's a potential priority-2 item (missing error handling on a critical path: 5xx retried-and-exhausted should NOT silently return a malformed body to the caller). Worth scoping in OBSERVE before committing to it.
 
-**DO NOT**: change `_RETRY_DELAY_S`/`_RETRY_AFTER_MAX_S` *constants* themselves — only wrap their *usage* with resolvers. Test imports of the constants must keep working.
+**DO NOT**: chase more env-override knobs in loop 35; the theme is complete. Move to a different priority.

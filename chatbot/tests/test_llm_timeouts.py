@@ -17,10 +17,15 @@ from chatbot.generation.llm_client import (
     _ANTHROPIC_DEFAULT_VERSION,
     _OLLAMA_DEFAULT_TIMEOUT_S,
     _PAID_PROVIDER_TIMEOUT_S,
+    _RETRY_AFTER_MAX_S,
+    _RETRY_DELAY_S,
     _resolve_anthropic_max_tokens,
     _resolve_anthropic_version,
     _resolve_ollama_timeout,
+    _resolve_positive_float_env,
     _resolve_positive_int_env,
+    _resolve_retry_after_max,
+    _resolve_retry_delay,
     _resolve_str_env,
 )
 
@@ -186,3 +191,83 @@ def test_anthropic_version_blank_falls_back(monkeypatch) -> None:
     # header (HTTP 400). Make sure misconfiguration cannot send one.
     monkeypatch.setenv("ANTHROPIC_VERSION", "   ")
     assert _resolve_anthropic_version() == _ANTHROPIC_DEFAULT_VERSION
+
+
+# ── _resolve_positive_float_env ──────────────────────────────────────────────
+
+
+def test_float_resolver_default_when_unset(monkeypatch) -> None:
+    monkeypatch.delenv("AMBARA_TEST_FLOAT_KNOB", raising=False)
+    assert _resolve_positive_float_env("AMBARA_TEST_FLOAT_KNOB", 1.5) == 1.5
+
+
+def test_float_resolver_default_when_blank(monkeypatch) -> None:
+    monkeypatch.setenv("AMBARA_TEST_FLOAT_KNOB", "   ")
+    assert _resolve_positive_float_env("AMBARA_TEST_FLOAT_KNOB", 1.5) == 1.5
+
+
+def test_float_resolver_honors_positive_value(monkeypatch) -> None:
+    monkeypatch.setenv("AMBARA_TEST_FLOAT_KNOB", "0.25")
+    assert _resolve_positive_float_env("AMBARA_TEST_FLOAT_KNOB", 1.5) == 0.25
+
+
+def test_float_resolver_rejects_zero(monkeypatch) -> None:
+    monkeypatch.setenv("AMBARA_TEST_FLOAT_KNOB", "0")
+    with patch.object(llm_client.LOGGER, "warning"):
+        assert _resolve_positive_float_env("AMBARA_TEST_FLOAT_KNOB", 1.5) == 1.5
+
+
+def test_float_resolver_rejects_negative(monkeypatch) -> None:
+    monkeypatch.setenv("AMBARA_TEST_FLOAT_KNOB", "-2.0")
+    with patch.object(llm_client.LOGGER, "warning"):
+        assert _resolve_positive_float_env("AMBARA_TEST_FLOAT_KNOB", 1.5) == 1.5
+
+
+def test_float_resolver_rejects_garbage(monkeypatch) -> None:
+    monkeypatch.setenv("AMBARA_TEST_FLOAT_KNOB", "many seconds")
+    with patch.object(llm_client.LOGGER, "warning"):
+        assert _resolve_positive_float_env("AMBARA_TEST_FLOAT_KNOB", 1.5) == 1.5
+
+
+# ── _resolve_retry_delay ─────────────────────────────────────────────────────
+
+
+def test_retry_delay_default(monkeypatch) -> None:
+    # Pin both the default and the constant. Existing test_llm_retry.py
+    # asserts sleep.assert_called_once_with(_RETRY_DELAY_S); that pattern
+    # only works if the unset-env path returns the constant.
+    monkeypatch.delenv("LLM_RETRY_DELAY_S", raising=False)
+    assert _resolve_retry_delay() == _RETRY_DELAY_S
+    assert _RETRY_DELAY_S == 2.0  # pin historical default
+
+
+def test_retry_delay_honors_override(monkeypatch) -> None:
+    monkeypatch.setenv("LLM_RETRY_DELAY_S", "0.5")
+    assert _resolve_retry_delay() == 0.5
+
+
+def test_retry_delay_rejects_zero(monkeypatch) -> None:
+    # Zero would cause a busy-loop; resolver must reject and fall back.
+    monkeypatch.setenv("LLM_RETRY_DELAY_S", "0")
+    with patch.object(llm_client.LOGGER, "warning"):
+        assert _resolve_retry_delay() == _RETRY_DELAY_S
+
+
+# ── _resolve_retry_after_max ─────────────────────────────────────────────────
+
+
+def test_retry_after_max_default(monkeypatch) -> None:
+    monkeypatch.delenv("LLM_RETRY_AFTER_MAX_S", raising=False)
+    assert _resolve_retry_after_max() == _RETRY_AFTER_MAX_S
+    assert _RETRY_AFTER_MAX_S == 30.0  # pin historical default
+
+
+def test_retry_after_max_honors_override(monkeypatch) -> None:
+    monkeypatch.setenv("LLM_RETRY_AFTER_MAX_S", "120")
+    assert _resolve_retry_after_max() == 120.0
+
+
+def test_retry_after_max_rejects_negative(monkeypatch) -> None:
+    monkeypatch.setenv("LLM_RETRY_AFTER_MAX_S", "-5")
+    with patch.object(llm_client.LOGGER, "warning"):
+        assert _resolve_retry_after_max() == _RETRY_AFTER_MAX_S

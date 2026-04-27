@@ -1314,3 +1314,30 @@ NEXT: see .agent/next.md.
 **COMMIT**
 - Python: 161 → 167 (+6). Rust: 168 (unchanged). Total: 331 → 337.
 - All chatbot tests green (167 passed in 158.53s). Full Rust workspace still green.
+
+## Loop 34 — Make retry delays env-overridable
+
+**OBSERVE**
+- chatbot/generation/llm_client.py held two hardcoded retry-loop floats: `_RETRY_DELAY_S = 2.0` (line 20) and `_RETRY_AFTER_MAX_S = 30.0` (line 21). Used at three call sites: `_parse_retry_after` clamp (line 327), and `_post_with_retry` retry-after fallback (line 357) + RequestException sleep (line 369-371).
+- `chatbot/tests/test_llm_retry.py` imports both constants directly and uses them in `sleep.assert_called_once_with(_RETRY_DELAY_S)` / `sleep.assert_called_once_with(_RETRY_AFTER_MAX_S)`. Constants must remain at module level as the resolver defaults; existing tests pass as-is when the env var is unset.
+- No `_resolve_positive_float_env` helper existed.
+
+**ORIENT / DECIDE**
+- Highest-leverage move: complete the env-override theme started in loop 33. Same risk class — operational rigidity around third-party retry behavior — but more general (any noisy network or batch workload may want different timing).
+- Candidates: (1) retry-delay envs (chosen — completes the theme, low risk, proven pattern); (2) cache.rs `ResultCache::new(0)` regression (defensive only, no operator pressure); (3) plugin loader hardening (vague, needs scoping).
+
+**DEVIL'S ADVOCATE**
+- Correctness attack: zero/negative env value would cause a busy retry loop. Rebuttal: `_resolve_positive_float_env` rejects `<= 0` with a warning and falls back to the default; `test_retry_delay_rejects_zero` and `test_retry_after_max_rejects_negative` cover both.
+- Correctness attack: `_resolve_retry_delay()` is now called once per `_post_with_retry` invocation; if the env changed mid-process the parsed value lags by one request. Rebuttal: that's intentional — caching the value at the start of each request makes log messages internally consistent (delay logged matches delay slept). Per-attempt re-resolution would be observably wrong.
+- Correctness attack: existing `test_llm_retry.py` assertions like `sleep.assert_called_once_with(_RETRY_DELAY_S)` would fail if the resolver returned anything other than 2.0. Rebuttal: tests don't set the env var, so the resolver falls back to the constant; ran the suite — all 18 retry tests still green.
+- Scope attack: real problem might be that retry uses fixed delay instead of exponential backoff. Rebuttal: separate refactor; current loop is purely about ops-time configurability. With the resolvers in place, exponential backoff is a localized change.
+- Priority attack: anything bigger? Bootstrap.md priority list still has plugin loader hardening and cache TTL eviction — both are larger refactors with no observed bug. This loop has higher impact-to-risk ratio.
+
+**ACT**
+- `chatbot/generation/llm_client.py`: added `_resolve_positive_float_env` (mirrors int helper, rejects zero/negative); added `_resolve_retry_delay` (`LLM_RETRY_DELAY_S`) and `_resolve_retry_after_max` (`LLM_RETRY_AFTER_MAX_S`); replaced 3 call sites. `_post_with_retry` resolves once per request and reuses; `_parse_retry_after` resolves on each call (rare, not hot).
+- `chatbot/tests/test_llm_timeouts.py`: imported new resolvers + `_RETRY_DELAY_S`/`_RETRY_AFTER_MAX_S` constants; added 12 tests covering float resolver (default/blank/positive/zero/negative/garbage) and both retry resolvers (default-pin/override/zero-or-negative-rejection).
+- README.md: 337 → 349.
+
+**COMMIT**
+- Python: 167 → 179 (+12). Rust: 168 (unchanged). Total: 337 → 349.
+- All 18 retry tests still green; full chatbot suite 179 passed in 157.31s.
