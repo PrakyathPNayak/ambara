@@ -806,7 +806,7 @@ fn execute_graph(graph: GraphState, settings: Option<ExecutionSettings>, state: 
                 success: false,
                 errors: vec![ExecutionError {
                     node_id: edge.id.clone(),
-                    message: format!("Failed to connect: {:?}", e),
+                    message: format!("Failed to connect: {}", e),
                 }],
                 outputs: HashMap::new(),
                 execution_time: start.elapsed().as_millis() as u64,
@@ -874,7 +874,7 @@ fn execute_graph(graph: GraphState, settings: Option<ExecutionSettings>, state: 
                 success: false,
                 errors: vec![ExecutionError {
                     node_id: String::new(),
-                    message: format!("Execution failed: {:?}", e),
+                    message: format!("Execution failed: {}", e),
                 }],
                 outputs: HashMap::new(),
                 execution_time: start.elapsed().as_millis() as u64,
@@ -1088,5 +1088,30 @@ mod tests {
             "expected UnknownEdgeTarget error, got {:?}",
             result.errors
         );
+    }
+
+    #[test]
+    fn graph_error_display_is_not_debug_struct_syntax() {
+        // Regression: execute_graph used to format graph/exec errors with
+        // {:?}, producing developer-oriented Debug output like
+        // "PortNotFound { node_id: ..., port: \"input\" }". The user-facing
+        // path now uses {}, which thiserror routes to the #[error("...")]
+        // template. Lock in that contract.
+        use ambara::core::error::GraphError;
+        let err = GraphError::PortNotFound {
+            node_id: ambara::core::error::NodeId::new(),
+            port: "missing".to_string(),
+        };
+        let display = format!("{}", err);
+        let debug = format!("{:?}", err);
+        assert!(
+            display.contains("Port 'missing'"),
+            "Display must use the #[error] template: {display}"
+        );
+        assert!(
+            debug.contains("PortNotFound"),
+            "Debug must still expose the variant name: {debug}"
+        );
+        assert_ne!(display, debug, "Display and Debug must differ");
     }
 }

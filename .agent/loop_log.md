@@ -1076,3 +1076,51 @@ VERIFY:
 - cargo test --workspace: 165 Rust tests, all green (ui_lib went 5→6).
 
 NEXT: see .agent/next.md.
+
+## Loop 29 — Switch user-facing graph/exec error messages from Debug to Display
+
+OBSERVE: Tauri execute_graph formatted typed errors with {:?} at two
+sites (ui/src-tauri/src/lib.rs:809 connect failure, :877 execute
+failure). Both wrapped types (GraphError, ExecutionError) derive
+thiserror::Error with #[error("...")] templates, so {:?} produced
+developer-oriented "VariantName { field: ... }" output for end users.
+
+ORIENT: Priority-6 UX bug (API/interface inconsistency — error
+strings exposed to the UI looked like compiler diagnostics). Cheap
+fix; lock in the contract with a regression test.
+
+DECIDE: Replace {:?} with {} on lines 809 and 877. Add a unit test
+that constructs GraphError::PortNotFound and asserts Display matches
+the #[error] template ("Port 'missing' ...") while Debug still
+exposes the variant name — the two must diverge.
+
+DEVIL:
+1. Correctness — does GraphError actually have a clean Display? Yes:
+   src/core/error.rs:99 derives thiserror::Error and every variant has
+   #[error("...")]. ExecutionError is the same at line 171. Test
+   verified the contract empirically.
+2. Scope — should other {:?} sites change too? Audited:
+   - ui/src-tauri/src/lib.rs:293/303/313 use {:?} on PortType, which
+     has no Display impl (intentional Debug for type names). Keep.
+   - src/main.rs:135-154 same PortType pattern. Keep.
+   - src/core/gpu.rs:231 wraps wgpu::BufferAsyncError into a string;
+     wgpu errors do implement Display but the call site already
+     produces an internal log string, lower-priority. Defer.
+3. Priority — Loops 25-28 already fixed all silent-corruption bugs
+   in the graph import/validate/execute path; the remaining items
+   in next.md (Position::default sanity, production unwrap
+   hardening) are lower-impact than locking in user-facing error
+   formatting while the pattern is fresh.
+
+ACT:
+- ui/src-tauri/src/lib.rs:809 — `{:?}` → `{}`.
+- ui/src-tauri/src/lib.rs:877 — `{:?}` → `{}`.
+- ui/src-tauri/src/lib.rs tests — added
+  `graph_error_display_is_not_debug_struct_syntax`.
+- README.md — test count 328→329, Rust 165→166.
+
+VERIFY:
+- cargo test --workspace: 166 Rust tests, all green
+  (ui_lib 6→7).
+
+NEXT: see .agent/next.md.
