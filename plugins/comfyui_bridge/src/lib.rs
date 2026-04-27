@@ -93,3 +93,50 @@ pub static ambara_plugin_vtable: PluginVTable = PluginVTable {
     filter_validate,
     plugin_health_check,
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vtable_advertises_host_abi_version() {
+        assert_eq!(ambara_plugin_vtable.abi_version, HOST_ABI_VERSION);
+    }
+
+    #[test]
+    fn create_then_destroy_does_not_panic() {
+        unsafe {
+            let handle = (ambara_plugin_vtable.plugin_create)();
+            assert!(!handle.is_null(), "plugin_create must return a non-null handle");
+            (ambara_plugin_vtable.plugin_destroy)(handle);
+        }
+    }
+
+    #[test]
+    fn destroy_null_handle_is_safe_noop() {
+        unsafe {
+            (ambara_plugin_vtable.plugin_destroy)(ptr::null_mut());
+        }
+    }
+
+    #[test]
+    fn stub_reports_zero_filters_and_healthy_status() {
+        unsafe {
+            let handle = (ambara_plugin_vtable.plugin_create)();
+            assert_eq!(
+                (ambara_plugin_vtable.filter_count)(handle),
+                0,
+                "scaffold must advertise zero filters"
+            );
+            assert!(
+                (ambara_plugin_vtable.filter_id_at)(handle, 0).is_null(),
+                "filter_id_at on an empty plugin must return null"
+            );
+            assert!(matches!(
+                (ambara_plugin_vtable.plugin_health_check)(handle),
+                AbiResult::Ok
+            ));
+            (ambara_plugin_vtable.plugin_destroy)(handle);
+        }
+    }
+}

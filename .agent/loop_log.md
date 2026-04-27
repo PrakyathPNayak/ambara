@@ -365,3 +365,30 @@ DEVIL:
 ACT: edited README features list to the audited counts.
 
 REVEALS: Cargo test discovers EIGHT test targets across the workspace; only two have any tests (main lib + main bin). plugins/comfyui_bridge and ui/src-tauri are still test-empty (loop 13 reveal still standing).
+
+## Loop 15 — comfyui_bridge smoke tests
+
+OBSERVE:
+- `plugins/comfyui_bridge/src/lib.rs` is a 95-line FFI vtable scaffold (10 unsafe extern "C" fns, one `#[no_mangle] pub static PluginVTable`). Zero tests. Loop 13 made CI gate it but there was nothing to assert.
+
+ORIENT:
+- The placeholder is meaningful surface — its vtable is the contract the host depends on. ABI version drift, double-free, and "scaffold quietly grew real filters" are real regression risks.
+
+DECIDE:
+- Four tests through `ambara_plugin_vtable`: ABI version equality, create→destroy roundtrip, null-handle destroy is no-op, stub reports 0 filters + Ok health. Chosen over (a) skipping (loop 13 reveal stays open) and (b) integration tests against a real ComfyUI server (out of scope; needs network).
+
+DEVIL:
+- Correctness: Each call wrapped in unsafe block as required. plugin_destroy must accept null per scaffolds and the existing `if !handle.is_null()` guard at line 19 — verified by reading; test 3 exercises it.
+- Scope: 4 tests + one README count bump.
+- Priority: Loop 13 reveal called for >0 tests on each workspace member. This loop addresses comfyui_bridge; ui/src-tauri smoke test queued for next.
+- Subtle: filter_id_at returning null at index 0 on an empty plugin is by design (line 36-38). Documented in test name.
+
+ACT:
+- Added `#[cfg(test)] mod tests` with 4 tests.
+- `cargo test -p comfyui_bridge` → 4/4 pass.
+- `cargo clippy --all-targets --workspace -- -D warnings` → clean.
+- README test count: 149 → 153 Rust, 257 → 261 total.
+
+REVEALS:
+- ui/src-tauri still has zero tests — same gating gap.
+- The plugin scaffold's `filter_execute` returns `ErrNotSupported`. When real filters are added, the test asserting "0 filters" must be replaced with the real count to avoid masking implementation drift.
