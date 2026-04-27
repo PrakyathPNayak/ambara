@@ -176,3 +176,29 @@ REVEALS:
 - `ui/src-tauri` is its own workspace member but never tested or clippy-checked in CI. Worth a future loop once the tauri test surface is defined.
 - README still has no CI badge; cosmetic but cheap follow-up.
 - Cycle-prevention audit in `src/graph/structure.rs` is unblocked and is the highest-impact remaining item on the queue.
+
+## Loop 8 — Cycle-prevention regression coverage
+
+OBSERVE: `would_create_cycle` (`src/graph/structure.rs:378-381`) delegates to `is_reachable(to_node, from_node)` — BFS from `to_node` checking if `from_node` is reachable. `is_reachable` short-circuits true when `start == target` (line 385-387). Walked through the algorithm by hand for self-loops and 2-node back-edges; both are correctly rejected. Existing test `test_cycle_detection` (line 527) covers only the long-chain case (A→B→C, then C→A).
+
+ORIENT: The cycle-prevention algorithm is a priority-1 surface (a corrupt graph would silently violate every downstream invariant: topological_sort, parallel_batches, validation, execution scheduling). It is correct today — but its behavior on the most error-prone corner cases (self-loops, minimum-length cycles) is enforced only by inspection. CI gating without coverage of these corners means a future "performance refactor" of `is_reachable` could silently break the contract.
+
+DECIDE candidates:
+  1. Add `test_self_loop_rejected` and `test_two_node_back_edge_rejected`. (Chosen.)
+  2. Refactor `is_reachable` to skip enqueuing already-visited nodes (cosmetic perf, no behavior change). Skipped — code is already correct and the refactor isn't justified by a measured problem.
+  3. Skip — code is correct, tests are nice-to-have. Rejected because regression coverage on a priority-1 surface is exactly what the operating-law priority order calls "test gaps on existing functionality".
+
+DEVIL'S ADVOCATE:
+- Correctness: Traced both cases:
+    * Self-loop `connect(n, "output", n, "input")` → `would_create_cycle(n, n)` → `is_reachable(n, n)` short-circuits at line 385 → `Err(CycleDetected)`. Confirmed by test pass.
+    * 2-node back-edge: `connect(a, b)` succeeds. Then `connect(b, "output", a, "input")` → `would_create_cycle(b, a)` → `is_reachable(a, b)` → BFS from a visits b, returns true → `Err(CycleDetected)`. Confirmed.
+  Tests also assert `connection_count()` to ensure rejected edges are NOT persisted (catches a class of bug where the cycle check fires AFTER the edge is pushed).
+- Scope: Tests-only loop. No production change. Symptom (no test) addressed; cause (algorithm correct but unprotected) addressed.
+- Priority: Could there be a real cycle-detection bug we're missing? Audited the BFS: `if visited.insert(current) { ... }` correctly idempotently visits each node once; queue can contain duplicates but they're filtered at insertion. Correct. The deeper question — does `connect()` order check ports BEFORE running cycle detection? Lines 257-289 verify ports/types/already-connected first, THEN line 292 cycle-checks. So a connection between nonexistent ports raises a different error than a cycle, which is correct. Audit closed.
+
+ACT: Added `test_self_loop_rejected` and `test_two_node_back_edge_rejected` to `src/graph/structure.rs`. `cargo test --lib graph::structure` → 7/7. Full `cargo test --lib` → 136/136 (was 134/134 + 2 new). `cargo clippy --all-targets -- -D warnings` → clean.
+
+REVEALS:
+- The new tests caught nothing today, but they would catch the most likely future regressions in a perf refactor of `is_reachable`. Worth the four lines of YAML in CI plus the two tests.
+- Loop 8 raises an architectural question worth queuing: connecting two ports of the SAME node (e.g. node has two inputs `a` and `b`, output wired to its own `a`) — currently rejected by the cycle check. Confirm this is intentional vs a side-effect of `start == target` short-circuit. Most filter graphs do not allow self-feedback by design, but loop scheduling for some processing models (e.g. RNN-shaped pipelines) might. Probably out of scope for ambara; queue as an architectural-doc todo.
+- `is_reachable` is `pub` but `would_create_cycle` is private. Public reachability has uses (UI dependency tracking) — confirms the API split is intentional.
