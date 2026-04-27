@@ -152,3 +152,27 @@ REVEALS:
 - Now safe to add `cargo clippy --lib --tests -- -D warnings` to the rust job in `tests.yml`. Queue for next loop.
 - Doc tests (`cargo test --doc`) and integration tests (`cargo test --test '*'`) not yet run under clippy. Most likely also clean but worth a verification before tightening CI.
 - `Cargo.toml` still 0.5.0; README references v0.9.0; tags up to v0.7.0. Version drift unresolved.
+
+## Loop 7 — Promote clippy to a CI gate
+
+OBSERVE: Loop 6 left the codebase at 0 compiler warnings + 0 clippy lints (under `--lib --tests`). Verified `cargo clippy --all-targets --workspace` is also clean (1m21s cold build, exit 0, zero warnings). The `tests.yml` rust job currently runs only test targets.
+
+ORIENT: Adding `cargo clippy --all-targets -- -D warnings` now is exactly the kind of "lock in" step that loops 5-6 set up. Without it, a future contributor could re-introduce dead imports or subtle lints (the kind that took loops 4-6 to clean up), and CI would happily merge the PR. With clippy-deny in CI, that whole class of regression is impossible.
+
+DECIDE candidates:
+  1. Add `cargo clippy --all-targets -- -D warnings` to the rust job. (Chosen.)
+  2. Add `cargo clippy --workspace --all-targets -- -D warnings`. Slightly broader (covers `plugins/comfyui_bridge` and `ui/src-tauri`); but `ui/src-tauri` is excluded from the standard `cargo` invocation by default in this repo, and its clippy hygiene is best gated when the ui job evolves to include tauri-build smoke. Prefer the narrower scope here.
+  3. Add a separate `lint` job. More structure, but for a single command it is overkill; keeping it in the rust job means a single rust-toolchain setup serves both test and clippy.
+Picked (1).
+
+DEVIL'S ADVOCATE:
+- Correctness: Verified locally that `cargo clippy --all-targets -- -D warnings` exits 0 from a cold build. YAML validated by `python3 -c yaml.safe_load`. Rust toolchain action already pinned to stable, and `Swatinem/rust-cache@v2` covers clippy artifacts.
+- Scope: Could a future stable rustc release introduce a new lint that fails our build? Yes — that is the cost of `-D warnings` on stable. Tradeoff accepted: a periodic small fix in exchange for never re-litigating dead imports and approx-constant false positives. The mitigation is that any failure is local to a PR or a daily push, and is fixed by either fixing the lint or `#[allow]`-ing it with a justifying comment.
+- Priority: Cycle audit in `graph/structure.rs` is still next-loop. Still defensible: clippy gate is one-line of CI yaml versus a multi-test investigation; it's the order of operations that maximizes leverage per loop.
+
+ACT: Edited `.github/workflows/tests.yml` to add a `cargo clippy --all-targets -- -D warnings` step in the rust job after the test steps. Validated YAML, reproduced gate locally → exit 0. Test status unchanged: Rust 134 / UI 2 / chatbot 106.
+
+REVEALS:
+- `ui/src-tauri` is its own workspace member but never tested or clippy-checked in CI. Worth a future loop once the tauri test surface is defined.
+- README still has no CI badge; cosmetic but cheap follow-up.
+- Cycle-prevention audit in `src/graph/structure.rs` is unblocked and is the highest-impact remaining item on the queue.

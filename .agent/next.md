@@ -1,16 +1,22 @@
-# Next loop seed (loop 7)
+# Next loop seed (loop 8)
 
-Top candidate: promote clippy to a CI gate now that the codebase is at 0 warnings + 0 clippy lints. Add a step `cargo clippy --lib --tests -- -D warnings` to the `rust` job in `.github/workflows/tests.yml`. Verify locally first that `cargo clippy --all-targets` (not just `--lib --tests`) is also clean — examples or bin targets may still have issues.
+Top candidate: cycle-prevention audit in `src/graph/structure.rs::would_create_cycle` and `connect()`. Concrete tests to write (and look at the code while writing them — if the code looks wrong, fixing the bug is a higher-priority commit than just adding tests):
 
-Backup candidate: cycle-prevention audit in `src/graph/structure.rs::would_create_cycle`. Concrete tests to write:
-  1. self-loop: `graph.connect(a, "output", a, "input")` should error with `CycleDetected`.
-  2. near-cycle: A→B→C, then `connect(c, "output", a, "input")` should error with `CycleDetected`.
-  3. parallel-edge between same node pair (already legal since input port can hold one connection — reconfirms semantics).
-If any test fails, that's a priority-1 bug.
+  1. self-loop: `graph.connect(a, "output", a, "input")` must error with `CycleDetected`. The existing port-already-connected check fires *after* the cycle check at line 292, so this should already be rejected.
+  2. near-cycle: chain A→B→C, then `connect(c, "output", a, "input")` must error with `CycleDetected`.
+  3. parallel back-edge: A→B exists, then attempting `connect(b, "output", a, "input")` (a different input port if such existed) — would create a 2-cycle.
+
+Read `would_create_cycle` first. Look for:
+- Does it traverse the existing connections graph correctly?
+- Does it consider the proposed edge `from_node → to_node` and check if `to_node` can reach `from_node` already?
+- Is it O(V+E) or quadratic?
+- Self-loop edge case: `from_node == to_node` should short-circuit.
+
+Backup candidate: README workflow badge once tests.yml has run successfully at least once.
 
 Other queued items:
-- README workflow badge.
 - Verify `chatbot/generation/graph_generator_legacy.py` is dead code; remove if so.
 - Version drift across Cargo.toml / README / git tags / ui/package.json.
 - `ValidationReport::can_execute()` semantics for empty graphs.
-- chatbot LLM client timeout/retry policy review.
+- chatbot LLM client timeout/retry policy.
+- `ui/src-tauri` clippy/test gating in CI.

@@ -540,6 +540,38 @@ mod tests {
     }
 
     #[test]
+    fn test_self_loop_rejected() {
+        // A node connecting to itself is a 1-cycle and must be rejected
+        // before any port-already-connected check fires.
+        let mut graph = ProcessingGraph::new();
+        let n = graph.add_node(create_test_node());
+
+        let result = graph.connect(n, "output", n, "input");
+        assert!(
+            matches!(result, Err(GraphError::CycleDetected { .. })),
+            "self-loop should fail with CycleDetected, got: {result:?}"
+        );
+        assert_eq!(graph.connection_count(), 0, "no edge may persist after rejected self-loop");
+    }
+
+    #[test]
+    fn test_two_node_back_edge_rejected() {
+        // Minimal 2-cycle: A -> B exists, then attempting B -> A must
+        // be rejected with CycleDetected (not a more generic error).
+        let mut graph = ProcessingGraph::new();
+        let a = graph.add_node(create_test_node());
+        let b = graph.add_node(create_test_node());
+
+        graph.connect(a, "output", b, "input").unwrap();
+        let result = graph.connect(b, "output", a, "input");
+        assert!(
+            matches!(result, Err(GraphError::CycleDetected { .. })),
+            "2-node back-edge should fail with CycleDetected, got: {result:?}"
+        );
+        assert_eq!(graph.connection_count(), 1, "rejected back-edge must not be persisted");
+    }
+
+    #[test]
     fn test_source_sink_nodes() {
         let mut graph = ProcessingGraph::new();
 
