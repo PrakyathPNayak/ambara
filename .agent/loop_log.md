@@ -1235,3 +1235,57 @@ VERIFY:
   gpu.rs has no unit tests).
 
 NEXT: see .agent/next.md.
+
+## Loop 32 — CLI executor defense in depth: reject duplicate node ids
+
+OBSERVE: src/main.rs::execute_serialized_graph already fail-louds on
+unknown from_node/to_node refs (let-else returns at lines 514-526)
+and on connect() failures, but line 510's `node_map.insert(node.id,
+new_id)` silently overwrites duplicate ids. The bug is unreachable
+today because the only call site (line 414) runs
+validate_serialized_graph first, which catches dups (loop 26 fix).
+Defense-in-depth gap mirroring loop 27's Tauri executor fix.
+
+ORIENT: Priority-3 class (silent corruption) but unreachable today
+— effectively priority-7 (fragile assumption, locks contract before
+a future caller skips validation). Cheap fix; one HashSet-equivalent
+check + one regression test.
+
+DECIDE: Insert `if node_map.contains_key(&node.id)` check before
+the existing filter-creation block; on duplicate, return the same
+"Duplicate node id: {id}" wording the validator uses for
+consistency. Add a regression test that drives
+execute_serialized_graph directly with a duplicate-id payload
+(bypassing the validator), asserting failure.
+
+DEVIL:
+1. Correctness — Same wording as the validator? Yes, "Duplicate
+   node id: {}" matches src/main.rs:472. Test asserts via
+   `e.starts_with("Duplicate node id:")` — same predicate the
+   validator's test uses.
+2. Scope — Other silent gaps in execute_serialized_graph? Audited:
+   - Line 514, 521: let-else on node_map.get → fail-loud. Good.
+   - Line 528: connect error → fail-loud with Display via {err}.
+     Good.
+   - ProcessingGraph::connect handles cycle/port-not-found
+     internally. Good.
+   - Line 510 silent overwrite was the only remaining gap.
+3. Priority — Am I avoiding harder problems? The remaining queue
+   items (chatbot env vars, Position::default sanity, cache.rs
+   capacity-zero) are priority-7-8 cleanup. This loop closes a
+   defense-in-depth contract on a hot CLI path; same priority
+   band but higher value because it locks a silent-corruption
+   class before any future API extension.
+
+ACT:
+- src/main.rs::execute_serialized_graph (~+10 lines): added
+  duplicate-id contains_key check with explanatory comment.
+- src/main.rs tests: added
+  `execute_serialized_graph_rejects_duplicate_node_ids`.
+- README.md — test count 330→331, Rust 167→168.
+
+VERIFY:
+- cargo test --workspace: 168 Rust tests, all green
+  (main bin 7→8).
+
+NEXT: see .agent/next.md.

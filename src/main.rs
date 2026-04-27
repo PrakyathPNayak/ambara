@@ -493,6 +493,21 @@ fn execute_serialized_graph(graph: &SerializedGraph, registry: &FilterRegistry) 
     let mut node_map: HashMap<NodeId, NodeId> = HashMap::new();
 
     for node in &graph.nodes {
+        // Defense-in-depth (loop 32): the call site at main()/load-graph
+        // always runs validate_serialized_graph first, which rejects
+        // duplicate node ids. But node_map.insert() below silently
+        // overwrites prior entries, which would silently reroute every
+        // edge targeting the duplicated id to the last-inserted node if
+        // a future caller ever bypassed validation. Mirror loop 27's
+        // Tauri executor: fail loud here too.
+        if node_map.contains_key(&node.id) {
+            return LoadGraphResult {
+                success: false,
+                errors: vec![format!("Duplicate node id: {}", node.id)],
+                outputs: HashMap::new(),
+            };
+        }
+
         let Some(filter) = registry.create(&node.filter_id) else {
             return LoadGraphResult {
                 success: false,
@@ -687,6 +702,54 @@ mod tests {
         assert!(
             errors.iter().any(|e| e.starts_with("Duplicate node id:")),
             "expected duplicate-id error, got {errors:?}"
+        );
+    }
+
+    #[test]
+    fn execute_serialized_graph_rejects_duplicate_node_ids() {
+        // Defense-in-depth: validate_serialized_graph already catches
+        // duplicate ids at the load-graph entry point, but if a future
+        // caller bypasses validation, the executor must not silently
+        // reroute edges via node_map overwrites. Drive
+        // execute_serialized_graph directly with a duplicate-id payload
+        // and assert it fails loud with the same error wording.
+        use ambara::graph::serialization::SerializedNode;
+        use ambara::graph::Position;
+
+        let registry = FilterRegistry::with_builtins();
+        let dup_id = NodeId::new();
+        let graph = SerializedGraph {
+            version: "1.0.0".to_string(),
+            metadata: ambara::graph::structure::GraphMetadata::default(),
+            nodes: vec![
+                SerializedNode {
+                    id: dup_id,
+                    filter_id: "passthrough".to_string(),
+                    position: Position::default(),
+                    parameters: HashMap::new(),
+                    label: None,
+                    disabled: false,
+                },
+                SerializedNode {
+                    id: dup_id,
+                    filter_id: "passthrough".to_string(),
+                    position: Position::default(),
+                    parameters: HashMap::new(),
+                    label: None,
+                    disabled: false,
+                },
+            ],
+            connections: vec![],
+        };
+        let result = execute_serialized_graph(&graph, &registry);
+        assert!(!result.success, "expected execute to fail on duplicate id");
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.starts_with("Duplicate node id:")),
+            "expected duplicate-id error from executor, got {:?}",
+            result.errors
         );
     }
 }
