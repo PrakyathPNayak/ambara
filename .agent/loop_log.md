@@ -1187,3 +1187,51 @@ VERIFY:
   (lib 140→141 = +1).
 
 NEXT: see .agent/next.md.
+
+## Loop 31 — Harden gpu.rs map_async unwrap and switch wgpu errors to Display
+
+OBSERVE: src/core/gpu.rs:225 had `tx.send(result).unwrap()` inside
+the wgpu `map_async` callback, and line 231 formatted
+`wgpu::BufferAsyncError` with `{:?}` producing developer-oriented
+output in the user-facing GpuError::Execution message string.
+
+ORIENT: Both are priority-7 fragile-assumption / API-inconsistency
+class. Same pattern as loops 29 (Debug→Display on user-facing
+errors) and 30 (.unwrap → .expect with documented invariant).
+Bundling both gpu.rs fixes keeps the gpu.rs hardening to one loop.
+
+DECIDE:
+- Replace .unwrap() with .expect("buffer-map callback fired after rx
+  was dropped; map_async/recv lifetime invariant violated") plus a
+  comment block explaining why the send is infallible (rx held on
+  stack through rx.recv() below).
+- Replace `{:?}` with `{}` on the BufferAsyncError; wgpu derives
+  std::error::Error on all its error types so Display is always
+  available.
+
+DEVIL:
+1. Correctness — Is the channel-send invariant actually safe? Yes:
+   the channel's rx is in stack scope through line 229's rx.recv()
+   call; the callback always fires before recv() returns (or recv()
+   produces RecvError, handled separately). The Display swap also
+   compiles, confirming wgpu::BufferAsyncError: Display.
+2. Scope — Should cache.rs:211 `NonZeroUsize::new(100).unwrap()`
+   join this loop? No: literal-100 is provably safe and any
+   .expect() message would be uninformative. Skip permanently.
+3. Priority — Am I avoiding harder problems? gpu.rs is runtime-only
+   (no unit tests possible without a real wgpu device); the fix is
+   documentation-only on the unwrap and a one-token Display swap.
+   Together they close the gpu.rs hardening hole identified in
+   loop-30's next.md, freeing the next loop for chatbot env vars
+   or CLI executor defense-in-depth.
+
+ACT:
+- src/core/gpu.rs:222-234 — added comment block, replaced .unwrap
+  with .expect, switched {:?}→{} on BufferAsyncError.
+
+VERIFY:
+- cargo build --workspace: clean.
+- cargo test --workspace: 167 Rust tests, all green (unchanged;
+  gpu.rs has no unit tests).
+
+NEXT: see .agent/next.md.

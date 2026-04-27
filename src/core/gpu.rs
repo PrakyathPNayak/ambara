@@ -222,13 +222,19 @@ impl GpuDevice {
         let buffer_slice = buffer.slice(..);
         let (tx, rx) = std::sync::mpsc::channel();
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
-            tx.send(result).unwrap();
+            // Safe by construction: the receiver `rx` is held on the stack
+            // through the `rx.recv()` call below, so the channel cannot be
+            // disconnected when the wgpu callback fires. Use .expect rather
+            // than .unwrap so a future refactor that moves rx out of scope
+            // (e.g. async-ifying this path) produces a diagnosable panic.
+            tx.send(result)
+                .expect("buffer-map callback fired after rx was dropped; map_async/recv lifetime invariant violated");
         });
 
         self.device.poll(wgpu::Maintain::Wait);
         rx.recv()
             .map_err(|_| GpuError::Execution("Failed to receive buffer map result".to_string()))?
-            .map_err(|e| GpuError::Execution(format!("Buffer mapping failed: {:?}", e)))?;
+            .map_err(|e| GpuError::Execution(format!("Buffer mapping failed: {}", e)))?;
 
         let data = buffer_slice.get_mapped_range();
         let rgba_image = RgbaImage::from_raw(gpu_image.width, gpu_image.height, data.to_vec())
