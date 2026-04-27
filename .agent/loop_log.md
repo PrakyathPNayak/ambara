@@ -550,3 +550,64 @@ REVEALS:
   opportunity. Each path is ~25 lines. Queued.
 - The Ollama path uses `60` second timeout for a local server. Likely
   aggressive — local models on CPU can take longer. Queued for review.
+
+## Loop 20 — Pin paid-provider response-shape contract before refactor
+
+OBSERVE: Loop-19 reveal queued a DRY refactor of the three paid-provider
+paths (Anthropic / OpenAI / Groq). Loop 19's devil step warned: pin the
+response-extraction contract with tests BEFORE refactoring. Loop 18's
+retry tests cover the helper but not the per-provider shape extraction.
+Doing the refactor without these tests = unverifiable correctness.
+
+ORIENT: This is the gating-test loop for the planned refactor. Critical
+because:
+- Each provider has a unique response shape that the refactor must
+  preserve exactly.
+- Each provider has unique error semantics (missing key / 4xx / 5xx).
+- The Ollama path has special unreachable-wrap semantics.
+
+DECIDE: 18 unit tests across:
+- 4 backend-selection tests (pin auto-selection ordering)
+- 5 Anthropic tests (extract / system-split / 4xx / empty-content / missing-key)
+- 3 OpenAI tests (extract / 5xx / missing-key)
+- 3 Groq tests (extract / 4xx / missing-key)
+- 3 Ollama tests (extract / empty-content-warning / unreachable-wrap)
+
+Mock at the `_post_with_retry` boundary so we exercise only the
+shape-extraction layer, not the network or retry layer.
+
+DEVIL:
+- Correctness:
+  * caplog initially didn't capture the Ollama warning — pytest config
+    (or LOGGER pre-handler) prevented propagation. Switched to mocking
+    LOGGER.warning directly. Cleaner anyway: tests should pin the
+    LOGGER call, not the captured stderr.
+  * Backend-selection tests use clean_env fixture to avoid leaking
+    user's actual env keys (would silently flip backend=anthropic).
+  * Test_anthropic_separates_system_from_user_messages reaches into
+    `call_args.args[2]` which is the body argument. If a refactor
+    moves body to a kwarg this test breaks loud — desirable signal,
+    not a regression.
+- Scope: Why not also test prompt building? That's a separate layer
+  with its own tests (`prompt_builder.py`). Not in scope here.
+- Priority: This is the gate for loop-21's refactor. Higher priority
+  than the refactor itself precisely because it unblocks it.
+
+ACT:
+- New file chatbot/tests/test_llm_providers.py with 18 tests.
+- Adjusted Ollama warning test to mock LOGGER.warning directly.
+- Removed unused `os` import.
+- All 18 pass in 0.78s.
+- Suite: 298 tests (was 280); Python 138.
+
+REVEALS:
+- The auto-selection ordering (Anthropic > Groq > OpenAI > Ollama)
+  is now documented by tests. Any future provider addition should
+  insert with conscious priority.
+- `client.backend = "anthropic"; client.anthropic_key = None` is the
+  pattern for testing missing-key errors after construction. Hacky
+  but pragmatic — refactor target?
+- The Ollama unreachable-wrap (line 119-123 of llm_client.py)
+  catches RuntimeError from `_post_with_retry` and re-raises with
+  a different message. Pinned by `test_ollama_unreachable_wraps_*`.
+  Refactor must preserve this exact wrap.
