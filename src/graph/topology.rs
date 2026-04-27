@@ -258,6 +258,34 @@ mod tests {
     }
 
     #[test]
+    fn test_topological_sort_detects_injected_cycle() {
+        // The public `connect()` API provably rejects all cycles, so the
+        // CycleDetected branch in topological_sort can only be reached if
+        // a future refactor adds a non-validating mutator. Use the test-only
+        // `force_unchecked_connect` (cfg(test), pub(crate)) to inject a
+        // 2-node cycle and verify the safety net still fires.
+        use crate::core::error::GraphError;
+
+        let mut graph = ProcessingGraph::new();
+        let a = graph.add_node(create_test_node());
+        let b = graph.add_node(create_test_node());
+
+        // Forms A → B → A via the test backdoor.
+        graph.connect(a, "output", b, "input").unwrap();
+        graph.force_unchecked_connect(b, "output", a, "input");
+
+        let analyzer = TopologyAnalyzer::new(&graph);
+        match analyzer.topological_sort() {
+            Err(GraphError::CycleDetected { nodes }) => {
+                assert!(nodes.contains(&a), "cycle node set must include A");
+                assert!(nodes.contains(&b), "cycle node set must include B");
+            }
+            other => panic!("expected Err(CycleDetected), got {other:?}"),
+        }
+        assert!(analyzer.has_cycle(), "has_cycle must report true on injected cycle");
+    }
+
+    #[test]
     fn test_topological_sort_single_node_no_connections() {
         // Single isolated node: in-degree 0, must appear exactly once.
         let mut graph = ProcessingGraph::new();

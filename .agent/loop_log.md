@@ -421,3 +421,30 @@ ACT:
 
 REVEALS:
 - The `FilterNodeData` shape exposed to JS (camelCase via serde) is wide (8 fields); test coverage on its (de)serialization is currently driven only by the roundtrip test. A schema-version test (snapshot of one canonical filter node JSON) would catch silent field-rename breakage.
+
+## Loop 17 — ARCH: cover the unreachable cycle branch in topological_sort
+
+OBSERVE:
+- src/graph/topology.rs:67-75 cycle branch unreachable through public API (loop 11 reveal). `connect()` is the only mutator of `self.connections`; cycle check at line 292 rejects all cycles. Confirmed by re-reading.
+
+ORIENT: Two valid options — `unreachable!()` removes dead code but loses defensive value; test backdoor preserves the safety net AND lets it be tested. The latter has lower risk because `#[cfg(test)]` is fully gated out of release.
+
+DECIDE: Test backdoor (option 2). Add `#[cfg(test)] pub(crate) fn force_unchecked_connect` to structure.rs; add a cycle-injection test in topology.rs.
+
+DEVIL:
+- Correctness: `#[cfg(test)]` ensures the helper compiles only under `cargo test` — never ships in published artifacts. `pub(crate)` keeps it crate-internal. Verified by reading and by clippy --release implicit behavior.
+- Scope: One helper + one test. Cohesive within the loop's stake.
+- Priority: Closes loop-11's unreachable-branch reveal definitively. Higher leverage than `unreachable!()` because:
+    a) preserves the safety net for future maintainers,
+    b) gives us actual coverage on the branch.
+- Subtle: `force_unchecked_connect` skips port-existence and type checks too. That's correct for the cycle test (we just need a connection topology). Documented in the doc comment.
+
+ACT:
+- Added `force_unchecked_connect` (cfg(test), pub(crate)) to src/graph/structure.rs after `connect()`.
+- Added `test_topological_sort_detects_injected_cycle` to graph/topology.rs#tests, asserting `Err(CycleDetected)` with both node IDs and `has_cycle() == true`.
+- Workspace lib totals: 140 + 4 + 4 = 148 (was 147). README test count bumped to 158 Rust / 266 total.
+- clippy --all-targets --workspace clean.
+
+REVEALS:
+- The CycleDetected error includes a node list, but the cycle-check call site at structure.rs:294 sets it to `vec![from_node, to_node]` (just the offending edge endpoints). The topological_sort branch at topology.rs:68 sets it to all remaining-in-degree>0 nodes. Two different shapes for the same error variant — semantic drift documented for future review.
+- ui/src-tauri tests now run reliably under the workspace CI; cycle backdoor pattern could be reused to test other defensive branches if any exist.

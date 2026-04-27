@@ -313,6 +313,36 @@ impl ProcessingGraph {
         Ok(id)
     }
 
+    /// Test-only: append a connection without validating cycles, port
+    /// existence, or type compatibility. Exists so cycle-detection
+    /// safety nets in higher layers (e.g. `TopologyAnalyzer::topological_sort`'s
+    /// `Err(CycleDetected)` branch) can be exercised in tests; the public
+    /// `connect()` API provably rejects all cycles and is the only
+    /// non-test mutator of `self.connections`.
+    #[cfg(test)]
+    pub(crate) fn force_unchecked_connect(
+        &mut self,
+        from_node: NodeId,
+        from_port: impl Into<String>,
+        to_node: NodeId,
+        to_port: impl Into<String>,
+    ) -> ConnectionId {
+        let connection = Connection {
+            id: ConnectionId::new(),
+            from: Endpoint {
+                node_id: from_node,
+                port_name: from_port.into(),
+            },
+            to: Endpoint {
+                node_id: to_node,
+                port_name: to_port.into(),
+            },
+        };
+        let id = connection.id;
+        self.connections.push(connection);
+        id
+    }
+
     /// Remove a connection by ID.
     pub fn disconnect(&mut self, id: ConnectionId) -> GraphResult<Connection> {
         let pos = self
