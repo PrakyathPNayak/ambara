@@ -1289,3 +1289,28 @@ VERIFY:
   (main bin 7→8).
 
 NEXT: see .agent/next.md.
+
+## Loop 33 — Make Anthropic API version env-overridable
+
+**OBSERVE**
+- chatbot/generation/llm_client.py:400 hardcoded `"anthropic-version": "2023-06-01"`. That string is 2.5+ years old; if Anthropic deprecates it the chatbot breaks with no operator escape hatch short of a code change + redeploy.
+- Existing resolvers (`_resolve_anthropic_max_tokens`, `_resolve_ollama_timeout`) cover ints; no string-env helper exists. Existing tests in `chatbot/tests/test_llm_timeouts.py` are the right home.
+- Risk class: silent future break → priority-2 (missing error handling on critical paths) once it occurs. Pre-emptive fix converts it into a priority-7 ops knob.
+
+**ORIENT / DECIDE**
+- Single highest-leverage change: introduce `_resolve_str_env` + `_resolve_anthropic_version` resolvers and swap the call site. Pure addition, zero behavioral change for unset env, zero new failure modes.
+- Candidates considered: (1) version override (chosen — surgical, future-proofs against Anthropic deprecation); (2) retry-delay env overrides (deferred — needs `_resolve_positive_float_env` and careful handling of `_RETRY_DELAY_S`/`_RETRY_AFTER_MAX_S` test imports); (3) cache.rs `ResultCache::new(0)` regression test (lower impact, no production risk).
+
+**DEVIL'S ADVOCATE**
+- Correctness attack: blank/whitespace env var must not produce a blank `anthropic-version` header (Anthropic 400s blank headers). Rebuttal: `_resolve_str_env` strips and returns default on empty; covered by `test_anthropic_version_blank_falls_back`.
+- Scope attack: the real problem might be Anthropic's API surface broadly, not just the version header. Rebuttal: scope is intentionally narrow — version is the *only* deprecation-prone literal in the request shape; max_tokens and model are already env-driven; URL/method are part of the contract.
+- Priority attack: am I avoiding harder hardening (retry-delay env, cache TTL eviction)? Rebuttal: retry-delay needs a float helper + careful test-import surgery; cache TTL has no observed bug. This loop has higher impact-to-risk ratio.
+
+**ACT**
+- `chatbot/generation/llm_client.py`: added `_resolve_str_env` (string-env helper with default-on-blank) and `_resolve_anthropic_version` (wraps `ANTHROPIC_VERSION` env over `_ANTHROPIC_DEFAULT_VERSION="2023-06-01"`); replaced literal at line 400.
+- `chatbot/tests/test_llm_timeouts.py`: imported new resolvers + constant; added 6 tests — `_resolve_str_env` default/blank/trim, `_resolve_anthropic_version` default-pin/override/blank-fallback.
+- README.md: 331 tests → 337 (167 Python).
+
+**COMMIT**
+- Python: 161 → 167 (+6). Rust: 168 (unchanged). Total: 331 → 337.
+- All chatbot tests green (167 passed in 158.53s). Full Rust workspace still green.

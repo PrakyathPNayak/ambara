@@ -22,6 +22,7 @@ _RETRY_AFTER_MAX_S = 30.0
 _PAID_PROVIDER_TIMEOUT_S = 60
 _OLLAMA_DEFAULT_TIMEOUT_S = 180
 _ANTHROPIC_DEFAULT_MAX_TOKENS = 4096
+_ANTHROPIC_DEFAULT_VERSION = "2023-06-01"
 
 
 def _resolve_int_env(
@@ -75,6 +76,30 @@ def _resolve_int_env(
     return value
 
 
+def _resolve_str_env(var_name: str, default: str) -> str:
+    """Read a string environment variable with a sane fallback.
+
+    Used for env-driven knobs where the value is a free-form string
+    (for example an API version header). Missing or whitespace-only
+    inputs fall back to ``default``.
+
+    Args:
+        var_name: Name of the environment variable to read.
+        default: Fallback value applied when the variable is unset
+            or stripped to empty. Must be a non-empty string for the
+            return-value contract to hold.
+
+    Returns:
+        The trimmed environment value, or ``default`` when validation
+        fails. The returned string is always non-empty as long as
+        ``default`` is non-empty.
+    """
+    raw = os.getenv(var_name, "").strip()
+    if not raw:
+        return default
+    return raw
+
+
 def _resolve_positive_int_env(var_name: str, default: int, *, unit: str = "") -> int:
     """Resolve a strictly-positive integer env var.
 
@@ -117,6 +142,24 @@ def _resolve_anthropic_max_tokens() -> int:
     return _resolve_positive_int_env(
         "ANTHROPIC_MAX_TOKENS", _ANTHROPIC_DEFAULT_MAX_TOKENS,
     )
+
+
+def _resolve_anthropic_version() -> str:
+    """Resolve the ``anthropic-version`` request header value.
+
+    Anthropic pins behavior to an API version sent on every request.
+    The default ``"2023-06-01"`` matches the version this client was
+    written against. Operators can override it via the
+    ``ANTHROPIC_VERSION`` env var when Anthropic ships a newer
+    version they want to opt into without a code change. Whitespace-
+    only or unset values fall back to the default; the returned
+    string is always non-empty so the request header is never sent
+    blank (which Anthropic rejects with 400).
+
+    Returns:
+        Non-empty version string.
+    """
+    return _resolve_str_env("ANTHROPIC_VERSION", _ANTHROPIC_DEFAULT_VERSION)
 
 
 def _resolve_max_retries() -> int:
@@ -397,7 +440,7 @@ class LLMClient:
         url = "https://api.anthropic.com/v1/messages"
         headers = {
             "x-api-key": self.anthropic_key,
-            "anthropic-version": "2023-06-01",
+            "anthropic-version": _resolve_anthropic_version(),
             "content-type": "application/json",
         }
         messages = [m for m in prompt.get("messages", []) if m.get("role") != "system"]

@@ -14,11 +14,14 @@ from unittest.mock import patch
 from chatbot.generation import llm_client
 from chatbot.generation.llm_client import (
     _ANTHROPIC_DEFAULT_MAX_TOKENS,
+    _ANTHROPIC_DEFAULT_VERSION,
     _OLLAMA_DEFAULT_TIMEOUT_S,
     _PAID_PROVIDER_TIMEOUT_S,
     _resolve_anthropic_max_tokens,
+    _resolve_anthropic_version,
     _resolve_ollama_timeout,
     _resolve_positive_int_env,
+    _resolve_str_env,
 )
 
 
@@ -146,3 +149,40 @@ def test_anthropic_max_tokens_rejects_garbage(monkeypatch) -> None:
     with patch.object(llm_client.LOGGER, "warning"):
         assert _resolve_anthropic_max_tokens() == _ANTHROPIC_DEFAULT_MAX_TOKENS
 
+
+
+# ── _resolve_str_env / _resolve_anthropic_version ────────────────────────────
+
+
+def test_str_resolver_default_when_unset(monkeypatch) -> None:
+    monkeypatch.delenv("AMBARA_TEST_STR_KNOB", raising=False)
+    assert _resolve_str_env("AMBARA_TEST_STR_KNOB", "fallback") == "fallback"
+
+
+def test_str_resolver_default_when_blank(monkeypatch) -> None:
+    monkeypatch.setenv("AMBARA_TEST_STR_KNOB", "   ")
+    assert _resolve_str_env("AMBARA_TEST_STR_KNOB", "fallback") == "fallback"
+
+
+def test_str_resolver_trims_and_returns_value(monkeypatch) -> None:
+    monkeypatch.setenv("AMBARA_TEST_STR_KNOB", "  hello-world  ")
+    assert _resolve_str_env("AMBARA_TEST_STR_KNOB", "fallback") == "hello-world"
+
+
+def test_anthropic_version_default(monkeypatch) -> None:
+    # Pin both the historical default and the resolver's fallback path.
+    monkeypatch.delenv("ANTHROPIC_VERSION", raising=False)
+    assert _resolve_anthropic_version() == _ANTHROPIC_DEFAULT_VERSION
+    assert _ANTHROPIC_DEFAULT_VERSION == "2023-06-01"  # pin historical default
+
+
+def test_anthropic_version_honors_override(monkeypatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_VERSION", "2024-12-01")
+    assert _resolve_anthropic_version() == "2024-12-01"
+
+
+def test_anthropic_version_blank_falls_back(monkeypatch) -> None:
+    # Anthropic rejects requests with a blank/missing anthropic-version
+    # header (HTTP 400). Make sure misconfiguration cannot send one.
+    monkeypatch.setenv("ANTHROPIC_VERSION", "   ")
+    assert _resolve_anthropic_version() == _ANTHROPIC_DEFAULT_VERSION
