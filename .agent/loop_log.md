@@ -305,3 +305,33 @@ ACT: Inserted badge line in README.md right under the H1.
 
 REVEALS:
 - Stale test-count claim in README features list ("250 tests / 144 Rust"). Audit counts across `cargo test` (lib + doc + integration + workspace), `cd ui && npm test`, and `pytest chatbot/tests` for the next docs loop.
+
+## Loop 13 — Extend Rust CI to cover ui/src-tauri workspace member
+
+OBSERVE:
+- Initial DECIDE was can_execute() empty-graph semantics.
+- Devil step: grep showed zero production callers of can_execute() — only internal tests reference it. Fixing semantics on unused infrastructure is low leverage. REPRIORITIZED to ui/src-tauri CI gating.
+- CI step in tests.yml line 28/34 runs `cargo test --lib` and `cargo clippy --all-targets` without `--workspace`. Workspace members `plugins/comfyui_bridge` and `ui/src-tauri` (the desktop binary that ships to users) had zero CI coverage. A clippy regression or test failure in the tauri bin would slip through.
+
+ORIENT:
+- Local verification: `cargo clippy --all-targets --workspace -- -D warnings` clean; `cargo test --workspace --lib` 139 main + 0 plugins + 0 tauri. Workspace expansion is currently safe.
+- Tauri requires Linux system deps (libwebkit2gtk-4.1-dev et al.) to compile. CI runner needs them installed before clippy.
+
+DECIDE:
+- Add `--workspace` to clippy and test commands.
+- Add an `apt-get install` step for tauri system deps before the cargo steps.
+- Keep `cargo test --doc` as-is (workspace flag rarely matters for doc tests in this layout).
+- Rejected: keeping CI scoped to main crate only (current behavior — leaves real bug surface uncovered).
+- Rejected: separate tauri-only job (over-engineered for one binary that uses the same toolchain).
+
+DEVIL:
+- Correctness: Tauri v2 system-dep list cross-checked against tauri docs (libwebkit2gtk-4.1-dev is right for ubuntu-latest=24.04). yaml validated.
+- Scope: Three coupled changes in one yaml file — all part of the same "extend rust CI to cover ui/src-tauri" stake. Cohesive.
+- Priority: Initial pick was can_execute(); reprioritized after devil revealed it has no production callers. This change closes a real coverage hole on the binary that ships to users. Higher impact.
+- Subtle: CI runtime increases (~30-60s for apt + extra compile). Acceptable cost for the coverage.
+
+ACT: Edited `.github/workflows/tests.yml` rust job to install tauri deps, then `cargo test --workspace --lib` and `cargo clippy --all-targets --workspace -- -D warnings`. yaml lint passes.
+
+REVEALS:
+- `plugins/comfyui_bridge` and `ui/src-tauri` have zero tests today. Once CI gates them, adding even one smoke test per member would ratchet quality. Queued.
+- can_execute() has zero production callers (deferred from this loop's initial pick). Either delete the method or wire it into a real call path. Queued.
