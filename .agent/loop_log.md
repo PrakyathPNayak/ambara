@@ -74,3 +74,28 @@ REVEALS:
 - `chatbot/generation/graph_generator_legacy.py` still suspected dead code.
 - No CI test workflow yet; warnings + tests are not gated on PRs.
 - `ValidationReport::can_execute()` returns `success`, which is true for empty graphs. That semantic might be wrong (you cannot execute a graph with no nodes), but is the documented contract today.
+
+## Loop 4 — Strengthen `test_parallel_batches`
+
+OBSERVE: Rust 134/134 + UI 2/2 + chatbot 106/106 (last verified Loop 2). Cargo test compile warnings: `ImageDataRef` unused, `c`/`d` unused in `topology.rs:253-254`. The `c`/`d` warning was a tell: those vars were created in `test_parallel_batches` but never wired into the graph. The test only ran a single A→B connection and then asserted `!batches.is_empty()` — vacuously true unless `parallel_batches` panics. The test name promises something it does not deliver.
+
+ORIENT: This is priority-3 territory: `parallel_batches` is the algorithm that drives parallel execution scheduling, and its only test verifies essentially nothing. A regression in the depth grouping (e.g. miscounting source nodes, miscomputing depth for diamond/fan-out) would silently pass.
+
+DECIDE candidates:
+  1. Fan-out + isolated source: `A→B, A→C, D` standalone → batches `{A,D}`, `{B,C}`. Tests fan-out parallelism AND that isolated source/leaf nodes get depth 0. (Chosen.)
+  2. Two parallel chains: `A→B, C→D` → batches `{A,C}`, `{B,D}`. Tests parallelism but not fan-out.
+  3. Just remove unused vars, keep weak assertion. Doesn't add coverage.
+Picked (1): the fan-out branch in `connect()` (one output to many inputs) was untested, and isolated nodes exercise the `connections_to(node).next().is_none() → depth 0` source-detection branch. PassthroughNode has only one input port (`PortType::Any`), confirmed in `core/node.rs:453`, so a true diamond merge isn't expressible — the test comment that misled the original author is now corrected.
+
+DEVIL'S ADVOCATE:
+- Correctness: Walked through `parallel_batches` (`topology.rs:84-120`). Source detection at line 99 uses `connections_to(node).next().is_none()`, which is true for both A and D in the new graph. depth(A)=0, depth(D)=0, depth(B)=max_parent_depth(A)+1=1, depth(C)=1. Batches grouped by depth, empty buckets retained then dropped by the `retain` filter. Expected exactly `[{A,D}, {B,C}]`. Cargo test pass confirms.
+- Scope: Symptom was unused vars; root cause was a placeholder test pretending to cover parallel-batch logic. Fix addresses cause, not symptom.
+- Priority: Could there be a real bug in `parallel_batches`? Read again — looks correct. But the test now actively defends it. Considered going deeper to audit `topological_sort` cycle behavior; that test (`test_topological_sort`) is already strong (asserts ordering of pos1<pos2<pos3). Single-loop scope respected.
+
+ACT: Replaced `test_parallel_batches` with the fan-out + isolated source pattern, used `c`/`d`, and asserted exact batch composition (size + membership). `cargo test --lib graph::topology` → 4/4. Full lib test → 134/134. UI vitest → 2/2. Warnings 3 → 1 (only `ImageDataRef` unused-import remains).
+
+REVEALS:
+- `core/batch.rs:162` `ImageDataRef` unused-import — last remaining warning, queued.
+- `topological_sort` has no test for the empty graph or for graphs with cycles being rejected — possible follow-up.
+- No test workflow on PRs; tests-as-PR-gates is queued.
+- `chatbot/generation/graph_generator_legacy.py` may be dead code.
