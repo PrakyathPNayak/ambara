@@ -468,7 +468,9 @@ fn validate_serialized_graph(graph: &SerializedGraph, registry: &FilterRegistry)
     let mut node_ids = std::collections::HashSet::new();
 
     for node in &graph.nodes {
-        node_ids.insert(node.id);
+        if !node_ids.insert(node.id) {
+            errors.push(format!("Duplicate node id: {}", node.id));
+        }
         if !registry.contains(&node.filter_id) {
             errors.push(format!("Unknown filter id: {}", node.filter_id));
         }
@@ -649,5 +651,42 @@ mod tests {
     #[test]
     fn parse_serialized_graph_rejects_invalid_json() {
         assert!(parse_serialized_graph("not json").is_err());
+    }
+
+    #[test]
+    fn validate_serialized_graph_flags_duplicate_node_ids() {
+        use ambara::graph::serialization::SerializedNode;
+        use ambara::graph::Position;
+
+        let registry = FilterRegistry::with_builtins();
+        let dup_id = NodeId::new();
+        let graph = SerializedGraph {
+            version: "1.0.0".to_string(),
+            metadata: ambara::graph::structure::GraphMetadata::default(),
+            nodes: vec![
+                SerializedNode {
+                    id: dup_id,
+                    filter_id: "load_image".to_string(),
+                    position: Position::default(),
+                    parameters: HashMap::new(),
+                    label: None,
+                    disabled: false,
+                },
+                SerializedNode {
+                    id: dup_id,
+                    filter_id: "load_image".to_string(),
+                    position: Position::default(),
+                    parameters: HashMap::new(),
+                    label: None,
+                    disabled: false,
+                },
+            ],
+            connections: vec![],
+        };
+        let errors = validate_serialized_graph(&graph, &registry);
+        assert!(
+            errors.iter().any(|e| e.starts_with("Duplicate node id:")),
+            "expected duplicate-id error, got {errors:?}"
+        );
     }
 }

@@ -927,3 +927,55 @@ VERIFY:
   8 doc = 162 Rust tests, all green.
 
 NEXT: see .agent/next.md.
+
+## Loop 26 — Detect duplicate node IDs in serialized-graph validation
+**Status**: COMMITTED
+
+OBSERVE: Per loop-25 next.md, audited remaining `serde_json::Value`
+IndexMut sites — filters/builtin/api.rs:622 and plugins/loader.rs:210
+are both safe by construction (the target Value is built from
+`json!({})` literally). Then audited `validate_serialized_graph` and
+`execute_serialized_graph` in main.rs and found a silent correctness
+bug.
+
+ORIENT: `validate_serialized_graph` collects node ids into a HashSet
+without checking the boolean returned by `insert`. A serialized graph
+with duplicate node ids therefore passes validation. Then in
+`execute_serialized_graph`, `node_map.insert(node.id, new_id)` for the
+second occurrence overwrites the first, so any connection referencing
+that id silently routes to whichever duplicate was inserted last; the
+first is orphaned. This is a priority-3 silent semantic corruption on
+hand-edited or maliciously crafted graph files.
+
+DECIDE: Detect duplicate ids inline by checking the bool from
+`HashSet::insert` and emitting "Duplicate node id: {id}". The CLI bails
+on any validation error, so the rerouting can never reach
+`execute_serialized_graph`.
+
+DEVIL:
+1. Correctness — does emitting the error early break valid duplicate
+   *connection* edges? No. The check is on `node.id`, not on
+   connection endpoints. Multiple connections with the same endpoints
+   are still allowed (graph::ProcessingGraph::connect dedupes if it
+   matters).
+2. Scope — could the bug also live in the Tauri import path
+   (ui/src-tauri/src/lib.rs `import_graph_json`)? That path returns the
+   raw GraphState to the frontend, which is a different shape and not
+   handed to the executor without a separate add_node round-trip in
+   `apply_graph_state`. Out of scope for this loop. Captured for next.md.
+3. Priority — fixing CLI is correct: it's the path that goes directly
+   into `execute_serialized_graph`. The Tauri path requires its own
+   audit later.
+
+ACT:
+- src/main.rs:466-487 — replace `node_ids.insert(node.id);` with
+  `if !node_ids.insert(node.id) { errors.push("Duplicate node id: ...") }`.
+- src/main.rs tests — add `validate_serialized_graph_flags_duplicate_node_ids`
+  using two SerializedNode entries with the same `NodeId`.
+- README.md — test count 325→326, Rust 162→163.
+
+VERIFY:
+- cargo test --bin ambara: 7 tests, all green (was 6, +1 new).
+- cargo test --workspace: 163 Rust tests, all green.
+
+NEXT: see .agent/next.md.
