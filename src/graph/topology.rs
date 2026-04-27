@@ -244,6 +244,51 @@ mod tests {
     }
 
     #[test]
+    fn test_topological_sort_empty_graph() {
+        // Empty graph contract: topological_sort returns Ok([]), and the
+        // derived has_cycle() must report false (no cycles in nothing).
+        let graph = ProcessingGraph::new();
+        let analyzer = TopologyAnalyzer::new(&graph);
+
+        let sorted = analyzer
+            .topological_sort()
+            .expect("empty graph must topologically sort to Ok");
+        assert!(sorted.is_empty(), "empty graph sort must be empty: {sorted:?}");
+        assert!(!analyzer.has_cycle(), "empty graph must not report a cycle");
+    }
+
+    #[test]
+    fn test_topological_sort_single_node_no_connections() {
+        // Single isolated node: in-degree 0, must appear exactly once.
+        let mut graph = ProcessingGraph::new();
+        let only = graph.add_node(create_test_node());
+
+        let analyzer = TopologyAnalyzer::new(&graph);
+        let sorted = analyzer.topological_sort().unwrap();
+
+        assert_eq!(sorted, vec![only]);
+        assert!(!analyzer.has_cycle());
+    }
+
+    #[test]
+    fn test_topological_sort_disconnected_nodes() {
+        // Two nodes with no edges between them: both must appear exactly
+        // once. Order is not specified, so assert membership and length.
+        let mut graph = ProcessingGraph::new();
+        let a = graph.add_node(create_test_node());
+        let b = graph.add_node(create_test_node());
+
+        let analyzer = TopologyAnalyzer::new(&graph);
+        let sorted = analyzer.topological_sort().unwrap();
+
+        assert_eq!(sorted.len(), 2, "disconnected pair must yield exactly 2 entries: {sorted:?}");
+        let set: HashSet<NodeId> = sorted.into_iter().collect();
+        assert!(set.contains(&a));
+        assert!(set.contains(&b));
+        assert!(!analyzer.has_cycle());
+    }
+
+    #[test]
     fn test_parallel_batches() {
         let mut graph = ProcessingGraph::new();
 

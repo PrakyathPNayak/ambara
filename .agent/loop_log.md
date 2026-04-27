@@ -259,3 +259,31 @@ ACT:
 REVEALS:
 - Missing git tags v0.7.1/0.8.0/0.9.0 — queued as release-process item for maintainer.
 - README v0.9.0 reference (line ~309 region) now consistent with manifests.
+
+## Loop 11 — topological_sort contract tests
+
+OBSERVE:
+- `topological_sort` (Kahn's, src/graph/topology.rs:26-78) had only one test (`test_topological_sort` chain A→B→C). Empty/single/disconnected cases unverified.
+- Cycle branch (line 74) is unreachable through public API: `connect()` rejects all cycles via `would_create_cycle` (loop 8 confirmed). No way to inject a cycle without a test backdoor.
+
+ORIENT:
+- Three reachable contract gaps: empty Ok([]), single node [n], disconnected pair {A,B}.
+- Cycle branch coverage requires either (a) a `pub(crate)` test backdoor in structure.rs that bypasses cycle check, or (b) marking the branch dead. Both are larger architectural decisions; queued.
+
+DECIDE:
+- Three reachable empty/single/disconnected tests. ← chosen
+- Backdoor for cycle test. Rejected: increases prod surface for a defensive branch.
+- Replace branch with unreachable!(). Rejected: requires proving no future caller can desync `node_count` from connections; not safe today.
+
+DEVIL:
+- Correctness: HashMap iteration in Kahn's makes Vec order non-deterministic for disconnected graphs. Used HashSet+contains for the disconnected case; equality only where order is fixed (single node). Empty case asserts is_empty() not equality with vec![].
+- Scope: Doesn't close cycle-branch gap, but explicitly logs why and queues it as architectural. Not papering over.
+- Priority: Could this loop have done the cycle backdoor? Yes, but that's a real architectural change deserving its own loop and devil step. Splitting is correct.
+
+ACT:
+- Added `test_topological_sort_empty_graph`, `test_topological_sort_single_node_no_connections`, `test_topological_sort_disconnected_nodes` to src/graph/topology.rs#tests.
+- All three pass; full suite 139/139 (was 136); clippy clean.
+
+REVEALS:
+- The cycle-detection branch in `topological_sort` is currently unreachable through the public API. Either the branch is genuinely dead (and could be `unreachable!()` with a safety comment) or it's defensive against a future bypass. Decide architecturally next loop or queue.
+- `has_cycle()` is also untestable for the `true` case for the same reason.
